@@ -1,0 +1,14 @@
+MODULE    = desk.cpl
+IMPORTS   = comctl32 shlwapi user32 advapi32
+DELAYIMPORTS = ole32
+
+C_SRCS = \
+	desk.c
+
+RC_SRCS = desk.rc
+PO_SRCS = desk.rc
+
+SVG_SRCS = \
+	desk.svg
+
+@MAKE_DLL_RULES@

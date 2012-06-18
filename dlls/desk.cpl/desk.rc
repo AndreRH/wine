@@ -1,0 +1,135 @@
+/*
+ * Display control panel applet
+ *
+ * Copyright 2002 Jaco Greeff
+ * Copyright 2003 Dimitrie O. Paun
+ * Copyright 2012 Magdalena Nowak
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
+ *
+ */
+
+#include "desk.h"
+
+LANGUAGE LANG_ENGLISH, SUBLANG_DEFAULT
+
+STRINGTABLE
+BEGIN
+    IDS_CPL_NAME        "Display Properties"
+    IDS_CPL_INFO        "Change Wine display settings"
+    IDS_TAB_APPEARANCE  "Appearance"
+    IDS_TAB_SETTINGS    "Settings"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_NOTHEME             "(No Theme)"
+    IDS_THEMEFILE           "Theme files (*.msstyles; *.theme)"
+    IDS_THEMEFILE_SELECT    "Select a theme file"
+
+END
+
+STRINGTABLE
+BEGIN
+    IDC_SYSPARAMS_BUTTON            "Controls Background"
+    IDC_SYSPARAMS_BUTTON_TEXT       "Controls Text"
+    IDC_SYSPARAMS_DESKTOP           "#msgctxt#display name#Desktop"
+    IDC_SYSPARAMS_MENU              "Menu Background"
+    IDC_SYSPARAMS_MENU_TEXT         "Menu Text"
+    IDC_SYSPARAMS_SCROLLBAR         "Scrollbar"
+    IDC_SYSPARAMS_SELECTION         "Selection Background"
+    IDC_SYSPARAMS_SELECTION_TEXT    "Selection Text"
+    IDC_SYSPARAMS_TOOLTIP           "ToolTip Background"
+    IDC_SYSPARAMS_TOOLTIP_TEXT      "ToolTip Text"
+    IDC_SYSPARAMS_WINDOW            "Window Background"
+    IDC_SYSPARAMS_WINDOW_TEXT       "Window Text"
+    IDC_SYSPARAMS_ACTIVE_TITLE      "Active Title Bar"
+    IDC_SYSPARAMS_ACTIVE_TITLE_TEXT "Active Title Text"
+    IDC_SYSPARAMS_INACTIVE_TITLE    "Inactive Title Bar"
+    IDC_SYSPARAMS_INACTIVE_TITLE_TEXT "Inactive Title Text"
+    IDC_SYSPARAMS_MSGBOX_TEXT       "Message Box Text"
+    IDC_SYSPARAMS_APPWORKSPACE      "Application Workspace"
+    IDC_SYSPARAMS_WINDOW_FRAME      "Window Frame"
+    IDC_SYSPARAMS_ACTIVE_BORDER     "Active Border"
+    IDC_SYSPARAMS_INACTIVE_BORDER   "Inactive Border"
+    IDC_SYSPARAMS_BUTTON_SHADOW     "Controls Shadow"
+    IDC_SYSPARAMS_GRAY_TEXT         "Gray Text"
+    IDC_SYSPARAMS_BUTTON_HILIGHT    "Controls Highlight"
+    IDC_SYSPARAMS_BUTTON_DARK_SHADOW "Controls Dark Shadow"
+    IDC_SYSPARAMS_BUTTON_LIGHT      "Controls Light"
+    IDC_SYSPARAMS_BUTTON_ALTERNATE  "Controls Alternate Background"
+    IDC_SYSPARAMS_HOT_TRACKING      "Hot Tracked Item"
+    IDC_SYSPARAMS_ACTIVE_TITLE_GRADIENT "Active Title Bar Gradient"
+    IDC_SYSPARAMS_INACTIVE_TITLE_GRADIENT "Inactive Title Bar Gradient"
+    IDC_SYSPARAMS_MENU_HILIGHT      "Menu Highlight"
+    IDC_SYSPARAMS_MENUBAR           "Menu Bar"
+END
+
+
+/* "Appearance" propsheet */
+IDD_APPEARANCE DIALOG  0, 0, 260, 220
+STYLE WS_CAPTION | WS_CHILD | WS_DISABLED
+FONT 8, "MS Shell Dlg"
+BEGIN
+
+    LTEXT           "&Theme:",IDC_STATIC,15,16,130,8
+    COMBOBOX        IDC_THEME_THEMECOMBO,15,26,130,14,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Install theme...",IDC_THEME_INSTALL,152,26,93,14
+    LTEXT           "&Color:",IDC_THEME_COLORTEXT,15,48,112,8
+    COMBOBOX        IDC_THEME_COLORCOMBO,15,58,112,14,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "&Size:",IDC_THEME_SIZETEXT,135,48,110,8
+    COMBOBOX        IDC_THEME_SIZECOMBO,135,58,110,14,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "It&em:",IDC_STATIC,15,80,112,8
+    COMBOBOX        IDC_SYSPARAM_COMBO,15,90,112,120,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP | CBS_SORT
+    LTEXT           "C&olor:",IDC_SYSPARAM_COLOR_TEXT,133,80,25,8,WS_DISABLED
+    PUSHBUTTON      "",IDC_SYSPARAM_COLOR,133,90,25,13,WS_DISABLED | BS_OWNERDRAW
+    LTEXT           "Si&ze:",IDC_SYSPARAM_SIZE_TEXT,164,80,30,8,WS_DISABLED
+    EDITTEXT        IDC_SYSPARAM_SIZE,164,90,23,13,ES_AUTOHSCROLL | WS_TABSTOP | WS_DISABLED
+    CONTROL         "",IDC_SYSPARAM_SIZE_UD,UPDOWN_CLASSA,UDS_SETBUDDYINT | WS_DISABLED,185,90,15,13
+    PUSHBUTTON      "&Font...",IDC_SYSPARAM_FONT,200,90,45,13,WS_DISABLED
+
+END
+
+/* "Settings" propsheet */
+IDD_SETTINGS DIALOG  0, 0, 260, 220
+STYLE WS_CAPTION | WS_CHILD | WS_DISABLED
+FONT 8, "MS Shell Dlg"
+BEGIN
+
+    GROUPBOX    "Window settings",IDC_STATIC,8,4,244,84
+    CONTROL     "Automatically capture the &mouse in full-screen windows",IDC_FULLSCREEN_GRAB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,20,230,8
+    CONTROL     "Allow the window manager to &decorate the windows",IDC_ENABLE_DECORATED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,32,230,8
+    CONTROL     "Allow the &window manager to control the windows",IDC_ENABLE_MANAGED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,44,230,8
+    CONTROL     "&Emulate a virtual desktop",IDC_ENABLE_DESKTOP,"Button",
+                BS_AUTOCHECKBOX | WS_TABSTOP,15,56,230,8
+    LTEXT       "Desktop &size:",IDC_DESKTOP_SIZE,15,70,64,16,WS_DISABLED
+    LTEXT       "#msgctxt#do not translate#X",IDC_DESKTOP_BY,129,70,8,8,WS_DISABLED
+    EDITTEXT    IDC_DESKTOP_WIDTH,84,68,40,12,ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED
+    EDITTEXT    IDC_DESKTOP_HEIGHT,137,68,40,12,ES_AUTOHSCROLL | ES_NUMBER | WS_DISABLED
+
+    GROUPBOX    "Screen resolution",IDC_STATIC,8,95,244,84
+    CONTROL     "", IDC_RES_TRACKBAR, "msctls_trackbar32",WS_TABSTOP,12,105,171,15
+    EDITTEXT    IDC_RES_DPIEDIT,188,105,23,13,ES_NUMBER|WS_TABSTOP
+    LTEXT       "#msgctxt#unit: dots/inch#dpi",IDC_STATIC,215,107,30,8
+    LTEXT       "This is a sample text using 10 point Tahoma",IDC_RES_FONT_PREVIEW,15,124,230,49
+
+END
+
+
+
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+ 
+/* @makedep: desk.ico */
+ICO_MAIN ICON "desk.ico"
