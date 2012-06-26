@@ -15036,6 +15036,7 @@ wine_fn_config_dll ddraw enable_ddraw implib
 wine_fn_config_test dlls/ddraw/tests ddraw_test
 wine_fn_config_dll ddrawex enable_ddrawex
 wine_fn_config_test dlls/ddrawex/tests ddrawex_test
+wine_fn_config_dll desk.cpl enable_desk_cpl
 wine_fn_config_dll devenum enable_devenum po
 wine_fn_config_test dlls/devenum/tests devenum_test
 wine_fn_config_dll dhcpcsvc enable_dhcpcsvc
