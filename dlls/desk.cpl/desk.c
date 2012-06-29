@@ -5,6 +5,7 @@
  * Copyright 2003 Dimitrie O. Paun
  * Copyright 2003 Mark Westcott
  * Copyright 2003-2004 Mike Hearn
+ * Copyright 2004 Chris Morgan 
  * Copyright 2005 Raphael Junqueira
  * Copyright (c) 2005 by Frank Richter
  * Copyright (c) 2006 by Michael Jung
@@ -49,10 +50,46 @@
 #include <winreg.h>
 #include <stdio.h>
 
+#define WIN32_LEAN_AND_MEAN
 
+#include <stdlib.h>
+
+#include <windows.h>
+#include <wine/debug.h>
+
+#define RES_MAXLEN 5 /* max number of digits in a screen dimension. 5 digits should be plenty */
+#define MINDPI 96
+#define MAXDPI 480
+#define DEFDPI 96
+
+#include <shlobj.h>
+#include <shlwapi.h>
+
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_DIRECT_H
+#include <direct.h>
+#endif
+
+#define COBJMACROS
+
+#include <commdlg.h>
+#include <shellapi.h>
+#include <uxtheme.h>
+#include <tmschema.h>
+
+
+#define IDT_DPIEDIT 0x1234
 #include "wine/debug.h"
 
 #include "desk.h"
+
+#define WINE_KEY_ROOT "Software\\Wine"
+
 
 WINE_DEFAULT_DEBUG_CHANNEL(deskcpl);
 
@@ -92,6 +129,19 @@ static inline WCHAR *strdupW(const WCHAR *s)
     return lstrcpyW(r, s);
 }
 
+/* create a unicode string from a string in Unix locale */
+static inline WCHAR *strdupU2W(const char *unix_str)
+{
+    WCHAR *unicode_str;
+    int lenW;
+
+    lenW = MultiByteToWideChar(CP_UNIXCP, 0, unix_str, -1, NULL, 0);
+    unicode_str = HeapAlloc(GetProcessHeap(), 0, lenW * sizeof(WCHAR));
+    if (unicode_str)
+        MultiByteToWideChar(CP_UNIXCP, 0, unix_str, -1, unicode_str, lenW);
+    return unicode_str;
+}
+
 static inline char *get_text(HWND dialog, WORD id)
 {
     HWND item = GetDlgItem(dialog, id);
@@ -125,9 +175,6 @@ static inline void set_textW(HWND dialog, WORD id, const WCHAR *text)
 /********************************************* from winecfg.c ****************************************************/
 
 HKEY config_key = NULL;
-
-
-
 
 
 /**
@@ -277,6 +324,25 @@ static void free_setting(struct setting *setting)
 
     HeapFree(GetProcessHeap(), 0, setting);
 }
+
+
+
+int initialize(HINSTANCE hInstance)
+{
+    DWORD res = RegCreateKeyA(HKEY_CURRENT_USER, WINE_KEY_ROOT, &config_key);
+
+    if (res != ERROR_SUCCESS) {
+	WINE_ERR("RegOpenKey failed on wine config key (%d)\n", res);
+	return 1;
+    }
+
+    /* we could probably just have the list as static data  */
+    settings = HeapAlloc(GetProcessHeap(), 0, sizeof(struct list));
+    list_init(settings);
+
+    return 0;
+}
+
 
 
 /**
@@ -658,24 +724,72 @@ WCHAR *keypathW(const WCHAR *section)
     return result;
 }
 
+/********************************************* from driveui.c *****************************************************/
+
+BOOL browse_for_unix_folder(HWND dialog, WCHAR *pszPath)
+{
+    static WCHAR wszUnixRootDisplayName[] = 
+        { ':',':','{','C','C','7','0','2','E','B','2','-','7','D','C','5','-','1','1','D','9','-',
+          'C','6','8','7','-','0','0','0','4','2','3','8','A','0','1','C','D','}', 0 };
+    WCHAR pszChoosePath[FILENAME_MAX];
+    BROWSEINFOW bi = {
+        dialog,
+        NULL,
+        NULL,
+        pszChoosePath,
+        0,
+        NULL,
+        0,
+        0
+    };
+    IShellFolder *pDesktop;
+    LPITEMIDLIST pidlUnixRoot, pidlSelectedPath;
+    HRESULT hr;
+
+    LoadStringW(GetModuleHandleW(NULL), IDS_CHOOSE_PATH, pszChoosePath, FILENAME_MAX);
+
+    hr = SHGetDesktopFolder(&pDesktop);
+    if (FAILED(hr)) return FALSE;
+
+    hr = IShellFolder_ParseDisplayName(pDesktop, NULL, NULL, wszUnixRootDisplayName, NULL, 
+                                       &pidlUnixRoot, NULL);
+    if (FAILED(hr)) {
+        IShellFolder_Release(pDesktop);
+        return FALSE;
+    }
+
+    bi.pidlRoot = pidlUnixRoot;
+    pidlSelectedPath = SHBrowseForFolderW(&bi);
+    SHFree(pidlUnixRoot);
+    
+    if (pidlSelectedPath) {
+        STRRET strSelectedPath;
+        WCHAR *pszSelectedPath;
+        HRESULT hr;
+        
+        hr = IShellFolder_GetDisplayNameOf(pDesktop, pidlSelectedPath, SHGDN_FORPARSING, 
+                                           &strSelectedPath);
+        IShellFolder_Release(pDesktop);
+        if (FAILED(hr)) {
+            SHFree(pidlSelectedPath);
+            return FALSE;
+        }
+
+        hr = StrRetToStrW(&strSelectedPath, pidlSelectedPath, &pszSelectedPath);
+        SHFree(pidlSelectedPath);
+        if (FAILED(hr)) return FALSE;
+
+        lstrcpyW(pszPath, pszSelectedPath);
+        
+        CoTaskMemFree(pszSelectedPath);
+        return TRUE;
+    }
+    return FALSE;
+}
+
 /******************************************** from x11drvdlg.c ****************************************************/
 
-#define WIN32_LEAN_AND_MEAN
 
-#include <stdarg.h>
-#include <stdlib.h>
-#include <stdio.h>
-
-#include <windows.h>
-#include <wine/unicode.h>
-#include <wine/debug.h>
-
-#define RES_MAXLEN 5 /* max number of digits in a screen dimension. 5 digits should be plenty */
-#define MINDPI 96
-#define MAXDPI 480
-#define DEFDPI 96
-
-#define IDT_DPIEDIT 0x1234
 
 static const WCHAR logpixels_reg[] = {'S','y','s','t','e','m','\\','C','u','r','r','e','n','t','C','o','n','t','r','o','l','S','e','t','\\','H','a','r','d','w','a','r','e',' ','P','r','o','f','i','l','e','s','\\','C','u','r','r','e','n','t','\\','S','o','f','t','w','a','r','e','\\','F','o','n','t','s',0};
 static const WCHAR logpixels[] = {'L','o','g','P','i','x','e','l','s',0};
@@ -745,7 +859,7 @@ static void update_gui_for_desktop_mode(HWND dialog)
     updating_ui = FALSE;
 }
 
-static void init_dialog(HWND dialog)
+static void x11drvdlg_init_dialog(HWND dialog)
 {
     char* buf;
 
@@ -1047,7 +1161,7 @@ GraphDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		    break;
 		}
 		case PSN_SETACTIVE: {
-		    init_dialog (hDlg);
+		    x11drvdlg_init_dialog (hDlg);
 		    break;
 		}
 	    }
@@ -1078,30 +1192,6 @@ GraphDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 /**************************************************** from theme.c *************************************************/
 
 
-#include <stdarg.h>
-#include <stdlib.h>
-#include <stdio.h>
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-#ifdef HAVE_DIRECT_H
-#include <direct.h>
-#endif
-
-#define COBJMACROS
-
-#include <windows.h>
-#include <commdlg.h>
-#include <shellapi.h>
-#include <uxtheme.h>
-#include <tmschema.h>
-#include <shlobj.h>
-#include <shlwapi.h>
-#include <wine/debug.h>
-#include <wine/unicode.h>
 
 /* UXTHEME functions not in the headers */
 
@@ -1483,7 +1573,7 @@ static void enable_size_and_color_controls (HWND dialog, BOOL enable)
     EnableWindow (GetDlgItem (dialog, IDC_THEME_SIZETEXT), enable);
 }
   
-static void init_dialog (HWND dialog)
+static void theme_init_dialog (HWND dialog)
 {
     updating_ui = TRUE;
     
@@ -2304,7 +2394,7 @@ ThemeDlgProc (HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     break;
                 }
                 case PSN_SETACTIVE: {
-                    init_dialog (hDlg);
+                    theme_init_dialog (hDlg);
                     break;
                 }
             }
@@ -2360,21 +2450,32 @@ static int CALLBACK propsheet_callback(HWND hwnd, UINT msg, LPARAM lparam)
 
 static void start(HWND hWnd)
 {
-    
+
+    initialize(hInst);
+
+    INITCOMMONCONTROLSEX icex;
     PROPSHEETPAGEW psp[NUM_PROPERTY_PAGES];
     PROPSHEETHEADERW psh;
+
+    OleInitialize(NULL);  
+    icex.dwSize = sizeof(INITCOMMONCONTROLSEX);
+    icex.dwICC = ICC_LISTVIEW_CLASSES | ICC_BAR_CLASSES;
+    InitCommonControlsEx(&icex);
 
     ZeroMemory(&psh, sizeof(psh));
     ZeroMemory(psp, sizeof(psp));
 
-    /* Fill out all PROPSHEETPAGE */
-    psp[___].dwSize = sizeof (PROPSHEETPAGEW);
-    psp[___].hInstance = hInst;
-    psp[___].u.pszTemplate = MAKEINTRESOURCEW(___);
-    psp[___].pfnDlgProc = ___;
-    psp[___].dwFlags = PSP_USETITLE;
-    psp[___].pszTitle = ___;
-    psp[___].lParam = 0;
+    /* Fill out all PROPSHEETPAGEs */
+    psp[0].dwSize = sizeof (PROPSHEETPAGEW);
+    psp[0].hInstance = hInst;
+    psp[0].u.pszTemplate = MAKEINTRESOURCEW(IDD_APPEARANCE);
+    psp[0].pfnDlgProc = GraphDlgProc;
+
+    psp[1].dwSize = sizeof (PROPSHEETPAGEW);
+    psp[1].hInstance = hInst;
+    psp[1].u.pszTemplate = MAKEINTRESOURCEW(IDD_SETTINGS);
+    psp[1].pfnDlgProc = ThemeDlgProc;
+
 
     /* Fill out the PROPSHEETHEADER */
     psh.dwSize = sizeof (PROPSHEETHEADERW);
@@ -2383,16 +2484,19 @@ static void start(HWND hWnd)
     psh.hInstance = hInst;
     psh.u.pszIcon = MAKEINTRESOURCEW(ICO_MAIN);
     psh.pszCaption = MAKEINTRESOURCEW(IDS_CPL_NAME);
-    psh.nPages = ___;
+    psh.nPages = 2;
     psh.u3.ppsp = psp;
     psh.pfnCallback = propsheet_callback;
 
     /* display the dialog */
     PropertySheetW(&psh);
+
+    OleUninitialize();
+
 }
 
 /*********************************************************************
- * CPlApplet (inetcpl.@)
+ * CPlApplet (desk.@)
  *
  * Control Panel entry point
  *
