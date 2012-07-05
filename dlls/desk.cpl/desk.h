@@ -125,13 +125,12 @@ static inline BOOL heap_free( void *mem )
 #define IDS_CPL_INFO        2
 #define IDS_CHOOSE_PATH     5
 #define IDS_NOTHEME         8
+#define IDS_CPL_NAME_APP    6
 
-#define IDS_WINECFG_TITLE               13
 #define IDS_THEMEFILE                   14
 #define IDS_THEMEFILE_SELECT            15
 #define IDS_SHELL_FOLDER                16
 #define IDS_LINKS_TO                    17
-#define IDS_WINECFG_TITLE_APP           18
 
 #define IDS_TAB_APPEARANCE 19
 #define IDS_TAB_SETTINGS   20
@@ -139,7 +138,7 @@ static inline BOOL heap_free( void *mem )
 
 /* dialogs */
 #define IDC_STATIC          -1
-#define IDD_APPEARANCE                    110
+#define IDD_APPEARANCE       110
 #define IDD_SETTINGS         115
 
 

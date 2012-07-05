@@ -28,6 +28,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_DEFAULT
 STRINGTABLE
 BEGIN
     IDS_CPL_NAME        "Display Properties"
+    IDS_CPL_NAME_APP    "Display Properties for %s"
     IDS_CPL_INFO        "Change Wine display settings"
     IDS_TAB_APPEARANCE  "Appearance"
     IDS_TAB_SETTINGS    "Settings"
