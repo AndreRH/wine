@@ -21,7 +21,10 @@
  *
  */
 
-#include "desk.h"
+#include <windef.h>
+#include <winuser.h>
+#include <commctrl.h>
+#include "resources.h"
 
 LANGUAGE LANG_ENGLISH, SUBLANG_DEFAULT
 

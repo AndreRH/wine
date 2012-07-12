@@ -3,6 +3,9 @@ IMPORTS   = uuid comctl32 shlwapi user32 advapi32 uxtheme comdlg32 shell32 gdi32
 DELAYIMPORTS = ole32
 
 C_SRCS = \
+	helpers.c \
+	appearance.c \
+	settings.c \
 	desk.c
 
 RC_SRCS = desk.rc
