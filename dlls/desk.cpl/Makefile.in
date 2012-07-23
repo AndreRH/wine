@@ -11,7 +11,4 @@ C_SRCS = \
 RC_SRCS = desk.rc
 PO_SRCS = desk.rc
 
-SVG_SRCS = \
-	desk.svg
-
 @MAKE_DLL_RULES@

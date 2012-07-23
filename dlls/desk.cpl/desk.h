@@ -1,7 +1,7 @@
 /*
  * Desktop Settings control panel applet
  *
- * Copyright 2010 Detlef Riekenberg
+ * Copyright 2012 Magdalena Nowak
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -24,6 +24,8 @@
 
 #include <wine/debug.h>
 #include "resources.h"
+
+#define NUM_PROPERTY_PAGES 2
 
 WINE_DEFAULT_DEBUG_CHANNEL(deskcpl);
 extern HMODULE hcpl;
