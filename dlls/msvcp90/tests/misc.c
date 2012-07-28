@@ -30,6 +30,11 @@ typedef struct {
     int delfl;
 } MSVCP__Ctypevec;
 
+typedef struct {
+    LCID handle;
+    unsigned page;
+} MSVCP__Collvec;
+
 /* basic_string<char, char_traits<char>, allocator<char>> */
 #define BUF_SIZE_CHAR 16
 typedef struct
@@ -58,7 +63,8 @@ static BYTE (__cdecl *p_short_eq)(const void*, const void*);
 static char* (__cdecl *p_Copy_s)(char*, size_t, const char*, size_t);
 
 static unsigned short (__cdecl *p_wctype)(const char*);
-static MSVCP__Ctypevec (__cdecl *p__Getctype)(void);
+static MSVCP__Ctypevec* (__cdecl *p__Getctype)(MSVCP__Ctypevec*);
+static /*MSVCP__Collvec*/ULONGLONG (__cdecl *p__Getcoll)(void);
 
 #undef __thiscall
 #ifdef __i386__
@@ -74,15 +80,21 @@ static char* (__thiscall *p_char_allocate)(void*, size_t);
 static void (__thiscall *p_char_construct)(void*, char*, const char*);
 static size_t (__thiscall *p_char_max_size)(void*);
 
-void* (__thiscall *p_collate_char_ctor_refs)(void*, size_t);
-int (__thiscall *p_collate_char_compare)(const void*, const char*,
+static void* (__thiscall *p_collate_char_ctor_refs)(void*, size_t);
+static int (__thiscall *p_collate_char_compare)(const void*, const char*,
         const char*, const char*, const char*);
-void (__thiscall *p_collate_char_dtor)(void*);
-void* (__thiscall *p_numpunct_char_ctor)(void*);
-basic_string_char* (__thiscall *p_numpunct_char_falsename)(void*,basic_string_char*);
-void (__thiscall *p_numpunct_char_dtor)(void*);
+static void (__thiscall *p_collate_char_dtor)(void*);
+static void* (__thiscall *p_numpunct_char_ctor)(void*);
+static basic_string_char* (__thiscall *p_numpunct_char_falsename)(void*,basic_string_char*);
+static void (__thiscall *p_numpunct_char_dtor)(void*);
 static void (__thiscall *p_basic_string_char_dtor)(basic_string_char*);
 static const char* (__thiscall *p_basic_string_char_cstr)(basic_string_char*);
+
+static const int *basic_ostringstream_char_vbtable;
+static /*basic_ostringstream_char*/void* (__thiscall *p_basic_ostringstream_char_ctor_mode)(
+        /*basic_ostringstream_char*/void*, int, /*MSVCP_bool*/int);
+static void (__thiscall *p_basic_ostringstream_char_dtor)(/*basic_ostringstream_char*/void*);
+static void (__thiscall *p_basic_ostringstream_char_vbase_dtor)(/*basic_ostringstream_char*/void*);
 
 static int invalid_parameter = 0;
 static void __cdecl test_invalid_parameter_handler(const wchar_t *expression,
@@ -172,6 +184,8 @@ static BOOL init(void)
 
     SET(p_wctype, "wctype");
     SET(p__Getctype, "_Getctype");
+    SET(p__Getcoll, "_Getcoll");
+    SET(basic_ostringstream_char_vbtable, "??_8?$basic_ostringstream@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@7B@");
     if(sizeof(void*) == 8) { /* 64-bit initialization */
         SET(p_char_assign, "?assign@?$char_traits@D@std@@SAXAEADAEBD@Z");
         SET(p_wchar_assign, "?assign@?$char_traits@_W@std@@SAXAEA_WAEB_W@Z");
@@ -200,6 +214,13 @@ static BOOL init(void)
                 "??1?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@QEAA@XZ");
         SET(p_basic_string_char_cstr,
                 "?c_str@?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@QEBAPEBDXZ");
+
+        SET(p_basic_ostringstream_char_ctor_mode,
+                "??0?$basic_ostringstream@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@QEAA@H@Z");
+        SET(p_basic_ostringstream_char_dtor,
+                "??1?$basic_ostringstream@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@UEAA@XZ");
+        SET(p_basic_ostringstream_char_vbase_dtor,
+                "??_D?$basic_ostringstream@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@QEAAXXZ");
     } else {
         SET(p_char_assign, "?assign@?$char_traits@D@std@@SAXAADABD@Z");
         SET(p_wchar_assign, "?assign@?$char_traits@_W@std@@SAXAA_WAB_W@Z");
@@ -228,6 +249,13 @@ static BOOL init(void)
                 "??1?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@QAE@XZ");
         SET(p_basic_string_char_cstr,
                 "?c_str@?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@QBEPBDXZ");
+
+        SET(p_basic_ostringstream_char_ctor_mode,
+                "??0?$basic_ostringstream@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@QAE@H@Z");
+        SET(p_basic_ostringstream_char_dtor,
+                "??1?$basic_ostringstream@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@UAE@XZ");
+        SET(p_basic_ostringstream_char_vbase_dtor,
+                "??_D?$basic_ostringstream@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@QAEXXZ");
     }
 
     init_thiscall_thunk();
@@ -362,20 +390,41 @@ static void test__Getctype(void)
 {
     MSVCP__Ctypevec ret;
 
-    ret = p__Getctype();
+    ok(p__Getctype(&ret) == &ret, "__Getctype returned incorrect pointer\n");
     ok(ret.handle == 0, "ret.handle = %d\n", ret.handle);
     ok(ret.page == 0, "ret.page = %d\n", ret.page);
     ok(ret.delfl == 1, "ret.delfl = %d\n", ret.delfl);
     ok(ret.table[0] == 32, "ret.table[0] = %d\n", ret.table[0]);
     p_free(ret.table);
 
-    p__get_current_locale()->locinfo->lc_handle[LC_COLLATE] = 1;
-    ret = p__Getctype();
-    ok(ret.handle == 1, "ret.handle = %d\n", ret.handle);
+    p__get_current_locale()->locinfo->lc_handle[LC_COLLATE] = 0x1234567;
+    ok(p__Getctype(&ret) == &ret, "__Getctype returned incorrect pointer\n");
+    ok(ret.handle == 0x1234567, "ret.handle = %d\n", ret.handle);
     ok(ret.page == 0, "ret.page = %d\n", ret.page);
     ok(ret.delfl == 1, "ret.delfl = %d\n", ret.delfl);
     ok(ret.table[0] == 32, "ret.table[0] = %d\n", ret.table[0]);
     p_free(ret.table);
+}
+
+static void test__Getcoll(void)
+{
+    ULONGLONG (__cdecl *p__Getcoll_arg)(MSVCP__Collvec*);
+
+    union {
+        MSVCP__Collvec collvec;
+        ULONGLONG ull;
+    }ret;
+
+    p__get_current_locale()->locinfo->lc_handle[LC_COLLATE] = 0x7654321;
+    ret.ull = 0;
+    p__Getcoll_arg = (void*)p__Getcoll;
+    p__Getcoll_arg(&ret.collvec);
+    ok(ret.collvec.handle == 0, "ret.handle = %x\n", ret.collvec.handle);
+    ok(ret.collvec.page == 0, "ret.page = %x\n", ret.collvec.page);
+
+    ret.ull = p__Getcoll();
+    ok(ret.collvec.handle == 0x7654321, "ret.collvec.handle = %x\n", ret.collvec.handle);
+    ok(ret.collvec.page == 0, "ret.page = %x\n", ret.collvec.page);
 }
 
 static void test_allocator_char(void)
@@ -418,6 +467,7 @@ static void test_virtual_call(void)
     char str2[] = "TEST";
     int ret;
 
+    p__get_current_locale()->locinfo->lc_handle[LC_COLLATE] = 1;
     call_func2(p_collate_char_ctor_refs, this, 0);
     ret = (int)call_func5(p_collate_char_compare, this, str1, str1+4, str1, str1+4);
     ok(ret == 0, "collate<char>::compare returned %d\n", ret);
@@ -435,6 +485,17 @@ static void test_virtual_call(void)
     call_func1(p_numpunct_char_dtor, this);
 }
 
+static void test_virtual_base_dtors(void)
+{
+    char this[512];
+
+    call_func3(p_basic_ostringstream_char_ctor_mode, this, 0, 1);
+    call_func1(p_basic_ostringstream_char_vbase_dtor, this);
+
+    call_func3(p_basic_ostringstream_char_ctor_mode, this, 0, 0);
+    call_func1(p_basic_ostringstream_char_dtor, this+basic_ostringstream_char_vbtable[1]);
+}
+
 START_TEST(misc)
 {
     if(!init())
@@ -445,7 +506,9 @@ START_TEST(misc)
     test_Copy_s();
     test_wctype();
     test__Getctype();
+    test__Getcoll();
     test_virtual_call();
+    test_virtual_base_dtors();
 
     test_allocator_char();
 

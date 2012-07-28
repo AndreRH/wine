@@ -41,7 +41,6 @@ static INSTALLSTATE (WINAPI *pMsiGetComponentPathExA)
     (LPCSTR, LPCSTR, LPCSTR, MSIINSTALLCONTEXT, LPSTR, LPDWORD);
 
 static BOOL (WINAPI *pConvertSidToStringSidA)(PSID, LPSTR *);
-static BOOL (WINAPI *pGetTokenInformation)(HANDLE, TOKEN_INFORMATION_CLASS, LPVOID, DWORD, PDWORD);
 static BOOL (WINAPI *pOpenProcessToken)(HANDLE, DWORD, PHANDLE);
 static LONG (WINAPI *pRegDeleteKeyExA)(HKEY, LPCSTR, REGSAM, DWORD);
 static BOOL (WINAPI *pIsWow64Process)(HANDLE, PBOOL);
@@ -490,7 +489,8 @@ static const char wrv_registry_dat[] =
     "regdata\t2\tSOFTWARE\\Wine\\msitest\tValue\t[~]one[~]two[~]three\taugustus\n"
     "regdata1\t2\tSOFTWARE\\Wine\\msitest\t*\t\taugustus\n"
     "regdata2\t2\tSOFTWARE\\Wine\\msitest\t*\t#%\taugustus\n"
-    "regdata3\t2\tSOFTWARE\\Wine\\msitest\t*\t#x\taugustus\n";
+    "regdata3\t2\tSOFTWARE\\Wine\\msitest\t*\t#x\taugustus\n"
+    "regdata4\t2\tSOFTWARE\\Wine\\msitest\\VisualStudio\\10.0\\AD7Metrics\\Exception\\{049EC4CC-30D2-4032-9256-EE18EB41B62B}\\Common Language Runtime Exceptions\\System.Workflow.ComponentModel.Serialization\\System.Workflow.ComponentModel.Serialization.WorkflowMarkupSerializationException\tlong\tkey\taugustus\n";
 
 static const char cf_directory_dat[] =
     "Directory\tDirectory_Parent\tDefaultDir\n"
@@ -1818,6 +1818,75 @@ static const msi_table pa_tables[] =
     ADD_TABLE(property)
 };
 
+/* based on RegDeleteTreeW from dlls/advapi32/registry.c */
+static LSTATUS action_RegDeleteTreeA(HKEY hKey, LPCSTR lpszSubKey, REGSAM access)
+{
+    LONG ret;
+    DWORD dwMaxSubkeyLen, dwMaxValueLen;
+    DWORD dwMaxLen, dwSize;
+    char szNameBuf[MAX_PATH], *lpszName = szNameBuf;
+    HKEY hSubKey = hKey;
+
+    if(lpszSubKey)
+    {
+        ret = RegOpenKeyExA(hKey, lpszSubKey, 0, access, &hSubKey);
+        if (ret) return ret;
+    }
+
+    ret = RegQueryInfoKeyA(hSubKey, NULL, NULL, NULL, NULL,
+            &dwMaxSubkeyLen, NULL, NULL, &dwMaxValueLen, NULL, NULL, NULL);
+    if (ret) goto cleanup;
+
+    dwMaxSubkeyLen++;
+    dwMaxValueLen++;
+    dwMaxLen = max(dwMaxSubkeyLen, dwMaxValueLen);
+    if (dwMaxLen > sizeof(szNameBuf))
+    {
+        /* Name too big: alloc a buffer for it */
+        if (!(lpszName = HeapAlloc( GetProcessHeap(), 0, dwMaxLen)))
+        {
+            ret = ERROR_NOT_ENOUGH_MEMORY;
+            goto cleanup;
+        }
+    }
+
+    /* Recursively delete all the subkeys */
+    while (TRUE)
+    {
+        dwSize = dwMaxLen;
+        if (RegEnumKeyExA(hSubKey, 0, lpszName, &dwSize, NULL,
+                          NULL, NULL, NULL)) break;
+
+        ret = action_RegDeleteTreeA(hSubKey, lpszName, access);
+        if (ret) goto cleanup;
+    }
+
+    if (lpszSubKey)
+    {
+        if (pRegDeleteKeyExA)
+            ret = pRegDeleteKeyExA(hKey, lpszSubKey, access, 0);
+        else
+            ret = RegDeleteKeyA(hKey, lpszSubKey);
+    }
+    else
+        while (TRUE)
+        {
+            dwSize = dwMaxLen;
+            if (RegEnumValueA(hKey, 0, lpszName, &dwSize,
+                  NULL, NULL, NULL, NULL)) break;
+
+            ret = RegDeleteValueA(hKey, lpszName);
+            if (ret) goto cleanup;
+        }
+
+cleanup:
+    if (lpszName != szNameBuf)
+        HeapFree(GetProcessHeap(), 0, lpszName);
+    if(lpszSubKey)
+        RegCloseKey(hSubKey);
+    return ret;
+}
+
 /* cabinet definitions */
 
 /* make the max size large so there is only one cab file */
@@ -1944,7 +2013,6 @@ static void init_functionpointers(void)
     GET_PROC(hmsi, MsiGetComponentPathExA);
 
     GET_PROC(hadvapi32, ConvertSidToStringSidA);
-    GET_PROC(hadvapi32, GetTokenInformation);
     GET_PROC(hadvapi32, OpenProcessToken);
     GET_PROC(hadvapi32, RegDeleteKeyExA)
     GET_PROC(hkernel32, IsWow64Process)
@@ -1960,7 +2028,7 @@ static BOOL is_process_limited(void)
 {
     HANDLE token;
 
-    if (!pOpenProcessToken || !pGetTokenInformation) return FALSE;
+    if (!pOpenProcessToken) return FALSE;
 
     if (pOpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token))
     {
@@ -1968,7 +2036,7 @@ static BOOL is_process_limited(void)
         TOKEN_ELEVATION_TYPE type = TokenElevationTypeDefault;
         DWORD size;
 
-        ret = pGetTokenInformation(token, TokenElevationType, &type, sizeof(type), &size);
+        ret = GetTokenInformation(token, TokenElevationType, &type, sizeof(type), &size);
         CloseHandle(token);
         return (ret && type == TokenElevationTypeLimited);
     }
@@ -2248,7 +2316,7 @@ static void write_msi_summary_info(MSIHANDLE db, INT version, INT wordcount, con
     ok(r == ERROR_SUCCESS, "Expected ERROR_SUCCESS, got %u\n", r);
 
     r = MsiSummaryInfoSetPropertyA(summary, PID_REVNUMBER, VT_LPSTR, 0, NULL,
-                                   "{004757CA-5092-49c2-AD20-28E1CE0DF5F2}");
+                                   "{004757CA-5092-49C2-AD20-28E1CE0DF5F2}");
     ok(r == ERROR_SUCCESS, "Expected ERROR_SUCCESS, got %u\n", r);
 
     r = MsiSummaryInfoSetPropertyA(summary, PID_PAGECOUNT, VT_I4, version, NULL, NULL);
@@ -2877,7 +2945,7 @@ currentuser:
     ok(res == ERROR_SUCCESS, "Expected ERROR_SUCCESS, got %d\n", res);
 
     CHECK_DEL_REG_STR(hkey, "ProductName", "MSITEST");
-    CHECK_DEL_REG_STR(hkey, "PackageCode", "AC75740029052c94DA02821EECD05F2F");
+    CHECK_DEL_REG_STR(hkey, "PackageCode", "AC75740029052C94DA02821EECD05F2F");
     CHECK_DEL_REG_DWORD(hkey, "Language", 1033);
     CHECK_DEL_REG_DWORD(hkey, "Version", 0x1010001);
     if (!old_installer)
@@ -2958,7 +3026,7 @@ machprod:
     ok(res == ERROR_SUCCESS, "Expected ERROR_SUCCESS, got %d\n", res);
 
     CHECK_DEL_REG_STR(hkey, "ProductName", "MSITEST");
-    CHECK_DEL_REG_STR(hkey, "PackageCode", "AC75740029052c94DA02821EECD05F2F");
+    CHECK_DEL_REG_STR(hkey, "PackageCode", "AC75740029052C94DA02821EECD05F2F");
     CHECK_DEL_REG_DWORD(hkey, "Language", 1033);
     CHECK_DEL_REG_DWORD(hkey, "Version", 0x1010001);
     if (!old_installer)
@@ -4585,6 +4653,9 @@ static void test_write_registry_values(void)
 
     res = RegQueryValueExA(hkey, "", NULL, NULL, NULL, NULL);
     ok(res == ERROR_FILE_NOT_FOUND, "Expected ERROR_FILE_NOT_FOUND, got %d\n", res);
+
+    res = action_RegDeleteTreeA(hkey, "VisualStudio", KEY_ALL_ACCESS);
+    ok(res == ERROR_SUCCESS, "Expected ERROR_SUCCESS, got %d\n", res);
 
     RegDeleteValueA(hkey, "Value");
     RegCloseKey(hkey);

@@ -935,13 +935,15 @@ static UINT HANDLE_CustomType50(MSIPACKAGE *package, LPCWSTR source,
 static UINT HANDLE_CustomType34(MSIPACKAGE *package, LPCWSTR source,
                                 LPCWSTR target, const INT type, LPCWSTR action)
 {
-    const WCHAR *workingdir;
+    const WCHAR *workingdir = NULL;
     HANDLE handle;
     WCHAR *cmd;
 
-    workingdir = msi_get_target_folder( package, source );
-    if (!workingdir) return ERROR_FUNCTION_FAILED;
-
+    if (source)
+    {
+        workingdir = msi_get_target_folder( package, source );
+        if (!workingdir) return ERROR_FUNCTION_FAILED;
+    }
     deformat_string( package, target, &cmd );
     if (!cmd) return ERROR_FUNCTION_FAILED;
 
@@ -1437,7 +1439,7 @@ static HRESULT WINAPI mcr_QueryInterface( IWineMsiRemoteCustomAction *iface,
     if( IsEqualCLSID( riid, &IID_IUnknown ) ||
         IsEqualCLSID( riid, &IID_IWineMsiRemoteCustomAction ) )
     {
-        IUnknown_AddRef( iface );
+        IWineMsiRemoteCustomAction_AddRef( iface );
         *ppobj = iface;
         return S_OK;
     }

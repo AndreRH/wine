@@ -145,4 +145,32 @@ TestMid2 "test", 2, "est"
 TestMid2 "test", 4, "t"
 TestMid2 "test", 5, ""
 
+Sub TestUCase(str, ex)
+    x = UCase(str)
+    Call ok(x = ex, "UCase(" & str & ") = " & x & " expected " & ex)
+End Sub
+
+TestUCase "test", "TEST"
+TestUCase "123aBC?", "123ABC?"
+TestUCase "", ""
+TestUCase 1, "1"
+if isEnglishLang then TestUCase true, "TRUE"
+TestUCase 0.123, doubleAsString(0.123)
+TestUCase Empty, ""
+Call ok(getVT(UCase(Null)) = "VT_NULL", "getVT(UCase(Null)) = " & getVT(UCase(Null)))
+
+Sub TestLCase(str, ex)
+    x = LCase(str)
+    Call ok(x = ex, "LCase(" & str & ") = " & x & " expected " & ex)
+End Sub
+
+TestLCase "test", "test"
+TestLCase "123aBC?", "123abc?"
+TestLCase "", ""
+TestLCase 1, "1"
+if isEnglishLang then TestLCase true, "true"
+TestLCase 0.123, doubleAsString(0.123)
+TestLCase Empty, ""
+Call ok(getVT(LCase(Null)) = "VT_NULL", "getVT(LCase(Null)) = " & getVT(LCase(Null)))
+
 Call reportSuccess()

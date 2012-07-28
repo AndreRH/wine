@@ -44,7 +44,7 @@ typedef struct {
     HRESULT (*constructor)(IUnknown*,REFIID,void**);
 } classinfo;
 
-static classinfo wic_classes[] = {
+static const classinfo wic_classes[] = {
     {&CLSID_WICImagingFactory, ComponentFactory_CreateInstance},
     {&CLSID_WICBmpDecoder, BmpDecoder_CreateInstance},
     {&CLSID_WICPngDecoder, PngDecoder_CreateInstance},
@@ -60,12 +60,13 @@ static classinfo wic_classes[] = {
     {&CLSID_WICDefaultFormatConverter, FormatConverter_CreateInstance},
     {&CLSID_WineTgaDecoder, TgaDecoder_CreateInstance},
     {&CLSID_WICUnknownMetadataReader, UnknownMetadataReader_CreateInstance},
+    {&CLSID_WICIfdMetadataReader, IfdMetadataReader_CreateInstance},
     {0}};
 
 typedef struct {
     IClassFactory           IClassFactory_iface;
     LONG                    ref;
-    classinfo               *info;
+    const classinfo         *info;
 } ClassFactoryImpl;
 
 static inline ClassFactoryImpl *impl_from_IClassFactory(IClassFactory *iface)
@@ -81,9 +82,10 @@ static HRESULT WINAPI ClassFactoryImpl_QueryInterface(IClassFactory *iface,
 
     if (!ppv) return E_INVALIDARG;
 
-    if (IsEqualIID(&IID_IUnknown, iid) || IsEqualIID(&IID_IClassFactory, iid))
+    if (IsEqualIID(&IID_IUnknown, iid) ||
+        IsEqualIID(&IID_IClassFactory, iid))
     {
-        *ppv = This;
+        *ppv = &This->IClassFactory_iface;
     }
     else
     {
@@ -140,7 +142,7 @@ static const IClassFactoryVtbl ClassFactoryImpl_Vtbl = {
     ClassFactoryImpl_LockServer
 };
 
-static HRESULT ClassFactoryImpl_Constructor(classinfo *info, REFIID riid, LPVOID *ppv)
+static HRESULT ClassFactoryImpl_Constructor(const classinfo *info, REFIID riid, LPVOID *ppv)
 {
     ClassFactoryImpl *This;
     HRESULT ret;
@@ -154,8 +156,8 @@ static HRESULT ClassFactoryImpl_Constructor(classinfo *info, REFIID riid, LPVOID
     This->ref = 1;
     This->info = info;
 
-    ret = IClassFactory_QueryInterface((IClassFactory*)This, riid, ppv);
-    IClassFactory_Release((IClassFactory*)This);
+    ret = IClassFactory_QueryInterface(&This->IClassFactory_iface, riid, ppv);
+    IClassFactory_Release(&This->IClassFactory_iface);
 
     return ret;
 }
@@ -163,7 +165,7 @@ static HRESULT ClassFactoryImpl_Constructor(classinfo *info, REFIID riid, LPVOID
 HRESULT WINAPI DllGetClassObject(REFCLSID rclsid, REFIID iid, LPVOID *ppv)
 {
     HRESULT ret;
-    classinfo *info=NULL;
+    const classinfo *info=NULL;
     int i;
 
     TRACE("(%s,%s,%p)\n", debugstr_guid(rclsid), debugstr_guid(iid), ppv);

@@ -184,12 +184,12 @@ static HRESULT HTMLIFrame_get_document(HTMLDOMNode *iface, IDispatch **p)
 {
     HTMLIFrame *This = impl_from_HTMLDOMNode(iface);
 
-    if(!This->framebase.content_window || !This->framebase.content_window->doc) {
+    if(!This->framebase.content_window || !This->framebase.content_window->base.inner_window->doc) {
         *p = NULL;
         return S_OK;
     }
 
-    *p = (IDispatch*)&This->framebase.content_window->doc->basedoc.IHTMLDocument2_iface;
+    *p = (IDispatch*)&This->framebase.content_window->base.inner_window->doc->basedoc.IHTMLDocument2_iface;
     IDispatch_AddRef(*p);
     return S_OK;
 }
@@ -202,7 +202,7 @@ static HRESULT HTMLIFrame_get_dispid(HTMLDOMNode *iface, BSTR name,
     if(!This->framebase.content_window)
         return DISP_E_UNKNOWNNAME;
 
-    return search_window_props(This->framebase.content_window, name, grfdex, pid);
+    return search_window_props(This->framebase.content_window->base.inner_window, name, grfdex, pid);
 }
 
 static HRESULT HTMLIFrame_invoke(HTMLDOMNode *iface, DISPID id, LCID lcid,
@@ -215,7 +215,7 @@ static HRESULT HTMLIFrame_invoke(HTMLDOMNode *iface, DISPID id, LCID lcid,
         return E_FAIL;
     }
 
-    return IDispatchEx_InvokeEx(&This->framebase.content_window->IDispatchEx_iface, id, lcid,
+    return IDispatchEx_InvokeEx(&This->framebase.content_window->base.IDispatchEx_iface, id, lcid,
             flags, params, res, ei, caller);
 }
 

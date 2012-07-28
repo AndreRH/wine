@@ -6,7 +6,7 @@
  * Copyright 2000 Jason Mawdsley
  * Copyright 2001 CodeWeavers Inc.
  * Copyright 2002 Dimitrie O. Paun
- * Copyright 2009-2011 Nikolay Sivov
+ * Copyright 2009-2012 Nikolay Sivov
  * Copyright 2009 Owen Rudge for CodeWeavers
  *
  * This library is free software; you can redistribute it and/or
@@ -559,11 +559,8 @@ static inline int textcmpWT(LPCWSTR aw, LPCWSTR bt, BOOL isW)
     
 static inline int lstrncmpiW(LPCWSTR s1, LPCWSTR s2, int n)
 {
-    int res;
-
     n = min(min(n, lstrlenW(s1)), lstrlenW(s2));
-    res = CompareStringW(LOCALE_USER_DEFAULT, NORM_IGNORECASE, s1, n, s2, n);
-    return res ? res - sizeof(WCHAR) : res;
+    return CompareStringW(LOCALE_USER_DEFAULT, NORM_IGNORECASE, s1, n, s2, n) - CSTR_EQUAL;
 }
 
 /******** Debugging functions *****************************************/
@@ -4276,6 +4273,10 @@ static BOOL set_main_item(LISTVIEW_INFO *infoPtr, const LVITEMW *lpLVItem, BOOL 
 	{
 	    if (lpLVItem->state & LVIS_FOCUSED)
 	    {
+		/* update selection mark */
+		if (infoPtr->nFocusedItem == -1 && infoPtr->nSelectionMark == -1)
+		    infoPtr->nSelectionMark = lpLVItem->iItem;
+
 		if (infoPtr->nFocusedItem != -1)
 		{
 		    /* remove current focus */

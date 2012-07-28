@@ -29,6 +29,7 @@
 
 #include "objbase.h"
 #include "ocidl.h"
+#include "wincodecsdk.h"
 #include "wine/list.h"
 
 #include "gdiplus.h"
@@ -48,6 +49,8 @@ extern INT arc2polybezier(GpPointF * points, REAL x1, REAL y1, REAL x2, REAL y2,
 extern REAL gdiplus_atan2(REAL dy, REAL dx) DECLSPEC_HIDDEN;
 extern GpStatus hresult_to_status(HRESULT res) DECLSPEC_HIDDEN;
 extern REAL convert_unit(REAL logpixels, GpUnit unit) DECLSPEC_HIDDEN;
+extern REAL units_to_pixels(REAL units, GpUnit unit, REAL dpi) DECLSPEC_HIDDEN;
+extern REAL pixels_to_units(REAL pixels, GpUnit unit, REAL dpi) DECLSPEC_HIDDEN;
 
 extern GpStatus graphics_from_image(GpImage *image, GpGraphics **graphics) DECLSPEC_HIDDEN;
 
@@ -62,8 +65,6 @@ extern void calc_curve_bezier_endp(REAL xend, REAL yend, REAL xadj, REAL yadj,
     REAL tension, REAL *x, REAL *y) DECLSPEC_HIDDEN;
 
 extern void free_installed_fonts(void) DECLSPEC_HIDDEN;
-
-extern void get_font_hfont(GpGraphics *graphics, GDIPCONST GpFont *font, HFONT *hfont) DECLSPEC_HIDDEN;
 
 extern BOOL lengthen_path(GpPath *path, INT len) DECLSPEC_HIDDEN;
 
@@ -121,7 +122,7 @@ extern void convert_32bppARGB_to_32bppPARGB(UINT width, UINT height,
 
 extern GpStatus convert_pixels(INT width, INT height,
     INT dst_stride, BYTE *dst_bits, PixelFormat dst_format,
-    INT src_stride, const BYTE *src_bits, PixelFormat src_format, ARGB *src_palette) DECLSPEC_HIDDEN;
+    INT src_stride, const BYTE *src_bits, PixelFormat src_format, ColorPalette *palette) DECLSPEC_HIDDEN;
 
 struct GpPen{
     UINT style;
@@ -155,6 +156,7 @@ struct GpGraphics{
     TextRenderingHint texthint;
     GpUnit unit;    /* page unit */
     REAL scale;     /* page scale */
+    REAL xres, yres;
     GpMatrix * worldtrans; /* world transform */
     BOOL busy;      /* hdc handle obtained by GdipGetDC */
     GpRegion *clip;
@@ -262,15 +264,13 @@ struct GpAdustableArrowCap{
 };
 
 struct GpImage{
-    IPicture* picture;
+    IPicture *picture;
+    IStream *stream; /* source stream */
     ImageType type;
     GUID format;
     UINT flags;
     UINT frame_count, current_frame;
-    UINT palette_flags;
-    UINT palette_count;
-    UINT palette_size;
-    ARGB *palette_entries;
+    ColorPalette *palette;
     REAL xres, yres;
 };
 
@@ -310,6 +310,7 @@ struct GpBitmap{
     INT stride; /* stride of bits if this is a DIB */
     BYTE *own_bits; /* image bits that need to be freed with this object */
     INT lockx, locky; /* X and Y coordinates of the rect when a bitmap is locked for writing. */
+    IWICMetadataReader *metadata_reader; /* NULL if there is no metadata */
 };
 
 struct GpCachedBitmap{

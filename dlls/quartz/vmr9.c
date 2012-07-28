@@ -61,12 +61,24 @@ typedef struct
     IVMRImagePresenter9 *presenter;
     BOOL allocator_is_ex;
 
+    /*
+     * The Video Mixing Renderer supports 3 modes, renderless, windowless and windowed
+     * What I do is implement windowless as a special case of renderless, and then
+     * windowed also as a special case of windowless. This is probably the easiest way.
+     */
     VMR9Mode mode;
     BITMAPINFOHEADER bmiheader;
     IUnknown * outer_unk;
     BOOL bUnkOuterValid;
     BOOL bAggregatable;
 
+    HMODULE hD3d9;
+
+    /* Presentation related members */
+    IDirect3DDevice9 *allocator_d3d9_dev;
+    HMONITOR allocator_mon;
+    DWORD num_surfaces;
+    DWORD cur_surface;
     DWORD_PTR cookie;
 
     /* for Windowless Mode */
@@ -126,16 +138,26 @@ static inline VMR9Impl *impl_from_IVMRSurfaceAllocatorNotify9( IVMRSurfaceAlloca
 typedef struct
 {
     IVMRImagePresenter9 IVMRImagePresenter9_iface;
+    IVMRSurfaceAllocatorEx9 IVMRSurfaceAllocatorEx9_iface;
 
     LONG refCount;
 
+    HANDLE ack;
+    DWORD tid;
+    HANDLE hWndThread;
+
     IDirect3DDevice9 *d3d9_dev;
     IDirect3D9 *d3d9_ptr;
+    IDirect3DSurface9 **d3d9_surfaces;
     IDirect3DVertexBuffer9 *d3d9_vertex;
+    HMONITOR hMon;
+    DWORD num_surfaces;
 
+    BOOL reset;
     VMR9AllocationInfo info;
 
     VMR9Impl* pVMR9;
+    IVMRSurfaceAllocatorNotify9 *SurfaceAllocatorNotify;
 } VMR9DefaultAllocatorPresenterImpl;
 
 static inline VMR9DefaultAllocatorPresenterImpl *impl_from_IVMRImagePresenter9( IVMRImagePresenter9 *iface)
@@ -143,17 +165,98 @@ static inline VMR9DefaultAllocatorPresenterImpl *impl_from_IVMRImagePresenter9( 
     return CONTAINING_RECORD(iface, VMR9DefaultAllocatorPresenterImpl, IVMRImagePresenter9_iface);
 }
 
+static inline VMR9DefaultAllocatorPresenterImpl *impl_from_IVMRSurfaceAllocatorEx9( IVMRSurfaceAllocatorEx9 *iface)
+{
+    return CONTAINING_RECORD(iface, VMR9DefaultAllocatorPresenterImpl, IVMRSurfaceAllocatorEx9_iface);
+}
+
 static HRESULT VMR9DefaultAllocatorPresenterImpl_create(VMR9Impl *parent, LPVOID * ppv);
+
+static DWORD VMR9_SendSampleData(VMR9Impl *This, VMR9PresentationInfo *info, LPBYTE data, DWORD size)
+{
+    AM_MEDIA_TYPE *amt;
+    HRESULT hr = S_OK;
+    int width;
+    int height;
+    BITMAPINFOHEADER *bmiHeader;
+    D3DLOCKED_RECT lock;
+
+    TRACE("%p %p %d\n", This, data, size);
+
+    amt = &This->renderer.pInputPin->pin.mtCurrent;
+
+    if (IsEqualIID(&amt->formattype, &FORMAT_VideoInfo))
+    {
+        bmiHeader = &((VIDEOINFOHEADER *)amt->pbFormat)->bmiHeader;
+    }
+    else if (IsEqualIID(&amt->formattype, &FORMAT_VideoInfo2))
+    {
+        bmiHeader = &((VIDEOINFOHEADER2 *)amt->pbFormat)->bmiHeader;
+    }
+    else
+    {
+        FIXME("Unknown type %s\n", debugstr_guid(&amt->subtype));
+        return VFW_E_RUNTIME_ERROR;
+    }
+
+    TRACE("biSize = %d\n", bmiHeader->biSize);
+    TRACE("biWidth = %d\n", bmiHeader->biWidth);
+    TRACE("biHeight = %d\n", bmiHeader->biHeight);
+    TRACE("biPlanes = %d\n", bmiHeader->biPlanes);
+    TRACE("biBitCount = %d\n", bmiHeader->biBitCount);
+    TRACE("biCompression = %s\n", debugstr_an((LPSTR)&(bmiHeader->biCompression), 4));
+    TRACE("biSizeImage = %d\n", bmiHeader->biSizeImage);
+
+    width = bmiHeader->biWidth;
+    height = bmiHeader->biHeight;
+
+    TRACE("Src Rect: %d %d %d %d\n", This->source_rect.left, This->source_rect.top, This->source_rect.right, This->source_rect.bottom);
+    TRACE("Dst Rect: %d %d %d %d\n", This->target_rect.left, This->target_rect.top, This->target_rect.right, This->target_rect.bottom);
+
+    hr = IDirect3DSurface9_LockRect(info->lpSurf, &lock, NULL, D3DLOCK_DISCARD);
+    if (FAILED(hr))
+    {
+        ERR("IDirect3DSurface9_LockRect failed (%x)\n",hr);
+        return hr;
+    }
+
+    if (lock.Pitch != width * bmiHeader->biBitCount / 8)
+    {
+        WARN("Slow path! %u/%u\n", lock.Pitch, width * bmiHeader->biBitCount/8);
+
+        while (height--)
+        {
+            memcpy(lock.pBits, data, width * bmiHeader->biBitCount / 8);
+            data = data + width * bmiHeader->biBitCount / 8;
+            lock.pBits = (char *)lock.pBits + lock.Pitch;
+        }
+    }
+    else memcpy(lock.pBits, data, size);
+
+    IDirect3DSurface9_UnlockRect(info->lpSurf);
+
+    hr = IVMRImagePresenter9_PresentImage(This->presenter, This->cookie, info);
+    return hr;
+}
 
 static HRESULT WINAPI VMR9_DoRenderSample(BaseRenderer *iface, IMediaSample * pSample)
 {
     VMR9Impl *This = (VMR9Impl *)iface;
     LPBYTE pbSrcStream = NULL;
+    long cbSrcStream = 0;
     REFERENCE_TIME tStart, tStop;
     VMR9PresentationInfo info;
     HRESULT hr;
 
     TRACE("%p %p\n", iface, pSample);
+
+    /* It is possible that there is no device at this point */
+
+    if (!This->allocator || !This->presenter)
+    {
+        ERR("NO PRESENTER!!\n");
+        return S_FALSE;
+    }
 
     hr = IMediaSample_GetTime(pSample, &tStart, &tStop);
     if (FAILED(hr))
@@ -170,6 +273,12 @@ static HRESULT WINAPI VMR9_DoRenderSample(BaseRenderer *iface, IMediaSample * pS
     if (IMediaSample_IsSyncPoint(pSample) == S_OK)
         info.dwFlags |= VMR9Sample_SyncPoint;
 
+    /* If we render ourselves, and this is a preroll sample, discard it */
+    if (This->baseControlWindow.baseWindow.hWnd && (info.dwFlags & VMR9Sample_Preroll))
+    {
+        return S_OK;
+    }
+
     hr = IMediaSample_GetPointer(pSample, &pbSrcStream);
     if (FAILED(hr))
     {
@@ -177,10 +286,20 @@ static HRESULT WINAPI VMR9_DoRenderSample(BaseRenderer *iface, IMediaSample * pS
         return hr;
     }
 
+    cbSrcStream = IMediaSample_GetActualDataLength(pSample);
+
     info.rtStart = tStart;
     info.rtEnd = tStop;
     info.szAspectRatio.cx = This->bmiheader.biWidth;
     info.szAspectRatio.cy = This->bmiheader.biHeight;
+
+    hr = IVMRSurfaceAllocator9_GetSurface(This->allocator, This->cookie, (++This->cur_surface)%This->num_surfaces, 0, &info.lpSurf);
+
+    if (FAILED(hr))
+        return hr;
+
+    VMR9_SendSampleData(This, &info, pbSrcStream, cbSrcStream);
+    IDirect3DSurface9_Release(info.lpSurf);
 
     return hr;
 }
@@ -224,12 +343,134 @@ static HRESULT WINAPI VMR9_CheckMediaType(BaseRenderer *iface, const AM_MEDIA_TY
     return S_OK;
 }
 
+static HRESULT VMR9_maybe_init(VMR9Impl *This, BOOL force)
+{
+    VMR9AllocationInfo info;
+    DWORD buffers;
+    HRESULT hr;
+
+    TRACE("my mode: %u, my window: %p, my last window: %p\n", This->mode, This->baseControlWindow.baseWindow.hWnd, This->hWndClippingWindow);
+    if (This->baseControlWindow.baseWindow.hWnd || !This->renderer.pInputPin->pin.pConnectedTo)
+        return S_OK;
+
+    if (This->mode == VMR9Mode_Windowless && !This->hWndClippingWindow)
+        return (force ? VFW_E_RUNTIME_ERROR : S_OK);
+
+    TRACE("Initializing\n");
+    info.dwFlags = VMR9AllocFlag_TextureSurface;
+    info.dwHeight = This->source_rect.bottom;
+    info.dwWidth = This->source_rect.right;
+    info.Pool = D3DPOOL_DEFAULT;
+    info.MinBuffers = 2;
+    FIXME("Reduce ratio to least common denominator\n");
+    info.szAspectRatio.cx = info.dwWidth;
+    info.szAspectRatio.cy = info.dwHeight;
+    info.szNativeSize.cx = This->bmiheader.biWidth;
+    info.szNativeSize.cy = This->bmiheader.biHeight;
+    buffers = 2;
+
+    switch (This->bmiheader.biBitCount)
+    {
+    case 8:  info.Format = D3DFMT_R3G3B2; break;
+    case 15: info.Format = D3DFMT_X1R5G5B5; break;
+    case 16: info.Format = D3DFMT_R5G6B5; break;
+    case 24: info.Format = D3DFMT_R8G8B8; break;
+    case 32: info.Format = D3DFMT_X8R8G8B8; break;
+    default:
+        FIXME("Unknown bpp %u\n", This->bmiheader.biBitCount);
+        hr = E_INVALIDARG;
+    }
+
+    This->cur_surface = 0;
+    if (This->num_surfaces)
+    {
+        ERR("num_surfaces or d3d9_surfaces not 0\n");
+        return E_FAIL;
+    }
+
+    hr = IVMRSurfaceAllocatorEx9_InitializeDevice(This->allocator, This->cookie, &info, &buffers);
+    if (SUCCEEDED(hr))
+    {
+        This->source_rect.left = This->source_rect.top = 0;
+        This->source_rect.right = This->bmiheader.biWidth;
+        This->source_rect.bottom = This->bmiheader.biHeight;
+
+        This->num_surfaces = buffers;
+    }
+    return hr;
+}
+
+static VOID WINAPI VMR9_OnStartStreaming(BaseRenderer* iface)
+{
+    VMR9Impl *This = (VMR9Impl*)iface;
+
+    TRACE("(%p)\n", This);
+
+    VMR9_maybe_init(This, TRUE);
+    IVMRImagePresenter9_StartPresenting(This->presenter, This->cookie);
+    SetWindowPos(This->baseControlWindow.baseWindow.hWnd, NULL,
+        This->source_rect.left,
+        This->source_rect.top,
+        This->source_rect.right - This->source_rect.left,
+        This->source_rect.bottom - This->source_rect.top,
+        SWP_NOZORDER|SWP_NOMOVE|SWP_DEFERERASE);
+    ShowWindow(This->baseControlWindow.baseWindow.hWnd, SW_SHOW);
+    GetClientRect(This->baseControlWindow.baseWindow.hWnd, &This->target_rect);
+}
+
+static VOID WINAPI VMR9_OnStopStreaming(BaseRenderer* iface)
+{
+    VMR9Impl *This = (VMR9Impl*)iface;
+
+    TRACE("(%p)\n", This);
+
+    if (This->renderer.filter.state == State_Running)
+        IVMRImagePresenter9_StopPresenting(This->presenter, This->cookie);
+}
+
 static HRESULT WINAPI VMR9_ShouldDrawSampleNow(BaseRenderer *This, IMediaSample *pSample, REFERENCE_TIME *pStartTime, REFERENCE_TIME *pEndTime)
 {
     /* Preroll means the sample isn't shown, this is used for key frames and things like that */
     if (IMediaSample_IsPreroll(pSample) == S_OK)
         return E_FAIL;
     return S_FALSE;
+}
+
+static HRESULT WINAPI VMR9_CompleteConnect(BaseRenderer *This, IPin *pReceivePin)
+{
+    VMR9Impl *pVMR9 = (VMR9Impl*)This;
+    HRESULT hr = S_OK;
+
+    TRACE("(%p)\n", This);
+
+    if (!pVMR9->mode && SUCCEEDED(hr))
+        hr = IVMRFilterConfig9_SetRenderingMode(&pVMR9->IVMRFilterConfig9_iface, VMR9Mode_Windowed);
+
+    if (SUCCEEDED(hr))
+        hr = VMR9_maybe_init(pVMR9, FALSE);
+
+    return hr;
+}
+
+static HRESULT WINAPI VMR9_BreakConnect(BaseRenderer *This)
+{
+    VMR9Impl *pVMR9 = (VMR9Impl*)This;
+    HRESULT hr = S_OK;
+
+    if (!pVMR9->mode)
+        return S_FALSE;
+     if (This->pInputPin->pin.pConnectedTo && pVMR9->allocator && pVMR9->presenter)
+    {
+        if (pVMR9->renderer.filter.state != State_Stopped)
+        {
+            ERR("Disconnecting while not stopped! UNTESTED!!\n");
+        }
+        if (pVMR9->renderer.filter.state == State_Running)
+            hr = IVMRImagePresenter9_StopPresenting(pVMR9->presenter, pVMR9->cookie);
+        IVMRSurfaceAllocatorEx9_TerminateDevice(pVMR9->allocator, pVMR9->cookie);
+        pVMR9->num_surfaces = 0;
+    }
+    return hr;
 }
 
 static const BaseRendererFuncTable BaseFuncTable = {
@@ -239,16 +480,16 @@ static const BaseRendererFuncTable BaseFuncTable = {
     NULL,
     NULL,
     NULL,
-    NULL,
-    NULL,
+    VMR9_OnStartStreaming,
+    VMR9_OnStopStreaming,
     NULL,
     NULL,
     NULL,
     VMR9_ShouldDrawSampleNow,
     NULL,
     /**/
-    NULL,
-    NULL,
+    VMR9_CompleteConnect,
+    VMR9_BreakConnect,
     NULL,
     NULL,
     NULL,
@@ -550,11 +791,19 @@ static ULONG WINAPI VMR9Inner_Release(IUnknown * iface)
     {
         TRACE("Destroying\n");
         BaseControlWindow_Destroy(&This->baseControlWindow);
+        CloseHandle(This->hD3d9);
 
         if (This->allocator)
             IVMRSurfaceAllocator9_Release(This->allocator);
         if (This->presenter)
             IVMRImagePresenter9_Release(This->presenter);
+
+        This->num_surfaces = 0;
+        if (This->allocator_d3d9_dev)
+        {
+            IUnknown_Release(This->allocator_d3d9_dev);
+            This->allocator_d3d9_dev = NULL;
+        }
 
         CoTaskMemFree(This);
     }
@@ -1083,6 +1332,7 @@ static HRESULT WINAPI VMR9WindowlessControl_SetVideoClippingWindow(IVMRWindowles
 
     EnterCriticalSection(&This->renderer.filter.csFilter);
     This->hWndClippingWindow = hwnd;
+    VMR9_maybe_init(This, FALSE);
     if (!hwnd)
         IVMRSurfaceAllocatorEx9_TerminateDevice(This->allocator, This->cookie);
     LeaveCriticalSection(&This->renderer.filter.csFilter);
@@ -1092,9 +1342,30 @@ static HRESULT WINAPI VMR9WindowlessControl_SetVideoClippingWindow(IVMRWindowles
 static HRESULT WINAPI VMR9WindowlessControl_RepaintVideo(IVMRWindowlessControl9 *iface, HWND hwnd, HDC hdc)
 {
     VMR9Impl *This = impl_from_IVMRWindowlessControl9(iface);
+    HRESULT hr;
 
-    FIXME("(%p/%p)->(...) stub\n", iface, This);
-    return E_NOTIMPL;
+    FIXME("(%p/%p)->(...) semi-stub\n", iface, This);
+
+    EnterCriticalSection(&This->renderer.filter.csFilter);
+    if (hwnd != This->hWndClippingWindow && hwnd != This->baseControlWindow.baseWindow.hWnd)
+    {
+        ERR("Not handling changing windows yet!!!\n");
+        LeaveCriticalSection(&This->renderer.filter.csFilter);
+        return S_OK;
+    }
+
+    if (!This->allocator_d3d9_dev)
+    {
+        ERR("No d3d9 device!\n");
+        LeaveCriticalSection(&This->renderer.filter.csFilter);
+        return VFW_E_WRONG_STATE;
+    }
+
+    /* Windowless extension */
+    hr = IDirect3DDevice9_Present(This->allocator_d3d9_dev, NULL, NULL, This->baseControlWindow.baseWindow.hWnd, NULL);
+    LeaveCriticalSection(&This->renderer.filter.csFilter);
+
+    return hr;
 }
 
 static HRESULT WINAPI VMR9WindowlessControl_DisplayModeChanged(IVMRWindowlessControl9 *iface)
@@ -1197,21 +1468,35 @@ static HRESULT WINAPI VMR9SurfaceAllocatorNotify_SetD3DDevice(IVMRSurfaceAllocat
 {
     VMR9Impl *This = impl_from_IVMRSurfaceAllocatorNotify9(iface);
 
-    FIXME("(%p/%p)->(...) stub\n", iface, This);
-    return E_NOTIMPL;
+    FIXME("(%p/%p)->(...) semi-stub\n", iface, This);
+    if (This->allocator_d3d9_dev)
+        IDirect3DDevice9_Release(This->allocator_d3d9_dev);
+    This->allocator_d3d9_dev = device;
+    IDirect3DDevice9_AddRef(This->allocator_d3d9_dev);
+    This->allocator_mon = monitor;
+
+    return S_OK;
 }
 
 static HRESULT WINAPI VMR9SurfaceAllocatorNotify_ChangeD3DDevice(IVMRSurfaceAllocatorNotify9 *iface, IDirect3DDevice9 *device, HMONITOR monitor)
 {
     VMR9Impl *This = impl_from_IVMRSurfaceAllocatorNotify9(iface);
 
-    FIXME("(%p/%p)->(...) stub\n", iface, This);
-    return E_NOTIMPL;
+    FIXME("(%p/%p)->(...) semi-stub\n", iface, This);
+    if (This->allocator_d3d9_dev)
+        IDirect3DDevice9_Release(This->allocator_d3d9_dev);
+    This->allocator_d3d9_dev = device;
+    IDirect3DDevice9_AddRef(This->allocator_d3d9_dev);
+    This->allocator_mon = monitor;
+
+    return S_OK;
 }
 
 static HRESULT WINAPI VMR9SurfaceAllocatorNotify_AllocateSurfaceHelper(IVMRSurfaceAllocatorNotify9 *iface, VMR9AllocationInfo *allocinfo, DWORD *numbuffers, IDirect3DSurface9 **surface)
 {
     VMR9Impl *This = impl_from_IVMRSurfaceAllocatorNotify9(iface);
+    INT i;
+    HRESULT hr = S_OK;
 
     FIXME("(%p/%p)->(%p, %p => %u, %p) semi-stub\n", iface, This, allocinfo, numbuffers, (numbuffers ? *numbuffers : 0), surface);
 
@@ -1224,7 +1509,59 @@ static HRESULT WINAPI VMR9SurfaceAllocatorNotify_AllocateSurfaceHelper(IVMRSurfa
         return E_INVALIDARG;
     }
 
-    return E_NOTIMPL;
+    if (!This->allocator_d3d9_dev)
+    {
+        ERR("No direct3d device when requested to allocate a surface!\n");
+        return VFW_E_WRONG_STATE;
+    }
+
+    if (allocinfo->dwFlags & VMR9AllocFlag_OffscreenSurface)
+    {
+        ERR("Creating offscreen surface\n");
+        for (i = 0; i < *numbuffers; ++i)
+        {
+            hr = IDirect3DDevice9_CreateOffscreenPlainSurface(This->allocator_d3d9_dev,  allocinfo->dwWidth, allocinfo->dwHeight,
+                                                             allocinfo->Format, allocinfo->Pool, &surface[i], NULL);
+            if (FAILED(hr))
+                break;
+        }
+    }
+    else if (allocinfo->dwFlags & VMR9AllocFlag_TextureSurface)
+    {
+        TRACE("Creating texture surface\n");
+        for (i = 0; i < *numbuffers; ++i)
+        {
+            IDirect3DTexture9 *texture;
+
+            hr = IDirect3DDevice9_CreateTexture(This->allocator_d3d9_dev, allocinfo->dwWidth, allocinfo->dwHeight, 1, 0,
+                                                allocinfo->Format, allocinfo->Pool, &texture, NULL);
+            if (FAILED(hr))
+                break;
+            IDirect3DTexture9_GetSurfaceLevel(texture, 0, &surface[i]);
+            IDirect3DTexture9_Release(texture);
+        }
+    }
+    else
+    {
+         FIXME("Could not allocate for type %08x\n", allocinfo->dwFlags);
+         return E_NOTIMPL;
+    }
+
+    if (i >= allocinfo->MinBuffers)
+    {
+        hr = S_OK;
+        *numbuffers = i;
+    }
+    else
+    {
+        ERR("Allocation failed\n");
+        for (--i; i >= 0; --i)
+        {
+            IDirect3DSurface9_Release(surface[i]);
+        }
+        *numbuffers = 0;
+    }
+    return hr;
 }
 
 static HRESULT WINAPI VMR9SurfaceAllocatorNotify_NotifyEvent(IVMRSurfaceAllocatorNotify9 *iface, LONG code, LONG_PTR param1, LONG_PTR param2)
@@ -1258,6 +1595,14 @@ HRESULT VMR9Impl_create(IUnknown * outer_unk, LPVOID * ppv)
 
     pVMR9 = CoTaskMemAlloc(sizeof(VMR9Impl));
 
+    pVMR9->hD3d9 = LoadLibraryA("d3d9.dll");
+    if (!pVMR9->hD3d9 )
+    {
+        WARN("Could not load d3d9.dll\n");
+        CoTaskMemFree(pVMR9);
+        return VFW_E_DDRAW_CAPS_NOT_SUITABLE;
+    }
+
     pVMR9->outer_unk = outer_unk;
     pVMR9->bUnkOuterValid = FALSE;
     pVMR9->bAggregatable = FALSE;
@@ -1265,6 +1610,9 @@ HRESULT VMR9Impl_create(IUnknown * outer_unk, LPVOID * ppv)
     pVMR9->IAMFilterMiscFlags_iface.lpVtbl = &IAMFilterMiscFlags_Vtbl;
 
     pVMR9->mode = 0;
+    pVMR9->allocator_d3d9_dev = NULL;
+    pVMR9->allocator_mon= NULL;
+    pVMR9->num_surfaces = pVMR9->cur_surface = 0;
     pVMR9->allocator = NULL;
     pVMR9->presenter = NULL;
     pVMR9->hWndClippingWindow = NULL;
@@ -1292,6 +1640,7 @@ HRESULT VMR9Impl_create(IUnknown * outer_unk, LPVOID * ppv)
 
 fail:
     BaseRendererImpl_Release(&pVMR9->renderer.filter.IBaseFilter_iface);
+    CloseHandle(pVMR9->hD3d9);
     CoTaskMemFree(pVMR9);
     return hr;
 }
@@ -1309,6 +1658,8 @@ static HRESULT WINAPI VMR9_ImagePresenter_QueryInterface(IVMRImagePresenter9 *if
         *ppv = (LPVOID)&(This->IVMRImagePresenter9_iface);
     else if (IsEqualIID(riid, &IID_IVMRImagePresenter9))
         *ppv = &This->IVMRImagePresenter9_iface;
+    else if (IsEqualIID(riid, &IID_IVMRSurfaceAllocatorEx9))
+        *ppv = &This->IVMRSurfaceAllocatorEx9_iface;
 
     if (*ppv)
     {
@@ -1340,9 +1691,23 @@ static ULONG WINAPI VMR9_ImagePresenter_Release(IVMRImagePresenter9 *iface)
 
     if (!refCount)
     {
+        int i;
         TRACE("Destroying\n");
+        CloseHandle(This->ack);
         IUnknown_Release(This->d3d9_ptr);
 
+        TRACE("Number of surfaces: %u\n", This->num_surfaces);
+        for (i = 0; i < This->num_surfaces; ++i)
+        {
+            IDirect3DSurface9 *surface = This->d3d9_surfaces[i];
+            TRACE("Releasing surface %p\n", surface);
+            if (surface)
+                IUnknown_Release(surface);
+        }
+
+        CoTaskMemFree(This->d3d9_surfaces);
+        This->d3d9_surfaces = NULL;
+        This->num_surfaces = 0;
         if (This->d3d9_vertex)
         {
             IUnknown_Release(This->d3d9_vertex);
@@ -1497,6 +1862,397 @@ static const IVMRImagePresenter9Vtbl VMR9_ImagePresenter =
     VMR9_ImagePresenter_PresentImage
 };
 
+static HRESULT WINAPI VMR9_SurfaceAllocator_QueryInterface(IVMRSurfaceAllocatorEx9 *iface, REFIID riid, LPVOID * ppv)
+{
+    VMR9DefaultAllocatorPresenterImpl *This = impl_from_IVMRSurfaceAllocatorEx9(iface);
+
+    return VMR9_ImagePresenter_QueryInterface(&This->IVMRImagePresenter9_iface, riid, ppv);
+}
+
+static ULONG WINAPI VMR9_SurfaceAllocator_AddRef(IVMRSurfaceAllocatorEx9 *iface)
+{
+    VMR9DefaultAllocatorPresenterImpl *This = impl_from_IVMRSurfaceAllocatorEx9(iface);
+
+    return VMR9_ImagePresenter_AddRef(&This->IVMRImagePresenter9_iface);
+}
+
+static ULONG WINAPI VMR9_SurfaceAllocator_Release(IVMRSurfaceAllocatorEx9 *iface)
+{
+    VMR9DefaultAllocatorPresenterImpl *This = impl_from_IVMRSurfaceAllocatorEx9(iface);
+
+    return VMR9_ImagePresenter_Release(&This->IVMRImagePresenter9_iface);
+}
+
+static HRESULT VMR9_SurfaceAllocator_SetAllocationSettings(VMR9DefaultAllocatorPresenterImpl *This, VMR9AllocationInfo *allocinfo)
+{
+    D3DCAPS9 caps;
+    UINT width, height;
+    HRESULT hr;
+
+    if (!(allocinfo->dwFlags & VMR9AllocFlag_TextureSurface))
+        /* Only needed for texture surfaces */
+        return S_OK;
+
+    hr = IDirect3DDevice9_GetDeviceCaps(This->d3d9_dev, &caps);
+    if (FAILED(hr))
+        return hr;
+
+    if (!(caps.TextureCaps & D3DPTEXTURECAPS_POW2) || (caps.TextureCaps & D3DPTEXTURECAPS_SQUAREONLY))
+    {
+        width = allocinfo->dwWidth;
+        height = allocinfo->dwHeight;
+    }
+    else
+    {
+        width = height = 1;
+        while (width < allocinfo->dwWidth)
+            width *= 2;
+
+        while (height < allocinfo->dwHeight)
+            height *= 2;
+        FIXME("NPOW2 support missing, not using proper surfaces!\n");
+    }
+
+    if (caps.TextureCaps & D3DPTEXTURECAPS_SQUAREONLY)
+    {
+        if (height > width)
+            width = height;
+        else
+            height = width;
+        FIXME("Square texture support required..\n");
+    }
+
+    hr = IDirect3DDevice9_CreateVertexBuffer(This->d3d9_dev, 4 * sizeof(struct VERTEX), D3DUSAGE_WRITEONLY, USED_FVF, allocinfo->Pool, &This->d3d9_vertex, NULL);
+    if (FAILED(hr))
+    {
+        ERR("Couldn't create vertex buffer: %08x\n", hr);
+        return hr;
+    }
+
+    This->reset = TRUE;
+    allocinfo->dwHeight = height;
+    allocinfo->dwWidth = width;
+
+    return hr;
+}
+
+static DWORD WINAPI MessageLoop(LPVOID lpParameter)
+{
+    MSG msg;
+    BOOL fGotMessage;
+    VMR9DefaultAllocatorPresenterImpl *This = lpParameter;
+
+    TRACE("Starting message loop\n");
+
+    if (FAILED(BaseWindowImpl_PrepareWindow(&This->pVMR9->baseControlWindow.baseWindow)))
+    {
+        FIXME("Failed to prepare window\n");
+        return FALSE;
+    }
+
+    SetEvent(This->ack);
+    while ((fGotMessage = GetMessageW(&msg, NULL, 0, 0)) != 0 && fGotMessage != -1)
+    {
+        TranslateMessage(&msg);
+        DispatchMessageW(&msg);
+    }
+
+    TRACE("End of message loop\n");
+
+    return 0;
+}
+
+static UINT d3d9_adapter_from_hwnd(IDirect3D9 *d3d9, HWND hwnd, HMONITOR *mon_out)
+{
+    UINT d3d9_adapter;
+    HMONITOR mon;
+
+    mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONULL);
+    if (!mon)
+        d3d9_adapter = 0;
+    else
+    {
+        for (d3d9_adapter = 0; d3d9_adapter < IDirect3D9_GetAdapterCount(d3d9); ++d3d9_adapter)
+        {
+            if (mon == IDirect3D9_GetAdapterMonitor(d3d9, d3d9_adapter))
+                break;
+        }
+        if (d3d9_adapter >= IDirect3D9_GetAdapterCount(d3d9))
+            d3d9_adapter = 0;
+    }
+    if (mon_out)
+        *mon_out = mon;
+    return d3d9_adapter;
+}
+
+static BOOL CreateRenderingWindow(VMR9DefaultAllocatorPresenterImpl *This, VMR9AllocationInfo *info, DWORD *numbuffers)
+{
+    D3DPRESENT_PARAMETERS d3dpp;
+    DWORD d3d9_adapter;
+    HRESULT hr;
+
+    TRACE("(%p)->()\n", This);
+
+    This->hWndThread = CreateThread(NULL, 0, MessageLoop, This, 0, &This->tid);
+    if (!This->hWndThread)
+        return FALSE;
+
+    WaitForSingleObject(This->ack, INFINITE);
+
+    if (!This->pVMR9->baseControlWindow.baseWindow.hWnd) return FALSE;
+
+    /* Obtain a monitor and d3d9 device */
+    d3d9_adapter = d3d9_adapter_from_hwnd(This->d3d9_ptr, This->pVMR9->baseControlWindow.baseWindow.hWnd, &This->hMon);
+
+    /* Now try to create the d3d9 device */
+    ZeroMemory(&d3dpp, sizeof(d3dpp));
+    d3dpp.Windowed = TRUE;
+    d3dpp.hDeviceWindow = This->pVMR9->baseControlWindow.baseWindow.hWnd;
+    d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+    d3dpp.BackBufferHeight = This->pVMR9->target_rect.bottom - This->pVMR9->target_rect.top;
+    d3dpp.BackBufferWidth = This->pVMR9->target_rect.right - This->pVMR9->target_rect.left;
+
+    hr = IDirect3D9_CreateDevice(This->d3d9_ptr, d3d9_adapter, D3DDEVTYPE_HAL, NULL, D3DCREATE_MIXED_VERTEXPROCESSING, &d3dpp, &This->d3d9_dev);
+    if (FAILED(hr))
+    {
+        ERR("Could not create device: %08x\n", hr);
+        BaseWindowImpl_DoneWithWindow(&This->pVMR9->baseControlWindow.baseWindow);
+        return FALSE;
+    }
+    IVMRSurfaceAllocatorNotify9_SetD3DDevice(This->SurfaceAllocatorNotify, This->d3d9_dev, This->hMon);
+
+    This->d3d9_surfaces = CoTaskMemAlloc(*numbuffers * sizeof(IDirect3DSurface9 *));
+    ZeroMemory(This->d3d9_surfaces, *numbuffers * sizeof(IDirect3DSurface9 *));
+
+    hr = VMR9_SurfaceAllocator_SetAllocationSettings(This, info);
+    if (FAILED(hr))
+        ERR("Setting allocation settings failed: %08x\n", hr);
+
+    if (SUCCEEDED(hr))
+    {
+        hr = IVMRSurfaceAllocatorNotify9_AllocateSurfaceHelper(This->SurfaceAllocatorNotify, info, numbuffers, This->d3d9_surfaces);
+        if (FAILED(hr))
+            ERR("Allocating surfaces failed: %08x\n", hr);
+    }
+
+    if (FAILED(hr))
+    {
+        IVMRSurfaceAllocatorEx9_TerminateDevice(This->pVMR9->allocator, This->pVMR9->cookie);
+        BaseWindowImpl_DoneWithWindow(&This->pVMR9->baseControlWindow.baseWindow);
+        return FALSE;
+    }
+
+    This->num_surfaces = *numbuffers;
+
+    return TRUE;
+}
+
+static HRESULT WINAPI VMR9_SurfaceAllocator_InitializeDevice(IVMRSurfaceAllocatorEx9 *iface, DWORD_PTR id, VMR9AllocationInfo *allocinfo, DWORD *numbuffers)
+{
+    VMR9DefaultAllocatorPresenterImpl *This = impl_from_IVMRSurfaceAllocatorEx9(iface);
+
+    if (This->pVMR9->mode != VMR9Mode_Windowed && !This->pVMR9->hWndClippingWindow)
+    {
+        ERR("No window set\n");
+        return VFW_E_WRONG_STATE;
+    }
+
+    This->info = *allocinfo;
+
+    if (!CreateRenderingWindow(This, allocinfo, numbuffers))
+    {
+        ERR("Failed to create rendering window, expect no output!\n");
+        return VFW_E_WRONG_STATE;
+    }
+
+    return S_OK;
+}
+
+static HRESULT WINAPI VMR9_SurfaceAllocator_TerminateDevice(IVMRSurfaceAllocatorEx9 *iface, DWORD_PTR id)
+{
+    VMR9DefaultAllocatorPresenterImpl *This = impl_from_IVMRSurfaceAllocatorEx9(iface);
+
+    if (!This->pVMR9->baseControlWindow.baseWindow.hWnd)
+    {
+        return S_OK;
+    }
+
+    SendMessageW(This->pVMR9->baseControlWindow.baseWindow.hWnd, WM_CLOSE, 0, 0);
+    PostThreadMessageW(This->tid, WM_QUIT, 0, 0);
+    WaitForSingleObject(This->hWndThread, INFINITE);
+    This->hWndThread = NULL;
+    BaseWindowImpl_DoneWithWindow(&This->pVMR9->baseControlWindow.baseWindow);
+
+    return S_OK;
+}
+
+/* Recreate all surfaces (If allocated as D3DPOOL_DEFAULT) and survive! */
+static HRESULT VMR9_SurfaceAllocator_UpdateDeviceReset(VMR9DefaultAllocatorPresenterImpl *This)
+{
+    struct VERTEX t_vert[4];
+    UINT width, height;
+    INT i;
+    void *bits = NULL;
+    D3DPRESENT_PARAMETERS d3dpp;
+    HRESULT hr;
+
+    if (!This->pVMR9->baseControlWindow.baseWindow.hWnd)
+    {
+        ERR("No window\n");
+        return E_FAIL;
+    }
+
+    if (!This->d3d9_surfaces || !This->reset)
+        return S_OK;
+
+    This->reset = FALSE;
+    TRACE("RESETTING\n");
+    if (This->d3d9_vertex)
+    {
+        IDirect3DVertexBuffer9_Release(This->d3d9_vertex);
+        This->d3d9_vertex = NULL;
+    }
+
+    for (i = 0; i < This->num_surfaces; ++i)
+    {
+        IDirect3DSurface9 *surface = This->d3d9_surfaces[i];
+        TRACE("Releasing surface %p\n", surface);
+        if (surface)
+            IUnknown_Release(surface);
+    }
+    ZeroMemory(This->d3d9_surfaces, sizeof(IDirect3DSurface9 *) * This->num_surfaces);
+
+    /* Now try to create the d3d9 device */
+    ZeroMemory(&d3dpp, sizeof(d3dpp));
+    d3dpp.Windowed = TRUE;
+    d3dpp.hDeviceWindow = This->pVMR9->baseControlWindow.baseWindow.hWnd;
+    d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+
+    if (This->d3d9_dev)
+        IDirect3DDevice9_Release(This->d3d9_dev);
+    This->d3d9_dev = NULL;
+    hr = IDirect3D9_CreateDevice(This->d3d9_ptr, d3d9_adapter_from_hwnd(This->d3d9_ptr, This->pVMR9->baseControlWindow.baseWindow.hWnd, &This->hMon), D3DDEVTYPE_HAL, NULL, D3DCREATE_HARDWARE_VERTEXPROCESSING, &d3dpp, &This->d3d9_dev);
+    if (FAILED(hr))
+    {
+        hr = IDirect3D9_CreateDevice(This->d3d9_ptr, d3d9_adapter_from_hwnd(This->d3d9_ptr, This->pVMR9->baseControlWindow.baseWindow.hWnd, &This->hMon), D3DDEVTYPE_HAL, NULL, D3DCREATE_MIXED_VERTEXPROCESSING, &d3dpp, &This->d3d9_dev);
+        if (FAILED(hr))
+        {
+            ERR("--> Creating device: %08x\n", hr);
+            return S_OK;
+        }
+    }
+    IVMRSurfaceAllocatorNotify9_ChangeD3DDevice(This->SurfaceAllocatorNotify, This->d3d9_dev, This->hMon);
+
+    IVMRSurfaceAllocatorNotify9_AllocateSurfaceHelper(This->SurfaceAllocatorNotify, &This->info, &This->num_surfaces, This->d3d9_surfaces);
+
+    This->reset = FALSE;
+
+    if (!(This->info.dwFlags & VMR9AllocFlag_TextureSurface))
+        return S_OK;
+
+    hr = IDirect3DDevice9_CreateVertexBuffer(This->d3d9_dev, 4 * sizeof(struct VERTEX), D3DUSAGE_WRITEONLY, USED_FVF,
+                                             This->info.Pool, &This->d3d9_vertex, NULL);
+
+    width = This->info.dwWidth;
+    height = This->info.dwHeight;
+
+    for (i = 0; i < sizeof(t_vert) / sizeof(t_vert[0]); ++i)
+    {
+        if (i % 2)
+        {
+            t_vert[i].x = (float)This->pVMR9->target_rect.right - (float)This->pVMR9->target_rect.left - 0.5f;
+            t_vert[i].u = (float)This->pVMR9->source_rect.right / (float)width;
+        }
+        else
+        {
+            t_vert[i].x = -0.5f;
+            t_vert[i].u = (float)This->pVMR9->source_rect.left / (float)width;
+        }
+
+        if (i % 4 < 2)
+        {
+            t_vert[i].y = -0.5f;
+            t_vert[i].v = (float)This->pVMR9->source_rect.bottom / (float)height;
+        }
+        else
+        {
+            t_vert[i].y = (float)This->pVMR9->target_rect.bottom - (float)This->pVMR9->target_rect.top - 0.5f;
+            t_vert[i].v = (float)This->pVMR9->source_rect.top / (float)height;
+        }
+        t_vert[i].z = 0.0f;
+        t_vert[i].rhw = 1.0f;
+    }
+
+    FIXME("Vertex rectangle:\n");
+    FIXME("X, Y: %f, %f\n", t_vert[0].x, t_vert[0].y);
+    FIXME("X, Y: %f, %f\n", t_vert[3].x, t_vert[3].y);
+    FIXME("TOP, LEFT: %f, %f\n", t_vert[0].u, t_vert[0].v);
+    FIXME("DOWN, BOTTOM: %f, %f\n", t_vert[3].u, t_vert[3].v);
+
+    IDirect3DVertexBuffer9_Lock(This->d3d9_vertex, 0, sizeof(t_vert), &bits, 0);
+    memcpy(bits, t_vert, sizeof(t_vert));
+    IDirect3DVertexBuffer9_Unlock(This->d3d9_vertex);
+
+    return S_OK;
+}
+
+static HRESULT WINAPI VMR9_SurfaceAllocator_GetSurface(IVMRSurfaceAllocatorEx9 *iface, DWORD_PTR id, DWORD surfaceindex, DWORD flags, IDirect3DSurface9 **surface)
+{
+    VMR9DefaultAllocatorPresenterImpl *This = impl_from_IVMRSurfaceAllocatorEx9(iface);
+
+    /* Update everything first, this is needed because the surface might be destroyed in the reset */
+    if (!This->d3d9_dev)
+    {
+        TRACE("Device has left me!\n");
+        return E_FAIL;
+    }
+
+    VMR9_SurfaceAllocator_UpdateDeviceReset(This);
+
+    if (surfaceindex >= This->num_surfaces)
+    {
+        ERR("surfaceindex is greater than num_surfaces\n");
+        return E_FAIL;
+    }
+    *surface = This->d3d9_surfaces[surfaceindex];
+    IUnknown_AddRef(*surface);
+
+    return S_OK;
+}
+
+static HRESULT WINAPI VMR9_SurfaceAllocator_AdviseNotify(IVMRSurfaceAllocatorEx9 *iface, IVMRSurfaceAllocatorNotify9 *allocnotify)
+{
+    VMR9DefaultAllocatorPresenterImpl *This = impl_from_IVMRSurfaceAllocatorEx9(iface);
+
+    TRACE("(%p/%p)->(...)\n", iface, This);
+
+    /* No AddRef taken here or the base VMR9 filter would never be destroied */
+    This->SurfaceAllocatorNotify = allocnotify;
+    return S_OK;
+}
+
+static const IVMRSurfaceAllocatorEx9Vtbl VMR9_SurfaceAllocator =
+{
+    VMR9_SurfaceAllocator_QueryInterface,
+    VMR9_SurfaceAllocator_AddRef,
+    VMR9_SurfaceAllocator_Release,
+    VMR9_SurfaceAllocator_InitializeDevice,
+    VMR9_SurfaceAllocator_TerminateDevice,
+    VMR9_SurfaceAllocator_GetSurface,
+    VMR9_SurfaceAllocator_AdviseNotify,
+    NULL /* This isn't the SurfaceAllocatorEx type yet, working on it */
+};
+
+static IDirect3D9 *init_d3d9(HMODULE d3d9_handle)
+{
+    IDirect3D9 * (__stdcall * d3d9_create)(UINT SDKVersion);
+
+    d3d9_create = (void *)GetProcAddress(d3d9_handle, "Direct3DCreate9");
+    if (!d3d9_create) return NULL;
+
+    return d3d9_create(D3D_SDK_VERSION);
+}
+
 static HRESULT VMR9DefaultAllocatorPresenterImpl_create(VMR9Impl *parent, LPVOID * ppv)
 {
     HRESULT hr = S_OK;
@@ -1507,7 +2263,7 @@ static HRESULT VMR9DefaultAllocatorPresenterImpl_create(VMR9Impl *parent, LPVOID
     if (!This)
         return E_OUTOFMEMORY;
 
-    This->d3d9_ptr = NULL;
+    This->d3d9_ptr = init_d3d9(parent->hD3d9);
     if (!This->d3d9_ptr)
     {
         WARN("Could not initialize d3d9.dll\n");
@@ -1533,11 +2289,19 @@ static HRESULT VMR9DefaultAllocatorPresenterImpl_create(VMR9Impl *parent, LPVOID
     }
 
     This->IVMRImagePresenter9_iface.lpVtbl = &VMR9_ImagePresenter;
+    This->IVMRSurfaceAllocatorEx9_iface.lpVtbl = &VMR9_SurfaceAllocator;
 
     This->refCount = 1;
     This->pVMR9 = parent;
+    This->d3d9_surfaces = NULL;
     This->d3d9_dev = NULL;
+    This->hMon = 0;
     This->d3d9_vertex = NULL;
+    This->num_surfaces = 0;
+    This->hWndThread = NULL;
+    This->ack = CreateEventW(NULL, 0, 0, NULL);
+    This->SurfaceAllocatorNotify = NULL;
+    This->reset = FALSE;
 
     *ppv = This;
     return S_OK;

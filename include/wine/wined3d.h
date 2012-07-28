@@ -767,6 +767,22 @@ enum wined3d_sysval_semantic
     WINED3D_SV_TARGET7 = 7,
 };
 
+enum wined3d_scanline_ordering
+{
+    WINED3D_SCANLINE_ORDERING_UNKNOWN       = 0,
+    WINED3D_SCANLINE_ORDERING_PROGRESSIVE   = 1,
+    WINED3D_SCANLINE_ORDERING_INTERLACED    = 2,
+};
+
+enum wined3d_display_rotation
+{
+    WINED3D_DISPLAY_ROTATION_UNSPECIFIED    = 0,
+    WINED3D_DISPLAY_ROTATION_0              = 1,
+    WINED3D_DISPLAY_ROTATION_90             = 2,
+    WINED3D_DISPLAY_ROTATION_180            = 3,
+    WINED3D_DISPLAY_ROTATION_270            = 4,
+};
+
 #define WINED3DCOLORWRITEENABLE_RED                             (1 << 0)
 #define WINED3DCOLORWRITEENABLE_GREEN                           (1 << 1)
 #define WINED3DCOLORWRITEENABLE_BLUE                            (1 << 2)
@@ -827,12 +843,12 @@ enum wined3d_sysval_semantic
 #define WINED3DUSAGE_QUERY_WRAPANDMIP                           0x00200000
 #define WINED3DUSAGE_QUERY_MASK                                 0x003f8000
 
-#define WINED3DLOCK_READONLY                                    0x0010
-#define WINED3DLOCK_NOSYSLOCK                                   0x0800
-#define WINED3DLOCK_NOOVERWRITE                                 0x1000
-#define WINED3DLOCK_DISCARD                                     0x2000
-#define WINED3DLOCK_DONOTWAIT                                   0x4000
-#define WINED3DLOCK_NO_DIRTY_UPDATE                             0x8000
+#define WINED3D_MAP_READONLY                                    0x0010
+#define WINED3D_MAP_NOSYSLOCK                                   0x0800
+#define WINED3D_MAP_NOOVERWRITE                                 0x1000
+#define WINED3D_MAP_DISCARD                                     0x2000
+#define WINED3D_MAP_DONOTWAIT                                   0x4000
+#define WINED3D_MAP_NO_DIRTY_UPDATE                             0x8000
 
 #define WINED3DPRESENT_RATE_DEFAULT                             0x00000000
 
@@ -1488,6 +1504,7 @@ struct wined3d_display_mode
     UINT height;
     UINT refresh_rate;
     enum wined3d_format_id format_id;
+    enum wined3d_scanline_ordering scanline_ordering;
 };
 
 struct wined3d_color
@@ -1980,15 +1997,13 @@ struct wined3d_device_parent_ops
 {
     void (__cdecl *wined3d_device_created)(struct wined3d_device_parent *device_parent, struct wined3d_device *device);
     void (__cdecl *mode_changed)(struct wined3d_device_parent *device_parent);
-    HRESULT (__cdecl *create_surface)(struct wined3d_device_parent *device_parent, void *container_parent,
+    HRESULT (__cdecl *create_swapchain_surface)(struct wined3d_device_parent *device_parent, void *container_parent,
+            UINT width, UINT height, enum wined3d_format_id format_id, DWORD usage,
+            enum wined3d_multisample_type multisample_type, DWORD multisample_quality,
+            struct wined3d_surface **surface);
+    HRESULT (__cdecl *create_texture_surface)(struct wined3d_device_parent *device_parent, void *container_parent,
             UINT width, UINT height, enum wined3d_format_id format_id, DWORD usage, enum wined3d_pool pool,
             UINT level, enum wined3d_cubemap_face face, struct wined3d_surface **surface);
-    HRESULT (__cdecl *create_rendertarget)(struct wined3d_device_parent *device_parent, void *container_parent,
-            UINT width, UINT height, enum wined3d_format_id format_id, enum wined3d_multisample_type multisample_type,
-            DWORD multisample_quality, BOOL lockable, struct wined3d_surface **surface);
-    HRESULT (__cdecl *create_depth_stencil)(struct wined3d_device_parent *device_parent,
-            UINT width, UINT height, enum wined3d_format_id format_id, enum wined3d_multisample_type multisample_type,
-            DWORD multisample_quality, BOOL discard, struct wined3d_surface **surface);
     HRESULT (__cdecl *create_volume)(struct wined3d_device_parent *device_parent, void *container_parent,
             UINT width, UINT height, UINT depth, enum wined3d_format_id format_id, enum wined3d_pool pool, DWORD usage,
             struct wined3d_volume **volume);
@@ -2020,19 +2035,24 @@ HRESULT __cdecl wined3d_check_device_type(const struct wined3d *wined3d, UINT ad
 struct wined3d * __cdecl wined3d_create(UINT version, DWORD flags);
 ULONG __cdecl wined3d_decref(struct wined3d *wined3d);
 HRESULT __cdecl wined3d_enum_adapter_modes(const struct wined3d *wined3d, UINT adapter_idx,
-        enum wined3d_format_id format_id, UINT mode_idx, struct wined3d_display_mode *mode);
+        enum wined3d_format_id format_id, enum wined3d_scanline_ordering scanline_ordering,
+        UINT mode_idx, struct wined3d_display_mode *mode);
 UINT __cdecl wined3d_get_adapter_count(const struct wined3d *wined3d);
 HRESULT __cdecl wined3d_get_adapter_display_mode(const struct wined3d *wined3d, UINT adapter_idx,
-        struct wined3d_display_mode *mode);
+        struct wined3d_display_mode *mode, enum wined3d_display_rotation *rotation);
 HRESULT __cdecl wined3d_get_adapter_identifier(const struct wined3d *wined3d, UINT adapter_idx,
         DWORD flags, struct wined3d_adapter_identifier *identifier);
-UINT __cdecl wined3d_get_adapter_mode_count(const struct wined3d *wined3d,
-        UINT adapter_idx, enum wined3d_format_id format_id);
+UINT __cdecl wined3d_get_adapter_mode_count(const struct wined3d *wined3d, UINT adapter_idx,
+        enum wined3d_format_id format_id, enum wined3d_scanline_ordering scanline_ordering);
 HMONITOR __cdecl wined3d_get_adapter_monitor(const struct wined3d *wined3d, UINT adapter_idx);
+HRESULT __cdecl wined3d_get_adapter_raster_status(const struct wined3d *wined3d, UINT adapter_idx,
+        struct wined3d_raster_status *raster_status);
 HRESULT __cdecl wined3d_get_device_caps(const struct wined3d *wined3d, UINT adapter_idx,
         enum wined3d_device_type device_type, WINED3DCAPS *caps);
 ULONG __cdecl wined3d_incref(struct wined3d *wined3d);
 HRESULT __cdecl wined3d_register_software_device(struct wined3d *wined3d, void *init_function);
+HRESULT __cdecl wined3d_set_adapter_display_mode(struct wined3d *wined3d,
+        UINT adapter_idx, const struct wined3d_display_mode *mode);
 
 HRESULT __cdecl wined3d_buffer_create(struct wined3d_device *device, struct wined3d_buffer_desc *desc,
         const void *data, void *parent, const struct wined3d_parent_ops *parent_ops, struct wined3d_buffer **buffer);
@@ -2098,8 +2118,8 @@ HRESULT __cdecl wined3d_device_get_creation_parameters(const struct wined3d_devi
 HRESULT __cdecl wined3d_device_get_depth_stencil(const struct wined3d_device *device,
         struct wined3d_surface **depth_stencil);
 HRESULT __cdecl wined3d_device_get_device_caps(const struct wined3d_device *device, WINED3DCAPS *caps);
-HRESULT __cdecl wined3d_device_get_display_mode(const struct wined3d_device *device,
-        UINT swapchain_idx, struct wined3d_display_mode *mode);
+HRESULT __cdecl wined3d_device_get_display_mode(const struct wined3d_device *device, UINT swapchain_idx,
+        struct wined3d_display_mode *mode, enum wined3d_display_rotation *rotation);
 HRESULT __cdecl wined3d_device_get_front_buffer_data(const struct wined3d_device *device,
         UINT swapchain_idx, struct wined3d_surface *dst_surface);
 void __cdecl wined3d_device_get_gamma_ramp(const struct wined3d_device *device,
@@ -2162,13 +2182,14 @@ HRESULT __cdecl wined3d_device_init_gdi(struct wined3d_device *device, struct wi
 HRESULT __cdecl wined3d_device_multiply_transform(struct wined3d_device *device,
         enum wined3d_transform_state state, const struct wined3d_matrix *matrix);
 HRESULT __cdecl wined3d_device_present(const struct wined3d_device *device, const RECT *src_rect,
-        const RECT *dst_rect, HWND dst_window_override, const RGNDATA *dirty_region);
+        const RECT *dst_rect, HWND dst_window_override, const RGNDATA *dirty_region, DWORD flags);
 HRESULT __cdecl wined3d_device_process_vertices(struct wined3d_device *device,
         UINT src_start_idx, UINT dst_idx, UINT vertex_count, struct wined3d_buffer *dst_buffer,
         const struct wined3d_vertex_declaration *declaration, DWORD flags, DWORD dst_fvf);
 void __cdecl wined3d_device_release_focus_window(struct wined3d_device *device);
 HRESULT __cdecl wined3d_device_reset(struct wined3d_device *device,
-        const struct wined3d_swapchain_desc *swapchain_desc, wined3d_device_reset_cb callback);
+        const struct wined3d_swapchain_desc *swapchain_desc, const struct wined3d_display_mode *mode,
+        wined3d_device_reset_cb callback);
 void __cdecl wined3d_device_restore_fullscreen_window(struct wined3d_device *device, HWND window);
 HRESULT __cdecl wined3d_device_set_base_vertex_index(struct wined3d_device *device, INT base_index);
 HRESULT __cdecl wined3d_device_set_clip_plane(struct wined3d_device *device,
@@ -2181,8 +2202,6 @@ HRESULT __cdecl wined3d_device_set_cursor_properties(struct wined3d_device *devi
         UINT x_hotspot, UINT y_hotspot, struct wined3d_surface *cursor_surface);
 HRESULT __cdecl wined3d_device_set_depth_stencil(struct wined3d_device *device, struct wined3d_surface *depth_stencil);
 HRESULT __cdecl wined3d_device_set_dialog_box_mode(struct wined3d_device *device, BOOL enable_dialogs);
-HRESULT __cdecl wined3d_device_set_display_mode(struct wined3d_device *device,
-        UINT swapchain_idx, const struct wined3d_display_mode *mode);
 void __cdecl wined3d_device_set_gamma_ramp(const struct wined3d_device *device,
         UINT swapchain_idx, DWORD flags, const struct wined3d_gamma_ramp *ramp);
 HRESULT __cdecl wined3d_device_set_index_buffer(struct wined3d_device *device,
@@ -2308,6 +2327,7 @@ HRESULT __cdecl wined3d_surface_create(struct wined3d_device *device, UINT width
         const struct wined3d_parent_ops *parent_ops, struct wined3d_surface **surface);
 ULONG __cdecl wined3d_surface_decref(struct wined3d_surface *surface);
 HRESULT __cdecl wined3d_surface_flip(struct wined3d_surface *surface, struct wined3d_surface *override, DWORD flags);
+struct wined3d_surface * __cdecl wined3d_surface_from_resource(struct wined3d_resource *resource);
 HRESULT __cdecl wined3d_surface_get_blt_status(const struct wined3d_surface *surface, DWORD flags);
 HRESULT __cdecl wined3d_surface_get_flip_status(const struct wined3d_surface *surface, DWORD flags);
 HRESULT __cdecl wined3d_surface_get_overlay_position(const struct wined3d_surface *surface, LONG *x, LONG *y);
@@ -2349,7 +2369,7 @@ HRESULT __cdecl wined3d_swapchain_get_back_buffer(const struct wined3d_swapchain
         UINT backbuffer_idx, enum wined3d_backbuffer_type backbuffer_type, struct wined3d_surface **backbuffer);
 struct wined3d_device * __cdecl wined3d_swapchain_get_device(const struct wined3d_swapchain *swapchain);
 HRESULT __cdecl wined3d_swapchain_get_display_mode(const struct wined3d_swapchain *swapchain,
-        struct wined3d_display_mode *mode);
+        struct wined3d_display_mode *mode, enum wined3d_display_rotation *rotation);
 HRESULT __cdecl wined3d_swapchain_get_front_buffer_data(const struct wined3d_swapchain *swapchain,
         struct wined3d_surface *dst_surface);
 HRESULT __cdecl wined3d_swapchain_get_gamma_ramp(const struct wined3d_swapchain *swapchain,

@@ -122,6 +122,20 @@ static HRESULT to_int(VARIANT *v, int *ret)
     return S_OK;
 }
 
+static HRESULT to_string(VARIANT *v, BSTR *ret)
+{
+    VARIANT dst;
+    HRESULT hres;
+
+    V_VT(&dst) = VT_EMPTY;
+    hres = VariantChangeType(&dst, v, VARIANT_LOCALBOOL, VT_BSTR);
+    if(FAILED(hres))
+        return hres;
+
+    *ret = V_BSTR(&dst);
+    return S_OK;
+}
+
 static IUnknown *create_object(script_ctx_t *ctx, const WCHAR *progid)
 {
     IInternetHostSecurityManager *secmgr = NULL;
@@ -558,14 +572,64 @@ static HRESULT Global_StrComp(vbdisp_t *This, VARIANT *arg, unsigned args_cnt, V
 
 static HRESULT Global_LCase(vbdisp_t *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    BSTR str;
+    HRESULT hres;
+
+    TRACE("%s\n", debugstr_variant(arg));
+
+    if(V_VT(arg) == VT_NULL) {
+        if(res)
+            V_VT(res) = VT_NULL;
+        return S_OK;
+    }
+
+    hres = to_string(arg, &str);
+    if(FAILED(hres))
+        return hres;
+
+    if(res) {
+        WCHAR *ptr;
+
+        for(ptr = str; *ptr; ptr++)
+            *ptr = tolowerW(*ptr);
+
+        V_VT(res) = VT_BSTR;
+        V_BSTR(res) = str;
+    }else {
+        SysFreeString(str);
+    }
+    return S_OK;
 }
 
 static HRESULT Global_UCase(vbdisp_t *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    BSTR str;
+    HRESULT hres;
+
+    TRACE("%s\n", debugstr_variant(arg));
+
+    if(V_VT(arg) == VT_NULL) {
+        if(res)
+            V_VT(res) = VT_NULL;
+        return S_OK;
+    }
+
+    hres = to_string(arg, &str);
+    if(FAILED(hres))
+        return hres;
+
+    if(res) {
+        WCHAR *ptr;
+
+        for(ptr = str; *ptr; ptr++)
+            *ptr = toupperW(*ptr);
+
+        V_VT(res) = VT_BSTR;
+        V_BSTR(res) = str;
+    }else {
+        SysFreeString(str);
+    }
+    return S_OK;
 }
 
 static HRESULT Global_LTrim(vbdisp_t *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)

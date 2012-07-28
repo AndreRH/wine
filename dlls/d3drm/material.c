@@ -160,9 +160,15 @@ static HRESULT WINAPI IDirect3DRMMaterial2Impl_GetName(IDirect3DRMMaterial2* ifa
 static HRESULT WINAPI IDirect3DRMMaterial2Impl_GetClassName(IDirect3DRMMaterial2* iface,
                                                            LPDWORD size, LPSTR name)
 {
-    FIXME("(%p)->(%p, %p): stub\n", iface, size, name);
+    TRACE("(%p)->(%p, %p)\n", iface, size, name);
 
-    return E_NOTIMPL;
+    if (!size || *size < strlen("Material") || !name)
+        return E_INVALIDARG;
+
+    strcpy(name, "Material");
+    *size = sizeof("Material");
+
+    return D3DRM_OK;
 }
 
 /*** IDirect3DRMMaterial methods ***/
@@ -313,6 +319,10 @@ HRESULT Direct3DRMMaterial_create(IDirect3DRMMaterial2** ret_iface)
 
     object->IDirect3DRMMaterial2_iface.lpVtbl = &Direct3DRMMaterial2_Vtbl;
     object->ref = 1;
+
+    object->specular.r = 1.0f;
+    object->specular.g = 1.0f;
+    object->specular.b = 1.0f;
 
     *ret_iface = &object->IDirect3DRMMaterial2_iface;
 

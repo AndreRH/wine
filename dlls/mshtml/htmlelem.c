@@ -16,8 +16,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-
 #include <stdarg.h>
+#include <assert.h>
 
 #define COBJMACROS
 
@@ -108,7 +108,6 @@ static const tag_desc_t *get_tag_desc(const WCHAR *tag_name)
 HRESULT replace_node_by_html(nsIDOMHTMLDocument *nsdoc, nsIDOMNode *nsnode, const WCHAR *html)
 {
     nsIDOMDocumentFragment *nsfragment;
-    nsIDOMNSRange *nsrange;
     nsIDOMNode *nsparent;
     nsIDOMRange *range;
     nsAString html_str;
@@ -121,16 +120,9 @@ HRESULT replace_node_by_html(nsIDOMHTMLDocument *nsdoc, nsIDOMNode *nsnode, cons
         return E_FAIL;
     }
 
-    nsres = nsIDOMRange_QueryInterface(range, &IID_nsIDOMNSRange, (void**)&nsrange);
-    nsIDOMRange_Release(range);
-    if(NS_FAILED(nsres)) {
-        ERR("Could not get nsIDOMNSRange: %08x\n", nsres);
-        return E_FAIL;
-    }
-
     nsAString_InitDepend(&html_str, html);
-    nsIDOMNSRange_CreateContextualFragment(nsrange, &html_str, &nsfragment);
-    nsIDOMNSRange_Release(nsrange);
+    nsIDOMRange_CreateContextualFragment(range, &html_str, &nsfragment);
+    nsIDOMRange_Release(range);
     nsAString_Finish(&html_str);
     if(NS_FAILED(nsres)) {
         ERR("CreateContextualFragment failed: %08x\n", nsres);
@@ -190,7 +182,7 @@ HRESULT create_nselem(HTMLDocumentNode *doc, const WCHAR *tag, nsIDOMHTMLElement
     }
 
     nsAString_InitDepend(&tag_str, tag);
-    nsres = nsIDOMDocument_CreateElement(doc->nsdoc, &tag_str, &nselem);
+    nsres = nsIDOMHTMLDocument_CreateElement(doc->nsdoc, &tag_str, &nselem);
     nsAString_Finish(&tag_str);
     if(NS_FAILED(nsres)) {
         ERR("CreateElement failed: %08x\n", nsres);
@@ -454,32 +446,9 @@ static HRESULT WINAPI HTMLElement_get_style(IHTMLElement *iface, IHTMLStyle **p)
     TRACE("(%p)->(%p)\n", This, p);
 
     if(!This->style) {
-        nsIDOMElementCSSInlineStyle *nselemstyle;
-        nsIDOMCSSStyleDeclaration *nsstyle;
-        nsresult nsres;
         HRESULT hres;
 
-        if(!This->nselem) {
-            FIXME("NULL nselem\n");
-            return E_NOTIMPL;
-        }
-
-        nsres = nsIDOMHTMLElement_QueryInterface(This->nselem, &IID_nsIDOMElementCSSInlineStyle,
-                (void**)&nselemstyle);
-        if(NS_FAILED(nsres)) {
-            ERR("Could not get nsIDOMCSSStyleDeclaration interface: %08x\n", nsres);
-            return E_FAIL;
-        }
-
-        nsres = nsIDOMElementCSSInlineStyle_GetStyle(nselemstyle, &nsstyle);
-        nsIDOMElementCSSInlineStyle_Release(nselemstyle);
-        if(NS_FAILED(nsres)) {
-            ERR("GetStyle failed: %08x\n", nsres);
-            return E_FAIL;
-        }
-
-        hres = HTMLStyle_Create(This, nsstyle, &This->style);
-        nsIDOMCSSStyleDeclaration_Release(nsstyle);
+        hres = HTMLStyle_Create(This, &This->style);
         if(FAILED(hres))
             return hres;
     }
@@ -576,15 +545,19 @@ static HRESULT WINAPI HTMLElement_get_onkeyup(IHTMLElement *iface, VARIANT *p)
 static HRESULT WINAPI HTMLElement_put_onkeypress(IHTMLElement *iface, VARIANT v)
 {
     HTMLElement *This = impl_from_IHTMLElement(iface);
-    FIXME("(%p)->(%s)\n", This, debugstr_variant(&v));
-    return E_NOTIMPL;
+
+    TRACE("(%p)->(%s)\n", This, debugstr_variant(&v));
+
+    return set_node_event(&This->node, EVENTID_KEYPRESS, &v);
 }
 
 static HRESULT WINAPI HTMLElement_get_onkeypress(IHTMLElement *iface, VARIANT *p)
 {
     HTMLElement *This = impl_from_IHTMLElement(iface);
-    FIXME("(%p)->(%p)\n", This, p);
-    return E_NOTIMPL;
+
+    TRACE("(%p)->(%p)\n", This, p);
+
+    return get_node_event(&This->node, EVENTID_KEYPRESS, p);
 }
 
 static HRESULT WINAPI HTMLElement_put_onmouseout(IHTMLElement *iface, VARIANT v)
@@ -928,6 +901,7 @@ static HRESULT WINAPI HTMLElement_get_offsetParent(IHTMLElement *iface, IHTMLEle
             return hres;
 
         hres = IHTMLDOMNode_QueryInterface(&node->IHTMLDOMNode_iface, &IID_IHTMLElement, (void**)p);
+        node_release(node);
     }else {
         *p = NULL;
         hres = S_OK;
@@ -1150,7 +1124,6 @@ static HRESULT WINAPI HTMLElement_insertAdjacentHTML(IHTMLElement *iface, BSTR w
 {
     HTMLElement *This = impl_from_IHTMLElement(iface);
     nsIDOMRange *range;
-    nsIDOMNSRange *nsrange;
     nsIDOMNode *nsnode;
     nsAString ns_html;
     nsresult nsres;
@@ -1172,19 +1145,10 @@ static HRESULT WINAPI HTMLElement_insertAdjacentHTML(IHTMLElement *iface, BSTR w
 
     nsIDOMRange_SetStartBefore(range, This->node.nsnode);
 
-    nsIDOMRange_QueryInterface(range, &IID_nsIDOMNSRange, (void **)&nsrange);
-    nsIDOMRange_Release(range);
-    if(NS_FAILED(nsres))
-    {
-        ERR("getting nsIDOMNSRange failed: %08x\n", nsres);
-        return E_FAIL;
-    }
-
     nsAString_InitDepend(&ns_html, html);
-
-    nsres = nsIDOMNSRange_CreateContextualFragment(nsrange, &ns_html, (nsIDOMDocumentFragment **)&nsnode);
-    nsIDOMNSRange_Release(nsrange);
+    nsres = nsIDOMRange_CreateContextualFragment(range, &ns_html, (nsIDOMDocumentFragment **)&nsnode);
     nsAString_Finish(&ns_html);
+    nsIDOMRange_Release(range);
 
     if(NS_FAILED(nsres) || !nsnode)
     {
@@ -1216,7 +1180,7 @@ static HRESULT WINAPI HTMLElement_insertAdjacentText(IHTMLElement *iface, BSTR w
 
 
     nsAString_InitDepend(&ns_text, text);
-    nsres = nsIDOMDocument_CreateTextNode(This->node.doc->nsdoc, &ns_text, (nsIDOMText **)&nsnode);
+    nsres = nsIDOMHTMLDocument_CreateTextNode(This->node.doc->nsdoc, &ns_text, (nsIDOMText **)&nsnode);
     nsAString_Finish(&ns_text);
 
     if(NS_FAILED(nsres) || !nsnode)
@@ -1429,8 +1393,7 @@ static HRESULT WINAPI HTMLElement_get_children(IHTMLElement *iface, IDispatch **
         return E_FAIL;
     }
 
-    *p = (IDispatch*)create_collection_from_nodelist(This->node.doc,
-            (IUnknown*)&This->IHTMLElement_iface, nsnode_list);
+    *p = (IDispatch*)create_collection_from_nodelist(This->node.doc, nsnode_list);
 
     nsIDOMNodeList_Release(nsnode_list);
     return S_OK;
@@ -1596,11 +1559,13 @@ void HTMLElement_destructor(HTMLDOMNode *iface)
 
     ConnectionPointContainer_Destroy(&This->cp_container);
 
-    if(This->nselem)
-        nsIDOMHTMLElement_Release(This->nselem);
     if(This->style) {
         This->style->elem = NULL;
         IHTMLStyle_Release(&This->style->IHTMLStyle_iface);
+    }
+    if(This->runtime_style) {
+        This->runtime_style->elem = NULL;
+        IHTMLStyle_Release(&This->runtime_style->IHTMLStyle_iface);
     }
     if(This->attrs) {
         HTMLDOMAttribute *attr;
@@ -1635,7 +1600,6 @@ HRESULT HTMLElement_clone(HTMLDOMNode *iface, nsIDOMNode *nsnode, HTMLDOMNode **
         }
     }
 
-    IHTMLElement_AddRef(&new_elem->IHTMLElement_iface);
     *ret = &new_elem->node;
     return S_OK;
 }
@@ -1790,11 +1754,13 @@ void HTMLElement_Init(HTMLElement *This, HTMLDocumentNode *doc, nsIDOMHTMLElemen
     init_dispex(&This->node.dispex, (IUnknown*)&This->IHTMLElement_iface,
             dispex_data ? dispex_data : &HTMLElement_dispex);
 
-    if(nselem)
-        nsIDOMHTMLElement_AddRef(nselem);
-    This->nselem = nselem;
+    if(nselem) {
+        HTMLDOMNode_Init(doc, &This->node, (nsIDOMNode*)nselem);
 
-    HTMLDOMNode_Init(doc, &This->node, (nsIDOMNode*)nselem);
+        /* No AddRef, share reference with HTMLDOMNode */
+        assert((nsIDOMNode*)nselem == This->node.nsnode);
+        This->nselem = nselem;
+    }
 
     ConnectionPointContainer_Init(&This->cp_container, (IUnknown*)&This->IHTMLElement_iface);
 }
@@ -1836,7 +1802,7 @@ HRESULT HTMLElement_Create(HTMLDocumentNode *doc, nsIDOMNode *nsnode, BOOL use_g
 
     TRACE("%s ret %p\n", debugstr_w(class_name), elem);
 
-    nsIDOMElement_Release(nselem);
+    nsIDOMHTMLElement_Release(nselem);
     nsAString_Finish(&class_name_str);
     if(FAILED(hres))
         return hres;

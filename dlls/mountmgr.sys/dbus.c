@@ -50,7 +50,6 @@ WINE_DEFAULT_DEBUG_CHANNEL(mountmgr);
     DO_FUNC(dbus_bus_get); \
     DO_FUNC(dbus_bus_remove_match); \
     DO_FUNC(dbus_connection_add_filter); \
-    DO_FUNC(dbus_connection_close); \
     DO_FUNC(dbus_connection_read_write_dispatch); \
     DO_FUNC(dbus_connection_remove_filter); \
     DO_FUNC(dbus_connection_send_with_reply_and_block); \
@@ -67,6 +66,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(mountmgr);
     DO_FUNC(dbus_message_iter_append_basic); \
     DO_FUNC(dbus_message_iter_get_arg_type); \
     DO_FUNC(dbus_message_iter_get_basic); \
+    DO_FUNC(dbus_message_iter_get_fixed_array); \
     DO_FUNC(dbus_message_iter_init); \
     DO_FUNC(dbus_message_iter_init_append); \
     DO_FUNC(dbus_message_iter_next); \
@@ -141,6 +141,11 @@ static LONG WINAPI assert_fault(EXCEPTION_POINTERS *eptr)
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
+static inline int starts_with( const char *str, const char *prefix )
+{
+    return !strncmp( str, prefix, strlen(prefix) );
+}
+
 static GUID *parse_uuid( GUID *guid, const char *str )
 {
     /* standard uuid format */
@@ -200,6 +205,27 @@ static const char *udisks_next_dict_entry( DBusMessageIter *iter, DBusMessageIte
     return name;
 }
 
+static enum device_type udisks_parse_media_compatibility( DBusMessageIter *iter )
+{
+    DBusMessageIter media;
+    enum device_type drive_type = DEVICE_UNKNOWN;
+
+    p_dbus_message_iter_recurse( iter, &media );
+    while (p_dbus_message_iter_get_arg_type( &media ) == DBUS_TYPE_STRING)
+    {
+        const char *media_type;
+        p_dbus_message_iter_get_basic( &media, &media_type );
+        if (starts_with( media_type, "optical_dvd" ))
+            drive_type = DEVICE_DVD;
+        if (starts_with( media_type, "floppy" ))
+            drive_type = DEVICE_FLOPPY;
+        else if (starts_with( media_type, "optical_" ) && drive_type == DEVICE_UNKNOWN)
+            drive_type = DEVICE_CDROM;
+        p_dbus_message_iter_next( &media );
+    }
+    return drive_type;
+}
+
 /* UDisks callback for new device */
 static void udisks_new_device( const char *udi )
 {
@@ -247,22 +273,7 @@ static void udisks_new_device( const char *udi )
             else if (!strcmp( name, "IdType" ))
                 p_dbus_message_iter_get_basic( &variant, &type );
             else if (!strcmp( name, "DriveMediaCompatibility" ))
-            {
-                DBusMessageIter media;
-                p_dbus_message_iter_recurse( &variant, &media );
-                while (p_dbus_message_iter_get_arg_type( &media ) == DBUS_TYPE_STRING)
-                {
-                    const char *media_type;
-                    p_dbus_message_iter_get_basic( &media, &media_type );
-                    if (!strncmp( media_type, "optical_dvd", 11 ))
-                        drive_type = DEVICE_DVD;
-                    if (!strncmp( media_type, "floppy", 6 ))
-                        drive_type = DEVICE_FLOPPY;
-                    else if (!strncmp( media_type, "optical_", 8 ) && drive_type == DEVICE_UNKNOWN)
-                        drive_type = DEVICE_CDROM;
-                    p_dbus_message_iter_next( &media );
-                }
-            }
+                drive_type = udisks_parse_media_compatibility( &variant );
             else if (!strcmp( name, "DeviceMountPaths" ))
             {
                 DBusMessageIter paths;
@@ -354,6 +365,161 @@ static BOOL udisks_enumerate_devices(void)
     return TRUE;
 }
 
+/* to make things easier, UDisks2 stores strings as array of bytes instead of strings... */
+static const char *udisks2_string_from_array( DBusMessageIter *iter )
+{
+    DBusMessageIter string;
+    const char *array;
+    int size;
+
+    p_dbus_message_iter_recurse( iter, &string );
+    p_dbus_message_iter_get_fixed_array( &string, &array, &size );
+    return array;
+}
+
+/* find the drive entry in the dictionary and get its parameters */
+static void udisks2_get_drive_info( const char *drive_name, DBusMessageIter *dict,
+                                    enum device_type *drive_type, int *removable )
+{
+    DBusMessageIter iter, drive, variant;
+    const char *name;
+
+    p_dbus_message_iter_recurse( dict, &iter );
+    while ((name = udisks_next_dict_entry( &iter, &drive )))
+    {
+        if (strcmp( name, drive_name )) continue;
+        while ((name = udisks_next_dict_entry( &drive, &iter )))
+        {
+            if (strcmp( name, "org.freedesktop.UDisks2.Drive" )) continue;
+            while ((name = udisks_next_dict_entry( &iter, &variant )))
+            {
+                if (!strcmp( name, "Removable" ))
+                    p_dbus_message_iter_get_basic( &variant, removable );
+                else if (!strcmp( name, "MediaCompatibility" ))
+                    *drive_type = udisks_parse_media_compatibility( &variant );
+            }
+        }
+    }
+}
+
+static void udisks2_add_device( const char *udi, DBusMessageIter *dict, DBusMessageIter *block )
+{
+    DBusMessageIter iter, variant, paths, string;
+    const char *device = NULL;
+    const char *mount_point = NULL;
+    const char *type = NULL;
+    const char *drive = NULL;
+    GUID guid, *guid_ptr = NULL;
+    const char *iface, *name;
+    int removable = FALSE;
+    enum device_type drive_type = DEVICE_UNKNOWN;
+
+    while ((iface = udisks_next_dict_entry( block, &iter )))
+    {
+        if (!strcmp( iface, "org.freedesktop.UDisks2.Filesystem" ))
+        {
+            while ((name = udisks_next_dict_entry( &iter, &variant )))
+            {
+                if (!strcmp( name, "MountPoints" ))
+                {
+                    p_dbus_message_iter_recurse( &variant, &paths );
+                    if (p_dbus_message_iter_get_arg_type( &paths ) == DBUS_TYPE_ARRAY)
+                    {
+                        p_dbus_message_iter_recurse( &variant, &string );
+                        mount_point = udisks2_string_from_array( &string );
+                    }
+                }
+            }
+        }
+        if (!strcmp( iface, "org.freedesktop.UDisks2.Block" ))
+        {
+            while ((name = udisks_next_dict_entry( &iter, &variant )))
+            {
+                if (!strcmp( name, "Device" ))
+                    device = udisks2_string_from_array( &variant );
+                else if (!strcmp( name, "IdType" ))
+                    p_dbus_message_iter_get_basic( &variant, &type );
+                else if (!strcmp( name, "Drive" ))
+                {
+                    p_dbus_message_iter_get_basic( &variant, &drive );
+                    udisks2_get_drive_info( drive, dict, &drive_type, &removable );
+                }
+                else if (!strcmp( name, "IdUUID" ))
+                {
+                    char *uuid_str;
+                    p_dbus_message_iter_get_basic( &variant, &uuid_str );
+                    guid_ptr = parse_uuid( &guid, uuid_str );
+                }
+            }
+        }
+    }
+
+    TRACE( "udi %s device %s mount point %s uuid %s type %s removable %u\n",
+           debugstr_a(udi), debugstr_a(device), debugstr_a(mount_point),
+           debugstr_guid(guid_ptr), debugstr_a(type), removable );
+
+    if (type)
+    {
+        if (!strcmp( type, "iso9660" ))
+        {
+            removable = TRUE;
+            drive_type = DEVICE_CDROM;
+        }
+        else if (!strcmp( type, "udf" ))
+        {
+            removable = TRUE;
+            drive_type = DEVICE_DVD;
+        }
+    }
+    if (device)
+    {
+        if (removable) add_dos_device( -1, udi, device, mount_point, drive_type, guid_ptr );
+        else if (guid_ptr) add_volume( udi, device, mount_point, DEVICE_HARDDISK_VOL, guid_ptr );
+    }
+}
+
+/* UDisks2 is almost, but not quite, entirely unlike UDisks.
+ * It would have been easy to make it backwards compatible, but where would be the fun in that?
+ */
+static BOOL udisks2_add_devices( const char *changed )
+{
+    DBusMessage *request, *reply;
+    DBusMessageIter dict, iter, block;
+    DBusError error;
+    const char *udi;
+
+    request = p_dbus_message_new_method_call( "org.freedesktop.UDisks2", "/org/freedesktop/UDisks2",
+                                              "org.freedesktop.DBus.ObjectManager", "GetManagedObjects" );
+    if (!request) return FALSE;
+
+    p_dbus_error_init( &error );
+    reply = p_dbus_connection_send_with_reply_and_block( connection, request, udisks_timeout, &error );
+    p_dbus_message_unref( request );
+    if (!reply)
+    {
+        WARN( "failed: %s\n", error.message );
+        p_dbus_error_free( &error );
+        return FALSE;
+    }
+    p_dbus_error_free( &error );
+
+    p_dbus_message_iter_init( reply, &dict );
+    if (p_dbus_message_iter_get_arg_type( &dict ) == DBUS_TYPE_ARRAY)
+    {
+        p_dbus_message_iter_recurse( &dict, &iter );
+        while ((udi = udisks_next_dict_entry( &iter, &block )))
+        {
+            if (!starts_with( udi, "/org/freedesktop/UDisks2/block_devices/" )) continue;
+            if (changed && strcmp( changed, udi )) continue;
+            udisks2_add_device( udi, &dict, &block );
+        }
+    }
+    else WARN( "unexpected args in GetManagedObjects reply\n" );
+
+    p_dbus_message_unref( reply );
+    return TRUE;
+}
+
 static DBusHandlerResult udisks_filter( DBusConnection *ctx, DBusMessage *msg, void *user_data )
 {
     char *path;
@@ -361,6 +527,7 @@ static DBusHandlerResult udisks_filter( DBusConnection *ctx, DBusMessage *msg, v
 
     p_dbus_error_init( &error );
 
+    /* udisks signals */
     if (p_dbus_message_is_signal( msg, "org.freedesktop.UDisks", "DeviceAdded" ) &&
         p_dbus_message_get_args( msg, &error, DBUS_TYPE_OBJECT_PATH, &path, DBUS_TYPE_INVALID ))
     {
@@ -375,6 +542,24 @@ static DBusHandlerResult udisks_filter( DBusConnection *ctx, DBusMessage *msg, v
              p_dbus_message_get_args( msg, &error, DBUS_TYPE_OBJECT_PATH, &path, DBUS_TYPE_INVALID ))
     {
         udisks_changed_device( path );
+    }
+    /* udisks2 signals */
+    else if (p_dbus_message_is_signal( msg, "org.freedesktop.DBus.ObjectManager", "InterfacesAdded" ) &&
+             p_dbus_message_get_args( msg, &error, DBUS_TYPE_OBJECT_PATH, &path, DBUS_TYPE_INVALID ))
+    {
+        TRACE( "added %s\n", wine_dbgstr_a(path) );
+        udisks2_add_devices( path );
+    }
+    else if (p_dbus_message_is_signal( msg, "org.freedesktop.DBus.ObjectManager", "InterfacesRemoved" ) &&
+             p_dbus_message_get_args( msg, &error, DBUS_TYPE_OBJECT_PATH, &path, DBUS_TYPE_INVALID ))
+    {
+        udisks_removed_device( path );
+    }
+    else if (p_dbus_message_is_signal( msg, "org.freedesktop.DBus.Properties", "PropertiesChanged" ))
+    {
+        const char *udi = p_dbus_message_get_path( msg );
+        TRACE( "changed %s\n", wine_dbgstr_a(udi) );
+        udisks2_add_devices( udi );
     }
     else TRACE( "ignoring message type=%d path=%s interface=%s method=%s\n",
                 p_dbus_message_get_type( msg ), p_dbus_message_get_path( msg ),
@@ -504,6 +689,12 @@ static DWORD WINAPI dbus_thread( void *arg )
     static const char udisks_match[] = "type='signal',"
                                        "interface='org.freedesktop.UDisks',"
                                        "sender='org.freedesktop.UDisks'";
+    static const char udisks2_match_interfaces[] = "type='signal',"
+                                                   "interface='org.freedesktop.DBus.ObjectManager',"
+                                                   "path='/org/freedesktop/UDisks2'";
+    static const char udisks2_match_properties[] = "type='signal',"
+                                                   "interface='org.freedesktop.DBus.Properties'";
+
 
     DBusError error;
 
@@ -515,24 +706,33 @@ static DWORD WINAPI dbus_thread( void *arg )
         return 1;
     }
 
-    if (p_dbus_connection_add_filter( connection, udisks_filter, NULL, NULL ))
-	p_dbus_bus_add_match( connection, udisks_match, &error );
+    /* first try UDisks2 */
 
-    if (!udisks_enumerate_devices())
-    {
-        p_dbus_bus_remove_match( connection, udisks_match, &error );
-        p_dbus_connection_remove_filter( connection, udisks_filter, NULL );
+    p_dbus_connection_add_filter( connection, udisks_filter, NULL, NULL );
+    p_dbus_bus_add_match( connection, udisks2_match_interfaces, &error );
+    p_dbus_bus_add_match( connection, udisks2_match_properties, &error );
+    if (udisks2_add_devices( NULL )) goto found;
+    p_dbus_bus_remove_match( connection, udisks2_match_interfaces, &error );
+    p_dbus_bus_remove_match( connection, udisks2_match_properties, &error );
+
+    /* then try UDisks */
+
+    p_dbus_bus_add_match( connection, udisks_match, &error );
+    if (udisks_enumerate_devices()) goto found;
+    p_dbus_bus_remove_match( connection, udisks_match, &error );
+    p_dbus_connection_remove_filter( connection, udisks_filter, NULL );
+
+    /* then finally HAL */
 
 #ifdef SONAME_LIBHAL
-        if (!hal_enumerate_devices())
-        {
-            p_dbus_connection_close( connection );
-            p_dbus_error_free( &error );
-            return 1;
-        }
-#endif
+    if (!hal_enumerate_devices())
+    {
+        p_dbus_error_free( &error );
+        return 1;
     }
+#endif
 
+found:
     __TRY
     {
         while (p_dbus_connection_read_write_dispatch( connection, -1 )) /* nothing */ ;
@@ -544,7 +744,6 @@ static DWORD WINAPI dbus_thread( void *arg )
     }
     __ENDTRY;
 
-    p_dbus_connection_close( connection );
     return 0;
 }
 

@@ -229,14 +229,14 @@ HINTERNET WINAPI WinHttpOpen( LPCWSTR agent, DWORD access, LPCWSTR proxy, LPCWST
         session->access = info.dwAccessType;
         if (info.lpszProxy && !(session->proxy_server = strdupW( info.lpszProxy )))
         {
-            GlobalFree( (LPWSTR)info.lpszProxy );
-            GlobalFree( (LPWSTR)info.lpszProxyBypass );
+            GlobalFree( info.lpszProxy );
+            GlobalFree( info.lpszProxyBypass );
             goto end;
         }
         if (info.lpszProxyBypass && !(session->proxy_bypass = strdupW( info.lpszProxyBypass )))
         {
-            GlobalFree( (LPWSTR)info.lpszProxy );
-            GlobalFree( (LPWSTR)info.lpszProxyBypass );
+            GlobalFree( info.lpszProxy );
+            GlobalFree( info.lpszProxyBypass );
             goto end;
         }
     }
@@ -1194,7 +1194,11 @@ BOOL WINAPI WinHttpDetectAutoProxyConfigUrl( DWORD flags, LPWSTR *url )
         set_last_error( ERROR_INVALID_PARAMETER );
         return FALSE;
     }
-    if (flags & WINHTTP_AUTO_DETECT_TYPE_DHCP) FIXME("discovery via DHCP not supported\n");
+    if (flags & WINHTTP_AUTO_DETECT_TYPE_DHCP)
+    {
+        static int fixme_shown;
+        if (!fixme_shown++) FIXME("discovery via DHCP not supported\n");
+    }
     if (flags & WINHTTP_AUTO_DETECT_TYPE_DNS_A)
     {
 #ifdef HAVE_GETADDRINFO
@@ -1824,6 +1828,16 @@ static BSTR include_pac_utils( BSTR script )
     return ret;
 }
 
+#ifdef _WIN64
+#define IActiveScriptParse_Release IActiveScriptParse64_Release
+#define IActiveScriptParse_InitNew IActiveScriptParse64_InitNew
+#define IActiveScriptParse_ParseScriptText IActiveScriptParse64_ParseScriptText
+#else
+#define IActiveScriptParse_Release IActiveScriptParse32_Release
+#define IActiveScriptParse_InitNew IActiveScriptParse32_InitNew
+#define IActiveScriptParse_ParseScriptText IActiveScriptParse32_ParseScriptText
+#endif
+
 static BOOL run_script( const BSTR script, const WCHAR *url, WINHTTP_PROXY_INFO *info )
 {
     static const WCHAR jscriptW[] = {'J','S','c','r','i','p','t',0};
@@ -1858,7 +1872,7 @@ static BOOL run_script( const BSTR script, const WCHAR *url, WINHTTP_PROXY_INFO 
     hr = IActiveScript_QueryInterface( engine, &IID_IActiveScriptParse, (void **)&parser );
     if (hr != S_OK) goto done;
 
-    hr = IActiveScriptParse64_InitNew( parser );
+    hr = IActiveScriptParse_InitNew( parser );
     if (hr != S_OK) goto done;
 
     hr = IActiveScript_SetScriptSite( engine, &script_site );
@@ -1869,7 +1883,7 @@ static BOOL run_script( const BSTR script, const WCHAR *url, WINHTTP_PROXY_INFO 
 
     if (!(full_script = include_pac_utils( script ))) goto done;
 
-    hr = IActiveScriptParse64_ParseScriptText( parser, full_script, NULL, NULL, NULL, 0, 0, 0, NULL, NULL );
+    hr = IActiveScriptParse_ParseScriptText( parser, full_script, NULL, NULL, NULL, 0, 0, 0, NULL, NULL );
     if (hr != S_OK) goto done;
 
     hr = IActiveScript_SetScriptState( engine, SCRIPTSTATE_STARTED );
@@ -1906,7 +1920,7 @@ done:
     SysFreeString( hostname );
     SysFreeString( func );
     if (dispatch) IDispatch_Release( dispatch );
-    if (parser) IUnknown_Release( parser );
+    if (parser) IActiveScriptParse_Release( parser );
     if (engine) IActiveScript_Release( engine );
     if (SUCCEEDED( init )) CoUninitialize();
     if (!ret) set_last_error( ERROR_WINHTTP_BAD_AUTO_PROXY_SCRIPT );

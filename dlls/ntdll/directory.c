@@ -314,10 +314,17 @@ static char *get_default_com_device( int num )
         ret[strlen(ret) - 1] = '0' + num - 1;
     }
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
-    ret = RtlAllocateHeap( GetProcessHeap(), 0, sizeof("/dev/cuad0") );
+    ret = RtlAllocateHeap( GetProcessHeap(), 0, sizeof("/dev/cuau0") );
     if (ret)
     {
-        strcpy( ret, "/dev/cuad0" );
+        strcpy( ret, "/dev/cuau0" );
+        ret[strlen(ret) - 1] = '0' + num - 1;
+    }
+#elif defined(__DragonFly__)
+    ret = RtlAllocateHeap( GetProcessHeap(), 0, sizeof("/dev/cuaa0") );
+    if (ret)
+    {
+        strcpy( ret, "/dev/cuaa0" );
         ret[strlen(ret) - 1] = '0' + num - 1;
     }
 #else
@@ -486,7 +493,7 @@ static char *parse_mount_entries( FILE *f, dev_t dev, ino_t ino )
 }
 #endif
 
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
 #include <fstab.h>
 static char *parse_mount_entries( FILE *f, dev_t dev, ino_t ino )
 {
@@ -587,7 +594,7 @@ static char *get_default_drive_device( const char *root )
     }
     RtlLeaveCriticalSection( &dir_section );
 
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__ )
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__ ) || defined(__DragonFly__)
     char *device = NULL;
     int fd, res = -1;
     struct stat st;
@@ -1702,6 +1709,15 @@ static inline int wine_getdirentries(int fd, char *buf, int nbytes, long *basep)
     return res;
 }
 
+static inline int dir_reclen(struct dirent *de)
+{
+#ifdef HAVE_STRUCT_DIRENT_D_RECLEN
+    return de->d_reclen;
+#else
+    return _DIRENT_RECLEN(de->d_namlen);
+#endif
+}
+
 /***********************************************************************
  *           read_directory_getdirentries
  *
@@ -1747,9 +1763,9 @@ static int read_directory_getdirentries( int fd, IO_STATUS_BLOCK *io, void *buff
         /* check if we got . and .. from getdirentries */
         if (res > 0)
         {
-            if (!strcmp( de->d_name, "." ) && res > de->d_reclen)
+            if (!strcmp( de->d_name, "." ) && res > dir_reclen(de))
             {
-                struct dirent *next_de = (struct dirent *)(data + de->d_reclen);
+                struct dirent *next_de = (struct dirent *)(data + dir_reclen(de));
                 if (!strcmp( next_de->d_name, ".." )) fake_dot_dot = 0;
             }
         }
@@ -1785,7 +1801,7 @@ static int read_directory_getdirentries( int fd, IO_STATUS_BLOCK *io, void *buff
 
     while (res > 0)
     {
-        res -= de->d_reclen;
+        res -= dir_reclen(de);
         if (de->d_fileno &&
             !(fake_dot_dot && (!strcmp( de->d_name, "." ) || !strcmp( de->d_name, ".." ))) &&
             ((info = append_entry( buffer, io, length, de->d_name, NULL, mask, class ))))
@@ -1812,7 +1828,7 @@ static int read_directory_getdirentries( int fd, IO_STATUS_BLOCK *io, void *buff
             if (res > 0 && (single_entry || io->Information + max_dir_info_size(class) > length))
             {
                 lseek( fd, (unsigned long)restart_pos, SEEK_SET );
-                size = (char *)de + de->d_reclen - data;
+                size = (char *)de + dir_reclen(de) - data;
                 io->Information = restart_info_pos;
                 last_info = restart_last_info;
                 goto restart;
@@ -1821,7 +1837,7 @@ static int read_directory_getdirentries( int fd, IO_STATUS_BLOCK *io, void *buff
         /* move on to the next entry */
         if (res > 0)
         {
-            de = (struct dirent *)((char *)de + de->d_reclen);
+            de = (struct dirent *)((char *)de + dir_reclen(de));
             continue;
         }
         if (size < initial_size) break;  /* already restarted once, give up now */

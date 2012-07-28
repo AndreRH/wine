@@ -37,7 +37,6 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(d3d_shader);
 WINE_DECLARE_DEBUG_CHANNEL(d3d_constants);
-WINE_DECLARE_DEBUG_CHANNEL(d3d_caps);
 WINE_DECLARE_DEBUG_CHANNEL(d3d);
 
 /* Extract a line. Note that this modifies the source string. */
@@ -3290,11 +3289,11 @@ static GLuint create_arb_blt_vertex_program(const struct wined3d_gl_info *gl_inf
             strlen(blt_vprogram), blt_vprogram));
     checkGLcall("glProgramStringARB()");
 
-    glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &pos);
+    gl_info->gl_ops.gl.p_glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &pos);
     if (pos != -1)
     {
         FIXME("Vertex program error at position %d: %s\n\n", pos,
-            debugstr_a((const char *)glGetString(GL_PROGRAM_ERROR_STRING_ARB)));
+            debugstr_a((const char *)gl_info->gl_ops.gl.p_glGetString(GL_PROGRAM_ERROR_STRING_ARB)));
         shader_arb_dump_program_source(blt_vprogram);
     }
     else
@@ -3394,11 +3393,11 @@ static GLuint create_arb_blt_fragment_program(const struct wined3d_gl_info *gl_i
     GL_EXTCALL(glProgramStringARB(GL_FRAGMENT_PROGRAM_ARB, GL_PROGRAM_FORMAT_ASCII_ARB, strlen(fprogram), fprogram));
     checkGLcall("glProgramStringARB()");
 
-    glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &pos);
+    gl_info->gl_ops.gl.p_glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &pos);
     if (pos != -1)
     {
         FIXME("Fragment program error at position %d: %s\n\n", pos,
-            debugstr_a((const char *)glGetString(GL_PROGRAM_ERROR_STRING_ARB)));
+            debugstr_a((const char *)gl_info->gl_ops.gl.p_glGetString(GL_PROGRAM_ERROR_STRING_ARB)));
         shader_arb_dump_program_source(fprogram);
     }
     else
@@ -3858,11 +3857,11 @@ static GLuint shader_arb_generate_pshader(const struct wined3d_shader *shader,
                buffer->bsize, buffer->buffer));
     checkGLcall("glProgramStringARB()");
 
-    glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &errPos);
+    gl_info->gl_ops.gl.p_glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &errPos);
     if (errPos != -1)
     {
         FIXME("HW PixelShader Error at position %d: %s\n\n",
-              errPos, debugstr_a((const char *)glGetString(GL_PROGRAM_ERROR_STRING_ARB)));
+              errPos, debugstr_a((const char *)gl_info->gl_ops.gl.p_glGetString(GL_PROGRAM_ERROR_STRING_ARB)));
         shader_arb_dump_program_source(buffer->buffer);
         retval = 0;
     }
@@ -4271,11 +4270,11 @@ static GLuint shader_arb_generate_vshader(const struct wined3d_shader *shader,
                buffer->bsize, buffer->buffer));
     checkGLcall("glProgramStringARB()");
 
-    glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &errPos);
+    gl_info->gl_ops.gl.p_glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &errPos);
     if (errPos != -1)
     {
         FIXME("HW VertexShader Error at position %d: %s\n\n",
-              errPos, debugstr_a((const char *)glGetString(GL_PROGRAM_ERROR_STRING_ARB)));
+              errPos, debugstr_a((const char *)gl_info->gl_ops.gl.p_glGetString(GL_PROGRAM_ERROR_STRING_ARB)));
         shader_arb_dump_program_source(buffer->buffer);
         ret = -1;
     }
@@ -4642,9 +4641,10 @@ static void shader_arb_select(const struct wined3d_context *context, BOOL usePS,
         GL_EXTCALL(glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, priv->current_fprogram_id));
         checkGLcall("glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, priv->current_fprogram_id);");
 
-        if(!priv->use_arbfp_fixed_func) {
-            /* Enable OpenGL fragment programs */
-            glEnable(GL_FRAGMENT_PROGRAM_ARB);
+        if (!priv->use_arbfp_fixed_func)
+        {
+            /* Enable OpenGL fragment programs. */
+            gl_info->gl_ops.gl.p_glEnable(GL_FRAGMENT_PROGRAM_ARB);
             checkGLcall("glEnable(GL_FRAGMENT_PROGRAM_ARB);");
         }
         TRACE("(%p) : Bound fragment program %u and enabled GL_FRAGMENT_PROGRAM_ARB\n",
@@ -4680,7 +4680,7 @@ static void shader_arb_select(const struct wined3d_context *context, BOOL usePS,
         * keep GL_FRAGMENT_PROGRAM_ARB enabled, and the fixed function pipeline will bind the fixed function
         * replacement shader
         */
-        glDisable(GL_FRAGMENT_PROGRAM_ARB);
+        gl_info->gl_ops.gl.p_glDisable(GL_FRAGMENT_PROGRAM_ARB);
         checkGLcall("glDisable(GL_FRAGMENT_PROGRAM_ARB)");
         priv->current_fprogram_id = 0;
     }
@@ -4702,7 +4702,7 @@ static void shader_arb_select(const struct wined3d_context *context, BOOL usePS,
         checkGLcall("glBindProgramARB(GL_VERTEX_PROGRAM_ARB, priv->current_vprogram_id);");
 
         /* Enable OpenGL vertex programs */
-        glEnable(GL_VERTEX_PROGRAM_ARB);
+        gl_info->gl_ops.gl.p_glEnable(GL_VERTEX_PROGRAM_ARB);
         checkGLcall("glEnable(GL_VERTEX_PROGRAM_ARB);");
         TRACE("(%p) : Bound vertex program %u and enabled GL_VERTEX_PROGRAM_ARB\n", device, priv->current_vprogram_id);
         shader_arb_vs_local_constants(compiled, context, state);
@@ -4722,7 +4722,7 @@ static void shader_arb_select(const struct wined3d_context *context, BOOL usePS,
     else if (gl_info->supported[ARB_VERTEX_PROGRAM])
     {
         priv->current_vprogram_id = 0;
-        glDisable(GL_VERTEX_PROGRAM_ARB);
+        gl_info->gl_ops.gl.p_glDisable(GL_VERTEX_PROGRAM_ARB);
         checkGLcall("glDisable(GL_VERTEX_PROGRAM_ARB)");
     }
 }
@@ -4738,13 +4738,13 @@ static void shader_arb_select_depth_blt(void *shader_priv, const struct wined3d_
 
     if (!priv->depth_blt_vprogram_id) priv->depth_blt_vprogram_id = create_arb_blt_vertex_program(gl_info);
     GL_EXTCALL(glBindProgramARB(GL_VERTEX_PROGRAM_ARB, priv->depth_blt_vprogram_id));
-    glEnable(GL_VERTEX_PROGRAM_ARB);
+    gl_info->gl_ops.gl.p_glEnable(GL_VERTEX_PROGRAM_ARB);
 
     blt_fprogram = masked ? &priv->depth_blt_fprogram_id_masked[tex_type] : &priv->depth_blt_fprogram_id_full[tex_type];
     if (!*blt_fprogram) *blt_fprogram = create_arb_blt_fragment_program(gl_info, tex_type, masked);
     GL_EXTCALL(glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, *blt_fprogram));
     if (masked) GL_EXTCALL(glProgramLocalParameter4fvARB(GL_FRAGMENT_PROGRAM_ARB, 0, mask));
-    glEnable(GL_FRAGMENT_PROGRAM_ARB);
+    gl_info->gl_ops.gl.p_glEnable(GL_FRAGMENT_PROGRAM_ARB);
 }
 
 /* GL locking is done by the caller */
@@ -4760,7 +4760,7 @@ static void shader_arb_deselect_depth_blt(void *shader_priv, const struct wined3
     }
     else
     {
-        glDisable(GL_VERTEX_PROGRAM_ARB);
+        gl_info->gl_ops.gl.p_glDisable(GL_VERTEX_PROGRAM_ARB);
         checkGLcall("glDisable(GL_VERTEX_PROGRAM_ARB)");
     }
 
@@ -4772,7 +4772,7 @@ static void shader_arb_deselect_depth_blt(void *shader_priv, const struct wined3
     }
     else if(!priv->use_arbfp_fixed_func)
     {
-        glDisable(GL_FRAGMENT_PROGRAM_ARB);
+        gl_info->gl_ops.gl.p_glDisable(GL_FRAGMENT_PROGRAM_ARB);
         checkGLcall("glDisable(GL_FRAGMENT_PROGRAM_ARB)");
     }
 }
@@ -4951,18 +4951,18 @@ static void shader_arb_get_caps(const struct wined3d_gl_info *gl_info, struct sh
         if (gl_info->supported[NV_VERTEX_PROGRAM3])
         {
             caps->VertexShaderVersion = 3;
-            TRACE_(d3d_caps)("Hardware vertex shader version 3.0 enabled (NV_VERTEX_PROGRAM3)\n");
+            TRACE("Hardware vertex shader version 3.0 enabled (NV_VERTEX_PROGRAM3)\n");
         }
         else if (vs_consts >= 256)
         {
             /* Shader Model 2.0 requires at least 256 vertex shader constants */
             caps->VertexShaderVersion = 2;
-            TRACE_(d3d_caps)("Hardware vertex shader version 2.0 enabled (ARB_PROGRAM)\n");
+            TRACE("Hardware vertex shader version 2.0 enabled (ARB_PROGRAM)\n");
         }
         else
         {
             caps->VertexShaderVersion = 1;
-            TRACE_(d3d_caps)("Hardware vertex shader version 1.1 enabled (ARB_PROGRAM)\n");
+            TRACE("Hardware vertex shader version 1.1 enabled (ARB_PROGRAM)\n");
         }
         caps->MaxVertexShaderConst = vs_consts;
     }
@@ -4986,18 +4986,18 @@ static void shader_arb_get_caps(const struct wined3d_gl_info *gl_info, struct sh
         if (gl_info->supported[NV_FRAGMENT_PROGRAM2])
         {
             caps->PixelShaderVersion = 3;
-            TRACE_(d3d_caps)("Hardware pixel shader version 3.0 enabled (NV_FRAGMENT_PROGRAM2)\n");
+            TRACE("Hardware pixel shader version 3.0 enabled (NV_FRAGMENT_PROGRAM2)\n");
         }
         else if (ps_consts >= 32)
         {
             /* Shader Model 2.0 requires at least 32 pixel shader constants */
             caps->PixelShaderVersion = 2;
-            TRACE_(d3d_caps)("Hardware pixel shader version 2.0 enabled (ARB_PROGRAM)\n");
+            TRACE("Hardware pixel shader version 2.0 enabled (ARB_PROGRAM)\n");
         }
         else
         {
             caps->PixelShaderVersion = 1;
-            TRACE_(d3d_caps)("Hardware pixel shader version 1.4 enabled (ARB_PROGRAM)\n");
+            TRACE("Hardware pixel shader version 1.4 enabled (ARB_PROGRAM)\n");
         }
         caps->PixelShader1xMaxValue = 8.0f;
         caps->MaxPixelShaderConst = ps_consts;
@@ -5586,13 +5586,16 @@ struct arbfp_ffp_desc
 };
 
 /* Context activation and GL locking are done by the caller. */
-static void arbfp_enable(BOOL enable)
+static void arbfp_enable(const struct wined3d_gl_info *gl_info, BOOL enable)
 {
-    if(enable) {
-        glEnable(GL_FRAGMENT_PROGRAM_ARB);
+    if (enable)
+    {
+        gl_info->gl_ops.gl.p_glEnable(GL_FRAGMENT_PROGRAM_ARB);
         checkGLcall("glEnable(GL_FRAGMENT_PROGRAM_ARB)");
-    } else {
-        glDisable(GL_FRAGMENT_PROGRAM_ARB);
+    }
+    else
+    {
+        gl_info->gl_ops.gl.p_glDisable(GL_FRAGMENT_PROGRAM_ARB);
         checkGLcall("glDisable(GL_FRAGMENT_PROGRAM_ARB)");
     }
 }
@@ -6316,11 +6319,11 @@ static GLuint gen_arbfp_ffp_shader(const struct ffp_frag_settings *settings, con
             strlen(buffer.buffer), buffer.buffer));
     checkGLcall("glProgramStringARB()");
 
-    glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &pos);
+    gl_info->gl_ops.gl.p_glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &pos);
     if (pos != -1)
     {
         FIXME("Fragment program error at position %d: %s\n\n", pos,
-              debugstr_a((const char *)glGetString(GL_PROGRAM_ERROR_STRING_ARB)));
+              debugstr_a((const char *)gl_info->gl_ops.gl.p_glGetString(GL_PROGRAM_ERROR_STRING_ARB)));
         shader_arb_dump_program_source(buffer.buffer);
     }
     else
@@ -6681,7 +6684,8 @@ static void arbfp_blit_free(struct wined3d_device *device)
     GL_EXTCALL(glDeleteProgramsARB(1, &priv->p8_2d_shader));
     checkGLcall("Delete yuv and p8 programs");
 
-    if(priv->palette_texture) glDeleteTextures(1, &priv->palette_texture);
+    if (priv->palette_texture)
+        gl_info->gl_ops.gl.p_glDeleteTextures(1, &priv->palette_texture);
     LEAVE_GL();
 
     HeapFree(GetProcessHeap(), 0, device->blit_priv);
@@ -6969,11 +6973,11 @@ static GLuint gen_p8_shader(struct arbfp_blit_priv *priv,
             strlen(buffer.buffer), buffer.buffer));
     checkGLcall("glProgramStringARB()");
 
-    glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &pos);
+    gl_info->gl_ops.gl.p_glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &pos);
     if (pos != -1)
     {
         FIXME("Fragment program error at position %d: %s\n\n", pos,
-              debugstr_a((const char *)glGetString(GL_PROGRAM_ERROR_STRING_ARB)));
+              debugstr_a((const char *)gl_info->gl_ops.gl.p_glGetString(GL_PROGRAM_ERROR_STRING_ARB)));
         shader_arb_dump_program_source(buffer.buffer);
     }
 
@@ -6995,7 +6999,7 @@ static void upload_palette(const struct wined3d_surface *surface, struct wined3d
     struct wined3d_device *device = surface->resource.device;
     const struct wined3d_gl_info *gl_info = &device->adapter->gl_info;
     struct arbfp_blit_priv *priv = device->blit_priv;
-    BOOL colorkey = (surface->CKeyFlags & WINEDDSD_CKSRCBLT) ? TRUE : FALSE;
+    BOOL colorkey = (surface->CKeyFlags & WINEDDSD_CKSRCBLT) != 0;
 
     d3dfmt_p8_init_palette(surface, table, colorkey);
 
@@ -7003,29 +7007,29 @@ static void upload_palette(const struct wined3d_surface *surface, struct wined3d
 
     if (gl_info->supported[APPLE_CLIENT_STORAGE])
     {
-        glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_FALSE);
+        gl_info->gl_ops.gl.p_glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_FALSE);
         checkGLcall("glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_FALSE)");
     }
 
     if (!priv->palette_texture)
-        glGenTextures(1, &priv->palette_texture);
+        gl_info->gl_ops.gl.p_glGenTextures(1, &priv->palette_texture);
 
     GL_EXTCALL(glActiveTextureARB(GL_TEXTURE1));
-    glBindTexture(GL_TEXTURE_1D, priv->palette_texture);
+    gl_info->gl_ops.gl.p_glBindTexture(GL_TEXTURE_1D, priv->palette_texture);
 
-    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+    gl_info->gl_ops.gl.p_glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 
-    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    gl_info->gl_ops.gl.p_glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     /* Make sure we have discrete color levels. */
-    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    gl_info->gl_ops.gl.p_glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    gl_info->gl_ops.gl.p_glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     /* Upload the palette */
     /* TODO: avoid unneeded uploads in the future by adding some SFLAG_PALETTE_DIRTY mechanism */
-    glTexImage1D(GL_TEXTURE_1D, 0, GL_RGBA, 256, 0, GL_RGBA, GL_UNSIGNED_BYTE, table);
+    gl_info->gl_ops.gl.p_glTexImage1D(GL_TEXTURE_1D, 0, GL_RGBA, 256, 0, GL_RGBA, GL_UNSIGNED_BYTE, table);
 
     if (gl_info->supported[APPLE_CLIENT_STORAGE])
     {
-        glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE);
+        gl_info->gl_ops.gl.p_glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE);
         checkGLcall("glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE)");
     }
 
@@ -7148,11 +7152,11 @@ static GLuint gen_yuv_shader(struct arbfp_blit_priv *priv, const struct wined3d_
             strlen(buffer.buffer), buffer.buffer));
     checkGLcall("glProgramStringARB()");
 
-    glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &pos);
+    gl_info->gl_ops.gl.p_glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &pos);
     if (pos != -1)
     {
         FIXME("Fragment program error at position %d: %s\n\n", pos,
-              debugstr_a((const char *)glGetString(GL_PROGRAM_ERROR_STRING_ARB)));
+              debugstr_a((const char *)gl_info->gl_ops.gl.p_glGetString(GL_PROGRAM_ERROR_STRING_ARB)));
         shader_arb_dump_program_source(buffer.buffer);
     }
     else
@@ -7197,13 +7201,18 @@ static HRESULT arbfp_blit_set(void *blit_priv, struct wined3d_context *context, 
     float size[4] = {(float) surface->pow2Width, (float) surface->pow2Height, 1.0f, 1.0f};
     struct arbfp_blit_priv *priv = blit_priv;
     enum complex_fixup fixup;
-    GLenum textype = surface->texture_target;
     const struct wined3d_gl_info *gl_info = context->gl_info;
+    GLenum textype;
+
+    if (surface->container.type == WINED3D_CONTAINER_TEXTURE)
+        textype = surface->container.u.texture->target;
+    else
+        textype = surface->texture_target;
 
     if (surface->flags & SFLAG_CONVERTED)
     {
         ENTER_GL();
-        glEnable(textype);
+        gl_info->gl_ops.gl.p_glEnable(textype);
         checkGLcall("glEnable(textype)");
         LEAVE_GL();
         return WINED3D_OK;
@@ -7215,7 +7224,7 @@ static HRESULT arbfp_blit_set(void *blit_priv, struct wined3d_context *context, 
         dump_color_fixup_desc(surface->resource.format->color_fixup);
         /* Don't bother setting up a shader for unconverted formats */
         ENTER_GL();
-        glEnable(textype);
+        gl_info->gl_ops.gl.p_glEnable(textype);
         checkGLcall("glEnable(textype)");
         LEAVE_GL();
         return WINED3D_OK;
@@ -7247,7 +7256,7 @@ static HRESULT arbfp_blit_set(void *blit_priv, struct wined3d_context *context, 
         default:
             FIXME("Unsupported complex fixup %#x, not setting a shader\n", fixup);
             ENTER_GL();
-            glEnable(textype);
+            gl_info->gl_ops.gl.p_glEnable(textype);
             checkGLcall("glEnable(textype)");
             LEAVE_GL();
             return E_NOTIMPL;
@@ -7256,7 +7265,7 @@ static HRESULT arbfp_blit_set(void *blit_priv, struct wined3d_context *context, 
     if (!shader) shader = gen_yuv_shader(priv, gl_info, fixup, textype);
 
     ENTER_GL();
-    glEnable(GL_FRAGMENT_PROGRAM_ARB);
+    gl_info->gl_ops.gl.p_glEnable(GL_FRAGMENT_PROGRAM_ARB);
     checkGLcall("glEnable(GL_FRAGMENT_PROGRAM_ARB)");
     GL_EXTCALL(glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, shader));
     checkGLcall("glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, shader)");
@@ -7271,18 +7280,18 @@ static HRESULT arbfp_blit_set(void *blit_priv, struct wined3d_context *context, 
 static void arbfp_blit_unset(const struct wined3d_gl_info *gl_info)
 {
     ENTER_GL();
-    glDisable(GL_FRAGMENT_PROGRAM_ARB);
+    gl_info->gl_ops.gl.p_glDisable(GL_FRAGMENT_PROGRAM_ARB);
     checkGLcall("glDisable(GL_FRAGMENT_PROGRAM_ARB)");
-    glDisable(GL_TEXTURE_2D);
+    gl_info->gl_ops.gl.p_glDisable(GL_TEXTURE_2D);
     checkGLcall("glDisable(GL_TEXTURE_2D)");
     if (gl_info->supported[ARB_TEXTURE_CUBE_MAP])
     {
-        glDisable(GL_TEXTURE_CUBE_MAP_ARB);
+        gl_info->gl_ops.gl.p_glDisable(GL_TEXTURE_CUBE_MAP_ARB);
         checkGLcall("glDisable(GL_TEXTURE_CUBE_MAP_ARB)");
     }
     if (gl_info->supported[ARB_TEXTURE_RECTANGLE])
     {
-        glDisable(GL_TEXTURE_RECTANGLE_ARB);
+        gl_info->gl_ops.gl.p_glDisable(GL_TEXTURE_RECTANGLE_ARB);
         checkGLcall("glDisable(GL_TEXTURE_RECTANGLE_ARB)");
     }
     LEAVE_GL();
@@ -7395,7 +7404,7 @@ HRESULT arbfp_blit_surface(struct wined3d_device *device, DWORD filter,
     if (wined3d_settings.strict_draw_ordering
             || (dst_surface->container.type == WINED3D_CONTAINER_SWAPCHAIN
             && (dst_surface->container.u.swapchain->front_buffer == dst_surface)))
-        wglFlush(); /* Flush to ensure ordering across contexts. */
+        context->gl_info->gl_ops.gl.p_glFlush(); /* Flush to ensure ordering across contexts. */
 
     context_release(context);
 

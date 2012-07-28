@@ -54,7 +54,7 @@ typedef struct {
     LPOLESTR url;
 } download_proc_task_t;
 
-static BOOL use_gecko_script(HTMLWindow *window)
+static BOOL use_gecko_script(HTMLOuterWindow *window)
 {
     DWORD zone;
     HRESULT hres;
@@ -98,7 +98,7 @@ static void notify_travellog_update(HTMLDocumentObj *doc)
     }
 }
 
-void set_current_uri(HTMLWindow *window, IUri *uri)
+void set_current_uri(HTMLOuterWindow *window, IUri *uri)
 {
     if(window->uri) {
         IUri_Release(window->uri);
@@ -117,7 +117,7 @@ void set_current_uri(HTMLWindow *window, IUri *uri)
     IUri_GetDisplayUri(uri, &window->url);
 }
 
-void set_current_mon(HTMLWindow *This, IMoniker *mon)
+void set_current_mon(HTMLOuterWindow *This, IMoniker *mon)
 {
     IUriContainer *uri_container;
     IUri *uri = NULL;
@@ -171,7 +171,7 @@ void set_current_mon(HTMLWindow *This, IMoniker *mon)
     set_script_mode(This, use_gecko_script(This) ? SCRIPTMODE_GECKO : SCRIPTMODE_ACTIVESCRIPT);
 }
 
-HRESULT create_relative_uri(HTMLWindow *window, const WCHAR *rel_uri, IUri **uri)
+HRESULT create_relative_uri(HTMLOuterWindow *window, const WCHAR *rel_uri, IUri **uri)
 {
     return window->uri
         ? CoInternetCombineUrlEx(window->uri, rel_uri, URL_ESCAPE_SPACES_ONLY|URL_DONT_ESCAPE_EXTRA_INFO, uri, 0)
@@ -325,7 +325,7 @@ void prepare_for_binding(HTMLDocument *This, IMoniker *mon, BOOL navigated_bindi
                 IOleCommandTarget_Exec(cmdtrg, &CGID_ShellDocView, 37, 0, &var, NULL);
             }else {
                 V_VT(&var) = VT_UNKNOWN;
-                V_UNKNOWN(&var) = (IUnknown*)&This->window->IHTMLWindow2_iface;
+                V_UNKNOWN(&var) = (IUnknown*)&This->window->base.IHTMLWindow2_iface;
                 V_VT(&out) = VT_EMPTY;
                 hres = IOleCommandTarget_Exec(cmdtrg, &CGID_ShellDocView, 63, 0, &var, &out);
                 if(SUCCEEDED(hres))
@@ -360,19 +360,19 @@ HRESULT set_moniker(HTMLDocument *This, IMoniker *mon, IBindCtx *pibc, nsChannel
         if(async_bsc)
             bscallback = async_bsc;
         else
-            hres = create_channelbsc(mon, NULL, NULL, 0, &bscallback);
+            hres = create_channelbsc(mon, NULL, NULL, 0, TRUE, &bscallback);
     }
 
     if(SUCCEEDED(hres)) {
         remove_target_tasks(This->task_magic);
-        abort_document_bindings(This->doc_node);
+        abort_window_bindings(This->window->base.inner_window);
 
         hres = load_nsuri(This->window, nsuri, bscallback, 0/*LOAD_INITIAL_DOCUMENT_URI*/);
         nsISupports_Release((nsISupports*)nsuri); /* FIXME */
         if(SUCCEEDED(hres))
-            set_window_bscallback(This->window, bscallback);
+            hres = create_pending_window(This->window, bscallback);
         if(bscallback != async_bsc)
-            IUnknown_Release((IUnknown*)bscallback);
+            IBindStatusCallback_Release(&bscallback->bsc.IBindStatusCallback_iface);
     }
 
     if(FAILED(hres)) {
@@ -399,14 +399,14 @@ HRESULT set_moniker(HTMLDocument *This, IMoniker *mon, IBindCtx *pibc, nsChannel
     return S_OK;
 }
 
-void set_ready_state(HTMLWindow *window, READYSTATE readystate)
+void set_ready_state(HTMLOuterWindow *window, READYSTATE readystate)
 {
     window->readystate = readystate;
 
     if(window->doc_obj && window->doc_obj->basedoc.window == window)
         call_property_onchanged(&window->doc_obj->basedoc.cp_propnotif, DISPID_READYSTATE);
 
-    fire_event(window->doc, EVENTID_READYSTATECHANGE, FALSE, window->doc->node.nsnode, NULL);
+    fire_event(window->base.inner_window->doc, EVENTID_READYSTATECHANGE, FALSE, window->base.inner_window->doc->node.nsnode, NULL);
 
     if(window->frame_element)
         fire_event(window->frame_element->element.node.doc, EVENTID_READYSTATECHANGE,
@@ -483,7 +483,7 @@ static ULONG WINAPI PersistMoniker_Release(IPersistMoniker *iface)
 static HRESULT WINAPI PersistMoniker_GetClassID(IPersistMoniker *iface, CLSID *pClassID)
 {
     HTMLDocument *This = impl_from_IPersistMoniker(iface);
-    return IPersist_GetClassID(&This->IPersistFile_iface, pClassID);
+    return IPersistFile_GetClassID(&This->IPersistFile_iface, pClassID);
 }
 
 static HRESULT WINAPI PersistMoniker_IsDirty(IPersistMoniker *iface)
@@ -538,7 +538,7 @@ static HRESULT WINAPI PersistMoniker_Load(IPersistMoniker *iface, BOOL fFullyAva
     if(FAILED(hres))
         return hres;
 
-    return start_binding(This->window, NULL, (BSCallback*)This->window->bscallback, pibc);
+    return start_binding(This->window->pending_window, (BSCallback*)This->window->pending_window->bscallback, pibc);
 }
 
 static HRESULT WINAPI PersistMoniker_Save(IPersistMoniker *iface, IMoniker *pimkName,
@@ -773,7 +773,7 @@ static ULONG WINAPI PersistStreamInit_Release(IPersistStreamInit *iface)
 static HRESULT WINAPI PersistStreamInit_GetClassID(IPersistStreamInit *iface, CLSID *pClassID)
 {
     HTMLDocument *This = impl_from_IPersistStreamInit(iface);
-    return IPersist_GetClassID(&This->IPersistFile_iface, pClassID);
+    return IPersistFile_GetClassID(&This->IPersistFile_iface, pClassID);
 }
 
 static HRESULT WINAPI PersistStreamInit_IsDirty(IPersistStreamInit *iface)
@@ -810,7 +810,7 @@ static HRESULT WINAPI PersistStreamInit_Load(IPersistStreamInit *iface, LPSTREAM
     if(FAILED(hres))
         return hres;
 
-    return channelbsc_load_stream(This->window->bscallback, pStm);
+    return channelbsc_load_stream(This->window->pending_window, pStm);
 }
 
 static HRESULT WINAPI PersistStreamInit_Save(IPersistStreamInit *iface, LPSTREAM pStm,
@@ -869,7 +869,7 @@ static HRESULT WINAPI PersistStreamInit_InitNew(IPersistStreamInit *iface)
     if(FAILED(hres))
         return hres;
 
-    return channelbsc_load_stream(This->window->bscallback, NULL);
+    return channelbsc_load_stream(This->window->pending_window, NULL);
 }
 
 static const IPersistStreamInitVtbl PersistStreamInitVtbl = {
@@ -914,7 +914,7 @@ static ULONG WINAPI PersistHistory_Release(IPersistHistory *iface)
 static HRESULT WINAPI PersistHistory_GetClassID(IPersistHistory *iface, CLSID *pClassID)
 {
     HTMLDocument *This = impl_from_IPersistHistory(iface);
-    return IPersist_GetClassID(&This->IPersistFile_iface, pClassID);
+    return IPersistFile_GetClassID(&This->IPersistFile_iface, pClassID);
 }
 
 static HRESULT WINAPI PersistHistory_LoadHistory(IPersistHistory *iface, IStream *pStream, IBindCtx *pbc)

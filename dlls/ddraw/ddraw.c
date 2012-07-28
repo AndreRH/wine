@@ -670,12 +670,7 @@ static HRESULT ddraw_create_swapchain(struct ddraw *ddraw, HWND window, BOOL win
     struct wined3d_display_mode mode;
     HRESULT hr = WINED3D_OK;
 
-    /* FIXME: wined3d_get_adapter_display_mode() would be more appropriate
-     * here, since we don't actually have a swapchain yet, but
-     * wined3d_device_get_display_mode() has some special handling for color
-     * depth changes. */
-    hr = wined3d_device_get_display_mode(ddraw->wined3d_device, 0, &mode);
-    if (FAILED(hr))
+    if (FAILED(hr = wined3d_get_adapter_display_mode(ddraw->wined3d, WINED3DADAPTER_DEFAULT, &mode, NULL)))
     {
         ERR("Failed to get display mode.\n");
         return hr;
@@ -891,7 +886,7 @@ static HRESULT WINAPI ddraw7_SetCooperativeLevel(IDirectDraw7 *iface, HWND hwnd,
         {
             struct wined3d_display_mode display_mode;
 
-            wined3d_get_adapter_display_mode(This->wined3d, WINED3DADAPTER_DEFAULT, &display_mode);
+            wined3d_get_adapter_display_mode(This->wined3d, WINED3DADAPTER_DEFAULT, &display_mode, NULL);
             wined3d_device_setup_fullscreen_window(This->wined3d_device, hwnd,
                     display_mode.width, display_mode.height);
         }
@@ -1061,20 +1056,6 @@ static HRESULT ddraw_set_display_mode(struct ddraw *ddraw, DWORD Width, DWORD He
         default: format = WINED3DFMT_UNKNOWN;          break;
     }
 
-    if (FAILED(hr = wined3d_device_get_display_mode(ddraw->wined3d_device, 0, &mode)))
-    {
-        ERR("Failed to get current display mode, hr %#x.\n", hr);
-    }
-    else if (mode.width == Width
-            && mode.height == Height
-            && mode.format_id == format
-            && mode.refresh_rate == RefreshRate)
-    {
-        TRACE("Skipping redundant mode setting call.\n");
-        wined3d_mutex_unlock();
-        return DD_OK;
-    }
-
     /* Check the exclusive mode
     if(!(ddraw->cooperative_level & DDSCL_EXCLUSIVE))
         return DDERR_NOEXCLUSIVEMODE;
@@ -1088,6 +1069,7 @@ static HRESULT ddraw_set_display_mode(struct ddraw *ddraw, DWORD Width, DWORD He
     mode.height = Height;
     mode.refresh_rate = RefreshRate;
     mode.format_id = format;
+    mode.scanline_ordering = WINED3D_SCANLINE_ORDERING_UNKNOWN;
 
     /* TODO: The possible return values from msdn suggest that
      * the screen mode can't be changed if a surface is locked
@@ -1095,7 +1077,7 @@ static HRESULT ddraw_set_display_mode(struct ddraw *ddraw, DWORD Width, DWORD He
      */
 
     /* TODO: Lose the primary surface */
-    hr = wined3d_device_set_display_mode(ddraw->wined3d_device, 0, &mode);
+    hr = wined3d_set_adapter_display_mode(ddraw->wined3d, WINED3DADAPTER_DEFAULT, &mode);
 
     wined3d_mutex_unlock();
 
@@ -1440,10 +1422,7 @@ static HRESULT WINAPI ddraw7_GetDisplayMode(IDirectDraw7 *iface, DDSURFACEDESC2 
         return DDERR_INVALIDPARAMS;
     }
 
-    /* The necessary members of LPDDSURFACEDESC and LPDDSURFACEDESC2 are equal,
-     * so one method can be used for all versions (Hopefully) */
-    hr = wined3d_device_get_display_mode(ddraw->wined3d_device, 0, &mode);
-    if (FAILED(hr))
+    if (FAILED(hr = wined3d_get_adapter_display_mode(ddraw->wined3d, WINED3DADAPTER_DEFAULT, &mode, NULL)))
     {
         ERR("Failed to get display mode, hr %#x.\n", hr);
         wined3d_mutex_unlock();
@@ -1535,7 +1514,11 @@ static HRESULT WINAPI ddraw7_GetFourCCCodes(IDirectDraw7 *iface, DWORD *NumCodes
 
     TRACE("iface %p, codes_count %p, codes %p.\n", iface, NumCodes, Codes);
 
-    wined3d_device_get_display_mode(ddraw->wined3d_device, 0, &mode);
+    if (FAILED(hr = wined3d_get_adapter_display_mode(ddraw->wined3d, WINED3DADAPTER_DEFAULT, &mode, NULL)))
+    {
+        ERR("Failed to get display mode, hr %#x.\n", hr);
+        return hr;
+    }
 
     outsize = NumCodes && Codes ? *NumCodes : 0;
 
@@ -1585,28 +1568,25 @@ static HRESULT WINAPI ddraw1_GetFourCCCodes(IDirectDraw *iface, DWORD *codes_cou
     return ddraw7_GetFourCCCodes(&ddraw->IDirectDraw7_iface, codes_count, codes);
 }
 
-/*****************************************************************************
- * IDirectDraw7::GetMonitorFrequency
- *
- * Returns the monitor's frequency
- *
- * Exists in Version 1, 2, 4 and 7
- *
- * Params:
- *  Freq: Pointer to a DWORD to write the frequency to
- *
- * Returns
- *  Always returns DD_OK
- *
- *****************************************************************************/
-static HRESULT WINAPI ddraw7_GetMonitorFrequency(IDirectDraw7 *iface, DWORD *Freq)
+static HRESULT WINAPI ddraw7_GetMonitorFrequency(IDirectDraw7 *iface, DWORD *frequency)
 {
-    FIXME("iface %p, frequency %p stub!\n", iface, Freq);
+    struct ddraw *ddraw = impl_from_IDirectDraw7(iface);
+    struct wined3d_display_mode mode;
+    HRESULT hr;
 
-    /* Ideally this should be in WineD3D, as it concerns the screen setup,
-     * but for now this should make the games happy
-     */
-    *Freq = 60;
+    TRACE("iface %p, frequency %p.\n", iface, frequency);
+
+    wined3d_mutex_lock();
+    hr = wined3d_get_adapter_display_mode(ddraw->wined3d, WINED3DADAPTER_DEFAULT, &mode, NULL);
+    wined3d_mutex_unlock();
+    if (FAILED(hr))
+    {
+        WARN("Failed to get display mode, hr %#x.\n", hr);
+        return hr;
+    }
+
+    *frequency = mode.refresh_rate;
+
     return DD_OK;
 }
 
@@ -1637,31 +1617,27 @@ static HRESULT WINAPI ddraw1_GetMonitorFrequency(IDirectDraw *iface, DWORD *freq
     return ddraw7_GetMonitorFrequency(&ddraw->IDirectDraw7_iface, frequency);
 }
 
-/*****************************************************************************
- * IDirectDraw7::GetVerticalBlankStatus
- *
- * Returns the Vertical blank status of the monitor. This should be in WineD3D
- * too basically, but as it's a semi stub, I didn't create a function there
- *
- * Params:
- *  status: Pointer to a BOOL to be filled with the vertical blank status
- *
- * Returns
- *  DD_OK on success
- *  DDERR_INVALIDPARAMS if status is NULL
- *
- *****************************************************************************/
 static HRESULT WINAPI ddraw7_GetVerticalBlankStatus(IDirectDraw7 *iface, BOOL *status)
 {
-    static BOOL fake_vblank;
+    struct ddraw *ddraw = impl_from_IDirectDraw7(iface);
+    struct wined3d_raster_status raster_status;
+    HRESULT hr;
 
     TRACE("iface %p, status %p.\n", iface, status);
 
     if(!status)
         return DDERR_INVALIDPARAMS;
 
-    *status = fake_vblank;
-    fake_vblank = !fake_vblank;
+    wined3d_mutex_lock();
+    hr = wined3d_get_adapter_raster_status(ddraw->wined3d, WINED3DADAPTER_DEFAULT, &raster_status);
+    wined3d_mutex_unlock();
+    if (FAILED(hr))
+    {
+        WARN("Failed to get raster status, hr %#x.\n", hr);
+        return hr;
+    }
+
+    *status = raster_status.in_vblank;
 
     return DD_OK;
 }
@@ -1948,54 +1924,28 @@ static HRESULT WINAPI ddraw1_WaitForVerticalBlank(IDirectDraw *iface, DWORD flag
     return ddraw7_WaitForVerticalBlank(&ddraw->IDirectDraw7_iface, flags, event);
 }
 
-/*****************************************************************************
- * IDirectDraw7::GetScanLine
- *
- * Returns the scan line that is being drawn on the monitor
- *
- * Parameters:
- *  Scanline: Address to write the scan line value to
- *
- * Returns:
- *  Always returns DD_OK
- *
- *****************************************************************************/
 static HRESULT WINAPI ddraw7_GetScanLine(IDirectDraw7 *iface, DWORD *Scanline)
 {
     struct ddraw *ddraw = impl_from_IDirectDraw7(iface);
-    struct wined3d_display_mode mode;
-    static BOOL hide = FALSE;
-    DWORD time, frame_progress, lines;
+    struct wined3d_raster_status raster_status;
+    HRESULT hr;
 
     TRACE("iface %p, line %p.\n", iface, Scanline);
 
-    /* This function is called often, so print the fixme only once */
-    if(!hide)
-    {
-        FIXME("iface %p, line %p partial stub!\n", iface, Scanline);
-        hide = TRUE;
-    }
-
     wined3d_mutex_lock();
-    wined3d_device_get_display_mode(ddraw->wined3d_device, 0, &mode);
+    hr = wined3d_get_adapter_raster_status(ddraw->wined3d, WINED3DADAPTER_DEFAULT, &raster_status);
     wined3d_mutex_unlock();
-
-    /* Fake the line sweeping of the monitor */
-    /* FIXME: We should synchronize with a source to keep the refresh rate */
-
-    /* Simulate a 60Hz display */
-    time = GetTickCount();
-    frame_progress = time & 15; /* time % (1000 / 60) */
-    if (!frame_progress)
+    if (FAILED(hr))
     {
-        *Scanline = 0;
-        return DDERR_VERTICALBLANKINPROGRESS;
+        WARN("Failed to get raster status, hr %#x.\n", hr);
+        return hr;
     }
 
-    /* Convert frame_progress to estimated scan line. Return any line from
-     * block determined by time. Some lines may be never returned */
-    lines = mode.height / 15;
-    *Scanline = (frame_progress - 1) * lines + time % lines;
+    *Scanline = raster_status.scan_line;
+
+    if (raster_status.in_vblank)
+        return DDERR_VERTICALBLANKINPROGRESS;
+
     return DD_OK;
 }
 
@@ -2232,8 +2182,8 @@ static HRESULT WINAPI ddraw7_EnumDisplayModes(IDirectDraw7 *iface, DWORD Flags,
     for(fmt = 0; fmt < (sizeof(checkFormatList) / sizeof(checkFormatList[0])); fmt++)
     {
         modenum = 0;
-        while (wined3d_enum_adapter_modes(ddraw->wined3d, WINED3DADAPTER_DEFAULT,
-                checkFormatList[fmt], modenum++, &mode) == WINED3D_OK)
+        while (wined3d_enum_adapter_modes(ddraw->wined3d, WINED3DADAPTER_DEFAULT, checkFormatList[fmt],
+                WINED3D_SCANLINE_ORDERING_UNKNOWN, modenum++, &mode) == WINED3D_OK)
         {
             PixelFormat_WineD3DtoDD(&pixelformat, mode.format_id);
             if (DDSD)
@@ -2650,71 +2600,6 @@ static HRESULT ddraw_create_surface(struct ddraw *ddraw, DDSURFACEDESC2 *pDDSD,
 
     return DD_OK;
 }
-/*****************************************************************************
- * CreateAdditionalSurfaces
- *
- * Creates a new mipmap chain.
- *
- * Params:
- *  root: Root surface to attach the newly created chain to
- *  count: number of surfaces to create
- *  DDSD: Description of the surface. Intentionally not a pointer to avoid side
- *        effects on the caller
- *  CubeFaceRoot: Whether the new surface is a root of a cube map face. This
- *                creates an additional surface without the mipmapping flags
- *
- *****************************************************************************/
-static HRESULT CreateAdditionalSurfaces(struct ddraw *ddraw, struct ddraw_surface *root,
-        UINT count, DDSURFACEDESC2 DDSD, BOOL CubeFaceRoot, UINT version)
-{
-    struct ddraw_surface *last = root;
-    UINT i, j, level = 0;
-    HRESULT hr;
-
-    for (i = 0; i < count; ++i)
-    {
-        struct ddraw_surface *object2 = NULL;
-
-        /* increase the mipmap level, but only if a mipmap is created
-         * In this case, also halve the size
-         */
-        if(DDSD.ddsCaps.dwCaps & DDSCAPS_MIPMAP && !CubeFaceRoot)
-        {
-            level++;
-            if(DDSD.dwWidth > 1) DDSD.dwWidth /= 2;
-            if(DDSD.dwHeight > 1) DDSD.dwHeight /= 2;
-            /* Set the mipmap sublevel flag according to msdn */
-            DDSD.ddsCaps.dwCaps2 |= DDSCAPS2_MIPMAPSUBLEVEL;
-        }
-        else
-        {
-            DDSD.ddsCaps.dwCaps2 &= ~DDSCAPS2_MIPMAPSUBLEVEL;
-        }
-        CubeFaceRoot = FALSE;
-
-        hr = ddraw_create_surface(ddraw, &DDSD, &object2, level, version);
-        if(hr != DD_OK)
-        {
-            return hr;
-        }
-
-        /* Add the new surface to the complex attachment array */
-        for(j = 0; j < MAX_COMPLEX_ATTACHED; j++)
-        {
-            if(last->complex_array[j]) continue;
-            last->complex_array[j] = object2;
-            break;
-        }
-        last = object2;
-
-        /* Remove the (possible) back buffer cap from the new surface description,
-         * because only one surface in the flipping chain is a back buffer, one
-         * is a front buffer, the others are just primary surfaces.
-         */
-        DDSD.ddsCaps.dwCaps &= ~DDSCAPS_BACKBUFFER;
-    }
-    return DD_OK;
-}
 
 static HRESULT CDECL ddraw_reset_enum_callback(struct wined3d_resource *resource)
 {
@@ -2804,7 +2689,6 @@ static HRESULT CreateSurface(struct ddraw *ddraw, DDSURFACEDESC2 *DDSD,
     struct ddraw_surface *object = NULL;
     struct wined3d_display_mode mode;
     HRESULT hr;
-    LONG extra_surfaces = 0;
     DDSURFACEDESC2 desc2;
     const DWORD sysvidmem = DDSCAPS_VIDEOMEMORY | DDSCAPS_SYSTEMMEMORY;
 
@@ -2904,11 +2788,11 @@ static HRESULT CreateSurface(struct ddraw *ddraw, DDSURFACEDESC2 *DDSD,
     desc2.u4.ddpfPixelFormat.dwSize=sizeof(DDPIXELFORMAT); /* Just to be sure */
 
     /* Get the video mode from WineD3D - we will need it */
-    hr = wined3d_device_get_display_mode(ddraw->wined3d_device, 0, &mode);
-    if (FAILED(hr))
+    if (FAILED(hr = wined3d_get_adapter_display_mode(ddraw->wined3d, WINED3DADAPTER_DEFAULT, &mode, NULL)))
     {
-        ERR("Failed to read display mode from wined3d\n");
-        switch(ddraw->orig_bpp)
+        ERR("Failed to get display mode, hr %#x.\n", hr);
+
+        switch (ddraw->orig_bpp)
         {
             case 8:
                 mode.format_id = WINED3DFMT_P8_UINT;
@@ -2995,7 +2879,6 @@ static HRESULT CreateSurface(struct ddraw *ddraw, DDSURFACEDESC2 *DDSD,
             /* Not-complex mipmap -> Mipmapcount = 1 */
             desc2.u2.dwMipMapCount = 1;
         }
-        extra_surfaces = desc2.u2.dwMipMapCount - 1;
 
         /* There's a mipmap count in the created surface in any case */
         desc2.dwFlags |= DDSD_MIPMAPCOUNT;
@@ -3031,7 +2914,7 @@ static HRESULT CreateSurface(struct ddraw *ddraw, DDSURFACEDESC2 *DDSD,
         swapchain_desc.backbuffer_format = mode.format_id;
 
         hr = wined3d_device_reset(ddraw->wined3d_device,
-                &swapchain_desc, ddraw_reset_enum_callback);
+                &swapchain_desc, NULL, ddraw_reset_enum_callback);
         if (FAILED(hr))
         {
             ERR("Failed to reset device.\n");
@@ -3057,46 +2940,39 @@ static HRESULT CreateSurface(struct ddraw *ddraw, DDSURFACEDESC2 *DDSD,
      */
     if(DDSD->dwFlags & DDSD_BACKBUFFERCOUNT)
     {
-        extra_surfaces = DDSD->dwBackBufferCount;
+        struct ddraw_surface *last = object;
+        UINT i;
+
         desc2.ddsCaps.dwCaps &= ~DDSCAPS_FRONTBUFFER; /* It's not a front buffer */
         desc2.ddsCaps.dwCaps |= DDSCAPS_BACKBUFFER;
         desc2.dwBackBufferCount = 0;
-    }
 
-    hr = DD_OK;
-    if(desc2.ddsCaps.dwCaps2 & DDSCAPS2_CUBEMAP)
-    {
-        desc2.ddsCaps.dwCaps2 &= ~DDSCAPS2_CUBEMAP_ALLFACES;
-        desc2.ddsCaps.dwCaps2 |=  DDSCAPS2_CUBEMAP_NEGATIVEZ;
-        hr |= CreateAdditionalSurfaces(ddraw, object, extra_surfaces + 1, desc2, TRUE, version);
-        desc2.ddsCaps.dwCaps2 &= ~DDSCAPS2_CUBEMAP_NEGATIVEZ;
-        desc2.ddsCaps.dwCaps2 |=  DDSCAPS2_CUBEMAP_POSITIVEZ;
-        hr |= CreateAdditionalSurfaces(ddraw, object, extra_surfaces + 1, desc2, TRUE, version);
-        desc2.ddsCaps.dwCaps2 &= ~DDSCAPS2_CUBEMAP_POSITIVEZ;
-        desc2.ddsCaps.dwCaps2 |=  DDSCAPS2_CUBEMAP_NEGATIVEY;
-        hr |= CreateAdditionalSurfaces(ddraw, object, extra_surfaces + 1, desc2, TRUE, version);
-        desc2.ddsCaps.dwCaps2 &= ~DDSCAPS2_CUBEMAP_NEGATIVEY;
-        desc2.ddsCaps.dwCaps2 |=  DDSCAPS2_CUBEMAP_POSITIVEY;
-        hr |= CreateAdditionalSurfaces(ddraw, object, extra_surfaces + 1, desc2, TRUE, version);
-        desc2.ddsCaps.dwCaps2 &= ~DDSCAPS2_CUBEMAP_POSITIVEY;
-        desc2.ddsCaps.dwCaps2 |=  DDSCAPS2_CUBEMAP_NEGATIVEX;
-        hr |= CreateAdditionalSurfaces(ddraw, object, extra_surfaces + 1, desc2, TRUE, version);
-        desc2.ddsCaps.dwCaps2 &= ~DDSCAPS2_CUBEMAP_NEGATIVEX;
-        desc2.ddsCaps.dwCaps2 |=  DDSCAPS2_CUBEMAP_POSITIVEX;
-    }
+        for (i = 0; i < DDSD->dwBackBufferCount; ++i)
+        {
+            struct ddraw_surface *object2 = NULL;
 
-    hr |= CreateAdditionalSurfaces(ddraw, object, extra_surfaces, desc2, FALSE, version);
-    if(hr != DD_OK)
-    {
-        /* This destroys and possibly created surfaces too */
-        if (version == 7)
-            IDirectDrawSurface7_Release(&object->IDirectDrawSurface7_iface);
-        else if (version == 4)
-            IDirectDrawSurface4_Release(&object->IDirectDrawSurface4_iface);
-        else
-            IDirectDrawSurface_Release(&object->IDirectDrawSurface_iface);
+            if (FAILED(hr = ddraw_create_surface(ddraw, &desc2, &object2, 0, version)))
+            {
+                if (version == 7)
+                    IDirectDrawSurface7_Release(&object->IDirectDrawSurface7_iface);
+                else if (version == 4)
+                    IDirectDrawSurface4_Release(&object->IDirectDrawSurface4_iface);
+                else
+                    IDirectDrawSurface_Release(&object->IDirectDrawSurface_iface);
 
-        return hr;
+                return hr;
+            }
+
+            /* Add the new surface to the complex attachment array. */
+            last->complex_array[0] = object2;
+            last = object2;
+
+            /* Remove the (possible) back buffer cap from the new surface
+             * description, because only one surface in the flipping chain is a
+             * back buffer, one is a front buffer, the others are just primary
+             * surfaces. */
+            desc2.ddsCaps.dwCaps &= ~DDSCAPS_BACKBUFFER;
+        }
     }
 
     if (desc2.ddsCaps.dwCaps & DDSCAPS_PRIMARYSURFACE)
@@ -3104,11 +2980,7 @@ static HRESULT CreateSurface(struct ddraw *ddraw, DDSURFACEDESC2 *DDSD,
 
     /* Create a WineD3DTexture if a texture was requested */
     if (desc2.ddsCaps.dwCaps & DDSCAPS_TEXTURE)
-    {
-        ddraw->tex_root = object;
         ddraw_surface_create_texture(object);
-        ddraw->tex_root = NULL;
-    }
 
     return hr;
 }
@@ -4654,7 +4526,12 @@ static HRESULT WINAPI d3d7_EnumZBufferFormats(IDirect3D7 *iface, REFCLSID device
      * not like that we'll have to find some workaround, like iterating over
      * all imaginable formats and collecting all the depth stencil formats we
      * can get. */
-    hr = wined3d_device_get_display_mode(ddraw->wined3d_device, 0, &mode);
+    if (FAILED(hr = wined3d_get_adapter_display_mode(ddraw->wined3d, WINED3DADAPTER_DEFAULT, &mode, NULL)))
+    {
+        ERR("Failed to get display mode, hr %#x.\n", hr);
+        wined3d_mutex_unlock();
+        return hr;
+    }
 
     for (i = 0; i < (sizeof(formats) / sizeof(*formats)); ++i)
     {
@@ -5366,75 +5243,80 @@ static void CDECL device_parent_mode_changed(struct wined3d_device_parent *devic
         ERR("Failed to resize window.\n");
 }
 
-static HRESULT CDECL device_parent_create_surface(struct wined3d_device_parent *device_parent,
+static HRESULT CDECL device_parent_create_texture_surface(struct wined3d_device_parent *device_parent,
         void *container_parent, UINT width, UINT height, enum wined3d_format_id format, DWORD usage,
         enum wined3d_pool pool, UINT level, enum wined3d_cubemap_face face, struct wined3d_surface **surface)
 {
     struct ddraw *ddraw = ddraw_from_device_parent(device_parent);
-    struct ddraw_surface *surf = NULL;
-    UINT i = 0;
-    DDSCAPS2 searchcaps = ddraw->tex_root->surface_desc.ddsCaps;
+    struct ddraw_surface *tex_root = container_parent;
+    DDSURFACEDESC2 desc = tex_root->surface_desc;
+    struct ddraw_surface *ddraw_surface;
+    HRESULT hr;
 
     TRACE("device_parent %p, container_parent %p, width %u, height %u, format %#x, usage %#x,\n"
             "\tpool %#x, level %u, face %u, surface %p.\n",
             device_parent, container_parent, width, height, format, usage, pool, level, face, surface);
 
-    searchcaps.dwCaps2 &= ~DDSCAPS2_CUBEMAP_ALLFACES;
-    switch (face)
+    /* The ddraw root surface is created before the wined3d texture. */
+    if (!level && face == WINED3D_CUBEMAP_FACE_POSITIVE_X)
     {
-        case WINED3D_CUBEMAP_FACE_POSITIVE_X:
-            TRACE("Asked for positive x\n");
-            if (searchcaps.dwCaps2 & DDSCAPS2_CUBEMAP)
-            {
-                searchcaps.dwCaps2 |= DDSCAPS2_CUBEMAP_POSITIVEX;
-            }
-            surf = ddraw->tex_root; break;
-        case WINED3D_CUBEMAP_FACE_NEGATIVE_X:
-            TRACE("Asked for negative x\n");
-            searchcaps.dwCaps2 |= DDSCAPS2_CUBEMAP_NEGATIVEX; break;
-        case WINED3D_CUBEMAP_FACE_POSITIVE_Y:
-            TRACE("Asked for positive y\n");
-            searchcaps.dwCaps2 |= DDSCAPS2_CUBEMAP_POSITIVEY; break;
-        case WINED3D_CUBEMAP_FACE_NEGATIVE_Y:
-            TRACE("Asked for negative y\n");
-            searchcaps.dwCaps2 |= DDSCAPS2_CUBEMAP_NEGATIVEY; break;
-        case WINED3D_CUBEMAP_FACE_POSITIVE_Z:
-            TRACE("Asked for positive z\n");
-            searchcaps.dwCaps2 |= DDSCAPS2_CUBEMAP_POSITIVEZ; break;
-        case WINED3D_CUBEMAP_FACE_NEGATIVE_Z:
-            TRACE("Asked for negative z\n");
-            searchcaps.dwCaps2 |= DDSCAPS2_CUBEMAP_NEGATIVEZ; break;
-        default:
-            ERR("Unexpected cube face.\n");
+        ddraw_surface = tex_root;
+        goto done;
     }
 
-    if (!surf)
-    {
-        IDirectDrawSurface7 *attached;
-        IDirectDrawSurface7_GetAttachedSurface(&ddraw->tex_root->IDirectDrawSurface7_iface, &searchcaps, &attached);
-        surf = unsafe_impl_from_IDirectDrawSurface7(attached);
-        IDirectDrawSurface7_Release(attached);
-    }
-    if (!surf) ERR("root search surface not found\n");
+    desc.dwWidth = width;
+    desc.dwHeight = height;
+    if (level)
+        desc.ddsCaps.dwCaps2 |= DDSCAPS2_MIPMAPSUBLEVEL;
+    else
+        desc.ddsCaps.dwCaps2 &= ~DDSCAPS2_MIPMAPSUBLEVEL;
 
-    /* Find the wanted mipmap. There are enough mipmaps in the chain */
-    while (i < level)
+    if (desc.ddsCaps.dwCaps2 & DDSCAPS2_CUBEMAP)
     {
-        IDirectDrawSurface7 *attached;
-        IDirectDrawSurface7_GetAttachedSurface(&surf->IDirectDrawSurface7_iface, &searchcaps, &attached);
-        if(!attached) ERR("Surface not found\n");
-        surf = impl_from_IDirectDrawSurface7(attached);
-        IDirectDrawSurface7_Release(attached);
-        ++i;
+        desc.ddsCaps.dwCaps2 &= ~DDSCAPS2_CUBEMAP_ALLFACES;
+
+        switch (face)
+        {
+            case WINED3D_CUBEMAP_FACE_POSITIVE_X:
+                desc.ddsCaps.dwCaps2 |= DDSCAPS2_CUBEMAP_POSITIVEX;
+                break;
+
+            case WINED3D_CUBEMAP_FACE_NEGATIVE_X:
+                desc.ddsCaps.dwCaps2 |= DDSCAPS2_CUBEMAP_NEGATIVEX;
+                break;
+
+            case WINED3D_CUBEMAP_FACE_POSITIVE_Y:
+                desc.ddsCaps.dwCaps2 |= DDSCAPS2_CUBEMAP_POSITIVEY;
+                break;
+
+            case WINED3D_CUBEMAP_FACE_NEGATIVE_Y:
+                desc.ddsCaps.dwCaps2 |= DDSCAPS2_CUBEMAP_NEGATIVEY;
+                break;
+
+            case WINED3D_CUBEMAP_FACE_POSITIVE_Z:
+                desc.ddsCaps.dwCaps2 |= DDSCAPS2_CUBEMAP_POSITIVEZ;
+                break;
+
+            case WINED3D_CUBEMAP_FACE_NEGATIVE_Z:
+                desc.ddsCaps.dwCaps2 |= DDSCAPS2_CUBEMAP_NEGATIVEZ;
+                break;
+
+            default:
+                ERR("Unexpected cube face.\n");
+                return DDERR_INVALIDPARAMS;
+        }
+
     }
 
-    /* Return the surface */
-    *surface = surf->wined3d_surface;
+    /* FIXME: Validate that format, usage, pool, etc. really make sense. */
+    if (FAILED(hr = ddraw_create_surface(ddraw, &desc, &ddraw_surface, level, tex_root->version)))
+        return hr;
+
+done:
+    *surface = ddraw_surface->wined3d_surface;
     wined3d_surface_incref(*surface);
 
-    TRACE("Returning wineD3DSurface %p, it belongs to surface %p\n", *surface, surf);
-
-    return D3D_OK;
+    return DD_OK;
 }
 
 static void STDMETHODCALLTYPE ddraw_frontbuffer_destroyed(void *parent)
@@ -5448,19 +5330,17 @@ static const struct wined3d_parent_ops ddraw_frontbuffer_parent_ops =
     ddraw_frontbuffer_destroyed,
 };
 
-static HRESULT CDECL device_parent_create_rendertarget(struct wined3d_device_parent *device_parent,
-        void *container_parent, UINT width, UINT height, enum wined3d_format_id format,
-        enum wined3d_multisample_type multisample_type, DWORD multisample_quality, BOOL lockable,
-        struct wined3d_surface **surface)
+static HRESULT CDECL device_parent_create_swapchain_surface(struct wined3d_device_parent *device_parent,
+        void *container_parent, UINT width, UINT height, enum wined3d_format_id format_id, DWORD usage,
+        enum wined3d_multisample_type multisample_type, DWORD multisample_quality, struct wined3d_surface **surface)
 {
     struct ddraw *ddraw = ddraw_from_device_parent(device_parent);
-    DWORD flags = 0;
     HRESULT hr;
 
-    TRACE("device_parent %p, container_parent %p, width %u, height %u, format %#x, multisample_type %#x,\n"
-            "\tmultisample_quality %u, lockable %u, surface %p.\n",
-            device_parent, container_parent, width, height, format, multisample_type,
-            multisample_quality, lockable, surface);
+    TRACE("device_parent %p, container_parent %p, width %u, height %u, format_id %#x, usage %#x,\n"
+            "\tmultisample_type %#x, multisample_quality %u, surface %p.\n",
+            device_parent, container_parent, width, height, format_id, usage,
+            multisample_type, multisample_quality, surface);
 
     if (ddraw->wined3d_frontbuffer)
     {
@@ -5468,24 +5348,12 @@ static HRESULT CDECL device_parent_create_rendertarget(struct wined3d_device_par
         return E_FAIL;
     }
 
-    if (lockable)
-        flags |= WINED3D_SURFACE_MAPPABLE;
-
-    hr = wined3d_surface_create(ddraw->wined3d_device, width, height, format, 0,
-            WINED3DUSAGE_RENDERTARGET, WINED3D_POOL_DEFAULT, multisample_type, multisample_quality,
-            DefaultSurfaceType, flags, ddraw, &ddraw_frontbuffer_parent_ops, surface);
-    if (SUCCEEDED(hr))
+    if (SUCCEEDED(hr = wined3d_surface_create(ddraw->wined3d_device, width, height, format_id, 0,
+            usage, WINED3D_POOL_DEFAULT, multisample_type, multisample_quality, DefaultSurfaceType,
+            WINED3D_SURFACE_MAPPABLE, ddraw, &ddraw_frontbuffer_parent_ops, surface)))
         ddraw->wined3d_frontbuffer = *surface;
 
     return hr;
-}
-
-static HRESULT CDECL device_parent_create_depth_stencil(struct wined3d_device_parent *device_parent,
-        UINT width, UINT height, enum wined3d_format_id format, enum wined3d_multisample_type multisample_type,
-        DWORD multisample_quality, BOOL discard, struct wined3d_surface **surface)
-{
-    ERR("DirectDraw doesn't have and shouldn't try creating implicit depth buffers.\n");
-    return E_NOTIMPL;
 }
 
 static HRESULT CDECL device_parent_create_volume(struct wined3d_device_parent *device_parent,
@@ -5528,9 +5396,8 @@ static const struct wined3d_device_parent_ops ddraw_wined3d_device_parent_ops =
 {
     device_parent_wined3d_device_created,
     device_parent_mode_changed,
-    device_parent_create_surface,
-    device_parent_create_rendertarget,
-    device_parent_create_depth_stencil,
+    device_parent_create_swapchain_surface,
+    device_parent_create_texture_surface,
     device_parent_create_volume,
     device_parent_create_swapchain,
 };

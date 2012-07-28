@@ -17,6 +17,8 @@
  */
 
 #include <stdarg.h>
+#include <assert.h>
+#include <limits.h>
 
 #define COBJMACROS
 
@@ -272,15 +274,34 @@ static HRESULT WINAPI HTMLInputElement_get_size(IHTMLInputElement *iface, LONG *
 static HRESULT WINAPI HTMLInputElement_put_maxLength(IHTMLInputElement *iface, LONG v)
 {
     HTMLInputElement *This = impl_from_IHTMLInputElement(iface);
-    FIXME("(%p)->(%d)\n", This, v);
-    return E_NOTIMPL;
+    nsresult nsres;
+
+    TRACE("(%p)->(%d)\n", This, v);
+
+    nsres = nsIDOMHTMLInputElement_SetMaxLength(This->nsinput, v);
+    if(NS_FAILED(nsres)) {
+        /* FIXME: Gecko throws an error on negative values, while MSHTML should accept them */
+        FIXME("SetMaxLength failed\n");
+        return E_FAIL;
+    }
+
+    return S_OK;
 }
 
 static HRESULT WINAPI HTMLInputElement_get_maxLength(IHTMLInputElement *iface, LONG *p)
 {
     HTMLInputElement *This = impl_from_IHTMLInputElement(iface);
-    FIXME("(%p)->(%p)\n", This, p);
-    return E_NOTIMPL;
+    PRInt32 max_length;
+    nsresult nsres;
+
+    TRACE("(%p)->(%p)\n", This, p);
+
+    nsres = nsIDOMHTMLInputElement_GetMaxLength(This->nsinput, &max_length);
+    assert(nsres == NS_OK);
+
+    /* Gecko reports -1 as default value, while MSHTML uses INT_MAX */
+    *p = max_length == -1 ? INT_MAX : max_length;
+    return S_OK;
 }
 
 static HRESULT WINAPI HTMLInputElement_select(IHTMLInputElement *iface)
@@ -302,15 +323,19 @@ static HRESULT WINAPI HTMLInputElement_select(IHTMLInputElement *iface)
 static HRESULT WINAPI HTMLInputElement_put_onchange(IHTMLInputElement *iface, VARIANT v)
 {
     HTMLInputElement *This = impl_from_IHTMLInputElement(iface);
-    FIXME("(%p)->()\n", This);
-    return E_NOTIMPL;
+
+    TRACE("(%p)->()\n", This);
+
+    return set_node_event(&This->element.node, EVENTID_CHANGE, &v);
 }
 
 static HRESULT WINAPI HTMLInputElement_get_onchange(IHTMLInputElement *iface, VARIANT *p)
 {
     HTMLInputElement *This = impl_from_IHTMLInputElement(iface);
-    FIXME("(%p)->(%p)\n", This, p);
-    return E_NOTIMPL;
+
+    TRACE("(%p)->(%p)\n", This, p);
+
+    return get_node_event(&This->element.node, EVENTID_CHANGE, p);
 }
 
 static HRESULT WINAPI HTMLInputElement_put_onselect(IHTMLInputElement *iface, VARIANT v)
@@ -1117,15 +1142,6 @@ static HRESULT HTMLInputElement_QI(HTMLDOMNode *iface, REFIID riid, void **ppv)
     return HTMLElement_QI(&This->element.node, riid, ppv);
 }
 
-static void HTMLInputElement_destructor(HTMLDOMNode *iface)
-{
-    HTMLInputElement *This = impl_from_HTMLDOMNode(iface);
-
-    nsIDOMHTMLInputElement_Release(This->nsinput);
-
-    HTMLElement_destructor(&This->element.node);
-}
-
 static HRESULT HTMLInputElementImpl_fire_event(HTMLDOMNode *iface, eventid_t eid, BOOL *handled)
 {
     HTMLInputElement *This = impl_from_HTMLDOMNode(iface);
@@ -1159,7 +1175,7 @@ static HRESULT HTMLInputElementImpl_get_disabled(HTMLDOMNode *iface, VARIANT_BOO
 
 static const NodeImplVtbl HTMLInputElementImplVtbl = {
     HTMLInputElement_QI,
-    HTMLInputElement_destructor,
+    HTMLElement_destructor,
     HTMLElement_clone,
     HTMLElement_get_attr_col,
     NULL,
@@ -1194,14 +1210,13 @@ HRESULT HTMLInputElement_Create(HTMLDocumentNode *doc, nsIDOMHTMLElement *nselem
     ret->IHTMLInputTextElement_iface.lpVtbl = &HTMLInputTextElementVtbl;
     ret->element.node.vtbl = &HTMLInputElementImplVtbl;
 
-    nsres = nsIDOMHTMLElement_QueryInterface(nselem, &IID_nsIDOMHTMLInputElement, (void**)&ret->nsinput);
-    if(NS_FAILED(nsres)) {
-        ERR("Could not get nsIDOMHTMLInputElement interface: %08x\n", nsres);
-        heap_free(ret);
-        return E_FAIL;
-    }
-
     HTMLElement_Init(&ret->element, doc, nselem, &HTMLInputElement_dispex);
+
+    nsres = nsIDOMHTMLElement_QueryInterface(nselem, &IID_nsIDOMHTMLInputElement, (void**)&ret->nsinput);
+
+    /* Share nsinput reference with nsnode */
+    assert(nsres == NS_OK && (nsIDOMNode*)ret->nsinput == ret->element.node.nsnode);
+    nsIDOMNode_Release(ret->element.node.nsnode);
 
     *elem = &ret->element;
     return S_OK;

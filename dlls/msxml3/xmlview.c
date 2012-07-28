@@ -347,11 +347,11 @@ static inline HRESULT report_data(BindStatusCallback *This)
     ULARGE_INTEGER size;
     HRESULT hres;
 
+    off.QuadPart = 0;
     hres = IStream_Seek(This->stream, off, STREAM_SEEK_CUR, &size);
     if(FAILED(hres))
         return hres;
 
-    off.QuadPart = 0;
     hres = IStream_Seek(This->stream, off, STREAM_SEEK_SET, NULL);
     if(FAILED(hres))
         return hres;
@@ -491,7 +491,7 @@ static inline HRESULT handle_xml_load(BindStatusCallback *This)
         return display_error_page(This);
     }
 
-    hres = IXMLDOMDocument_transformNode(xml, (IXMLDOMNode*)xsl, &bstr);
+    hres = IXMLDOMDocument3_transformNode(xml, (IXMLDOMNode*)xsl, &bstr);
     IXMLDOMDocument3_Release(xsl);
     IXMLDOMDocument3_Release(xml);
     if(FAILED(hres))

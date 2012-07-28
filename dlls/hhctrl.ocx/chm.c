@@ -20,16 +20,13 @@
  */
 
 #include "hhctrl.h"
+#include "stream.h"
 
 #include "winreg.h"
 #include "shlwapi.h"
 #include "wine/debug.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(htmlhelp);
-
-#define BLOCK_BITS 12
-#define BLOCK_SIZE (1 << BLOCK_BITS)
-#define BLOCK_MASK (BLOCK_SIZE-1)
 
 /* Reads a string from the #STRINGS section in the CHM file */
 static LPCSTR GetChmString(CHMInfo *chm, DWORD offset)
@@ -133,8 +130,16 @@ static BOOL ReadChmSystem(CHMInfo *chm)
             heap_free(chm->defTitle);
             chm->defTitle = strdupnAtoW(buf, entry.len);
             break;
+        case 0x4:
+            /* TODO: Currently only the Locale ID is loaded from this field */
+            TRACE("Locale is: %d\n", *(LCID*)&buf[0]);
+            if(!GetLocaleInfoW(*(LCID*)&buf[0], LOCALE_IDEFAULTANSICODEPAGE|LOCALE_RETURN_NUMBER,
+                               (WCHAR *)&chm->codePage, sizeof(chm->codePage)/sizeof(WCHAR)))
+                chm->codePage = CP_ACP;
+            break;
         case 0x5:
-            TRACE("Default window is %s\n", debugstr_an(buf, entry.len));
+            TRACE("Window name is %s\n", debugstr_an(buf, entry.len));
+            chm->defWindow = strdupnAtoW(buf, entry.len);
             break;
         case 0x6:
             TRACE("Compiled file is %s\n", debugstr_an(buf, entry.len));
@@ -251,6 +256,7 @@ BOOL LoadWinTypeFromCHM(HHInfo *info)
     HRESULT hr;
     DWORD cbRead;
 
+    static const WCHAR null[] = {0};
     static const WCHAR toc_extW[] = {'h','h','c',0};
     static const WCHAR index_extW[] = {'h','h','k',0};
     static const WCHAR windowsW[] = {'#','W','I','N','D','O','W','S',0};
@@ -260,11 +266,10 @@ BOOL LoadWinTypeFromCHM(HHInfo *info)
     {
         /* no defined window types so use (hopefully) sane defaults */
         static const WCHAR defaultwinW[] = {'d','e','f','a','u','l','t','w','i','n','\0'};
-        static const WCHAR null[] = {0};
         memset((void*)&(info->WinType), 0, sizeof(info->WinType));
         info->WinType.cbStruct=sizeof(info->WinType);
         info->WinType.fUniCodeStrings=TRUE;
-        info->WinType.pszType=strdupW(defaultwinW);
+        info->WinType.pszType = strdupW(info->pCHMInfo->defWindow ? info->pCHMInfo->defWindow : defaultwinW);
         info->WinType.pszToc = strdupW(info->pCHMInfo->defToc ? info->pCHMInfo->defToc : null);
         info->WinType.pszIndex = strdupW(null);
         info->WinType.fsValidMembers=0;
@@ -292,13 +297,16 @@ BOOL LoadWinTypeFromCHM(HHInfo *info)
 
     info->WinType.pszType      = info->pszType     = strdupAtoW(GetChmString(info->pCHMInfo, (DWORD_PTR)info->WinType.pszType));
     info->WinType.pszCaption   = info->pszCaption  = strdupAtoW(GetChmString(info->pCHMInfo, (DWORD_PTR)info->WinType.pszCaption));
-    info->WinType.pszFile      = info->pszFile     = strdupAtoW(GetChmString(info->pCHMInfo, (DWORD_PTR)info->WinType.pszFile));
     info->WinType.pszHome      = info->pszHome     = strdupAtoW(GetChmString(info->pCHMInfo, (DWORD_PTR)info->WinType.pszHome));
     info->WinType.pszJump1     = info->pszJump1    = strdupAtoW(GetChmString(info->pCHMInfo, (DWORD_PTR)info->WinType.pszJump1));
     info->WinType.pszJump2     = info->pszJump2    = strdupAtoW(GetChmString(info->pCHMInfo, (DWORD_PTR)info->WinType.pszJump2));
     info->WinType.pszUrlJump1  = info->pszUrlJump1 = strdupAtoW(GetChmString(info->pCHMInfo, (DWORD_PTR)info->WinType.pszUrlJump1));
     info->WinType.pszUrlJump2  = info->pszUrlJump2 = strdupAtoW(GetChmString(info->pCHMInfo, (DWORD_PTR)info->WinType.pszUrlJump2));
 
+    if (info->WinType.pszFile)
+        info->WinType.pszFile  = info->pszFile     = strdupAtoW(GetChmString(info->pCHMInfo, (DWORD_PTR)info->WinType.pszFile));
+    else
+        info->WinType.pszFile  = strdupW(info->pCHMInfo->defTopic ? info->pCHMInfo->defTopic : null);
     if (info->WinType.pszToc)
         info->WinType.pszToc   = info->pszToc      = strdupAtoW(GetChmString(info->pCHMInfo, (DWORD_PTR)info->WinType.pszToc));
     else
@@ -403,6 +411,62 @@ IStream *GetChmStream(CHMInfo *info, LPCWSTR parent_chm, ChmPath *chm_file)
     return stream;
 }
 
+/*
+ * Retrieve a CHM document and parse the data from the <title> element to get the document's title.
+ */
+WCHAR *GetDocumentTitle(CHMInfo *info, LPCWSTR document)
+{
+    strbuf_t node, node_name, content;
+    WCHAR *document_title = NULL;
+    IStream *str = NULL;
+    IStorage *storage;
+    stream_t stream;
+    HRESULT hres;
+
+    TRACE("%s\n", debugstr_w(document));
+
+    storage = info->pStorage;
+    if(!storage) {
+        WARN("Could not open storage to obtain the title for a document.\n");
+        return NULL;
+    }
+    IStorage_AddRef(storage);
+
+    hres = IStorage_OpenStream(storage, document, NULL, STGM_READ, 0, &str);
+    IStorage_Release(storage);
+    if(FAILED(hres))
+        WARN("Could not open stream: %08x\n", hres);
+
+    stream_init(&stream, str);
+    strbuf_init(&node);
+    strbuf_init(&content);
+    strbuf_init(&node_name);
+
+    while(next_node(&stream, &node)) {
+        get_node_name(&node, &node_name);
+
+        TRACE("%s\n", node.buf);
+
+        if(!strcasecmp(node_name.buf, "title")) {
+            if(next_content(&stream, &content) && content.len > 1)
+            {
+                document_title = strdupnAtoW(&content.buf[1], content.len-1);
+                FIXME("magic: %s\n", debugstr_w(document_title));
+                break;
+            }
+        }
+
+        strbuf_zero(&node);
+    }
+
+    strbuf_free(&node);
+    strbuf_free(&content);
+    strbuf_free(&node_name);
+    IStream_Release(str);
+
+    return document_title;
+}
+
 /* Opens the CHM file for reading */
 CHMInfo *OpenCHM(LPCWSTR szFile)
 {
@@ -413,6 +477,7 @@ CHMInfo *OpenCHM(LPCWSTR szFile)
 
     if (!(ret = heap_alloc_zero(sizeof(CHMInfo))))
         return NULL;
+    ret->codePage = CP_ACP;
 
     if (!(ret->szFile = strdupW(szFile))) {
         heap_free(ret);
@@ -466,6 +531,7 @@ CHMInfo *CloseCHM(CHMInfo *chm)
     }
 
     heap_free(chm->strings);
+    heap_free(chm->defWindow);
     heap_free(chm->defTitle);
     heap_free(chm->defTopic);
     heap_free(chm->defToc);

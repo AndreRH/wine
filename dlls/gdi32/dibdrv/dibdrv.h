@@ -114,6 +114,7 @@ extern DWORD    dibdrv_BlendImage( PHYSDEV dev, BITMAPINFO *info, const struct g
                                    struct bitblt_coords *src, struct bitblt_coords *dst, BLENDFUNCTION func ) DECLSPEC_HIDDEN;
 extern BOOL     dibdrv_Chord( PHYSDEV dev, INT left, INT top, INT right, INT bottom,
                               INT start_x, INT start_y, INT end_x, INT end_y ) DECLSPEC_HIDDEN;
+extern int      dibdrv_DescribePixelFormat( PHYSDEV dev, int fmt, UINT size, PIXELFORMATDESCRIPTOR *descr ) DECLSPEC_HIDDEN;
 extern BOOL     dibdrv_Ellipse( PHYSDEV dev, INT left, INT top, INT right, INT bottom ) DECLSPEC_HIDDEN;
 extern BOOL     dibdrv_ExtFloodFill( PHYSDEV dev, INT x, INT y, COLORREF color, UINT type ) DECLSPEC_HIDDEN;
 extern BOOL     dibdrv_ExtTextOut( PHYSDEV dev, INT x, INT y, UINT flags,
@@ -145,8 +146,10 @@ extern HPEN     dibdrv_SelectPen( PHYSDEV dev, HPEN hpen, const struct brush_pat
 extern COLORREF dibdrv_SetDCBrushColor( PHYSDEV dev, COLORREF color ) DECLSPEC_HIDDEN;
 extern COLORREF dibdrv_SetDCPenColor( PHYSDEV dev, COLORREF color ) DECLSPEC_HIDDEN;
 extern COLORREF dibdrv_SetPixel( PHYSDEV dev, INT x, INT y, COLORREF color ) DECLSPEC_HIDDEN;
+extern BOOL     dibdrv_SetPixelFormat( PHYSDEV dev, int fmt, const PIXELFORMATDESCRIPTOR *descr ) DECLSPEC_HIDDEN;
 extern BOOL     dibdrv_StretchBlt( PHYSDEV dst_dev, struct bitblt_coords *dst,
                                    PHYSDEV src_dev, struct bitblt_coords *src, DWORD rop ) DECLSPEC_HIDDEN;
+extern struct opengl_funcs *dibdrv_wine_get_wgl_driver( PHYSDEV dev, UINT version ) DECLSPEC_HIDDEN;
 
 static inline dibdrv_physdev *get_dibdrv_pdev( PHYSDEV dev )
 {
@@ -241,7 +244,6 @@ extern void copy_dib_color_info(dib_info *dst, const dib_info *src) DECLSPEC_HID
 extern BOOL convert_dib(dib_info *dst, const dib_info *src) DECLSPEC_HIDDEN;
 extern COLORREF make_rgb_colorref( HDC hdc, dib_info *dib, COLORREF color, BOOL *got_pixel, DWORD *pixel ) DECLSPEC_HIDDEN;
 extern DWORD get_pixel_color(dibdrv_physdev *pdev, COLORREF color, BOOL mono_fixup) DECLSPEC_HIDDEN;
-extern BOOL brush_rect( dibdrv_physdev *pdev, dib_brush *brush, const RECT *rect, HRGN clip, INT rop ) DECLSPEC_HIDDEN;
 extern int get_clipped_rects( const dib_info *dib, const RECT *rc, HRGN clip, struct clipped_rects *clip_rects ) DECLSPEC_HIDDEN;
 extern void add_clipped_bounds( dibdrv_physdev *dev, const RECT *rect, HRGN clip ) DECLSPEC_HIDDEN;
 extern int clip_line(const POINT *start, const POINT *end, const RECT *clip,

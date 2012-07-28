@@ -37,6 +37,13 @@ struct vec4
     float x, y, z, w;
 };
 
+struct volume
+{
+    UINT width;
+    UINT height;
+    UINT depth;
+};
+
 /* for internal use */
 typedef enum _FormatType {
     FORMAT_ARGB,   /* unsigned */
@@ -64,10 +71,22 @@ HRESULT write_buffer_to_file(const WCHAR *filename, ID3DXBuffer *buffer) DECLSPE
 const PixelFormatDesc *get_format_info(D3DFORMAT format) DECLSPEC_HIDDEN;
 const PixelFormatDesc *get_format_info_idx(int idx) DECLSPEC_HIDDEN;
 
+void copy_simple_data(const BYTE *src, UINT src_row_pitch, UINT src_slice_pitch, struct volume *src_size, const PixelFormatDesc *src_format,
+        BYTE *dst, UINT dst_row_pitch, UINT dst_slice_pitch, struct volume *dst_size, const PixelFormatDesc *dst_format,
+        D3DCOLOR color_key) DECLSPEC_HIDDEN;
+void point_filter_simple_data(const BYTE *src, UINT src_row_pitch, UINT src_slice_pitch, struct volume *src_size, const PixelFormatDesc *src_format,
+        BYTE *dst, UINT dst_row_pitch, UINT dst_slice_pitch, struct volume *dst_size, const PixelFormatDesc *dst_format,
+        D3DCOLOR color_key) DECLSPEC_HIDDEN;
+
 HRESULT load_texture_from_dds(IDirect3DTexture9 *texture, const void *src_data, const PALETTEENTRY *palette,
     DWORD filter, D3DCOLOR color_key, const D3DXIMAGE_INFO *src_info) DECLSPEC_HIDDEN;
 HRESULT load_cube_texture_from_dds(IDirect3DCubeTexture9 *cube_texture, const void *src_data,
     const PALETTEENTRY *palette, DWORD filter, D3DCOLOR color_key, const D3DXIMAGE_INFO *src_info) DECLSPEC_HIDDEN;
+HRESULT load_volume_from_dds(IDirect3DVolume9 *dst_volume, const PALETTEENTRY *dst_palette,
+    const D3DBOX *dst_box, const void *src_data, const D3DBOX *src_box, DWORD filter, D3DCOLOR color_key,
+    const D3DXIMAGE_INFO *src_info) DECLSPEC_HIDDEN;
+HRESULT load_volume_texture_from_dds(IDirect3DVolumeTexture9 *volume_texture, const void *src_data,
+    const PALETTEENTRY *palette, DWORD filter, DWORD color_key, const D3DXIMAGE_INFO *src_info) DECLSPEC_HIDDEN;
 
 /* debug helpers */
 const char *debug_d3dxparameter_class(D3DXPARAMETER_CLASS c) DECLSPEC_HIDDEN;

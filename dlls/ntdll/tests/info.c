@@ -184,7 +184,7 @@ static void test_query_timeofday(void)
         LARGE_INTEGER liExpTimeZoneBias;
         ULONG uCurrentTimeZoneId;
         DWORD dwUnknown1[5];
-    } SYSTEM_TIMEOFDAY_INFORMATION_PRIVATE, *PSYSTEM_TIMEOFDAY_INFORMATION_PRIVATE;
+    } SYSTEM_TIMEOFDAY_INFORMATION_PRIVATE;
 
     SYSTEM_TIMEOFDAY_INFORMATION_PRIVATE sti;
   
@@ -278,7 +278,7 @@ static void test_query_process(void)
         VM_COUNTERS vmCounters;
         IO_COUNTERS ioCounters;
         SYSTEM_THREAD_INFORMATION ti[1];
-    } SYSTEM_PROCESS_INFORMATION_PRIVATE, *PSYSTEM_PROCESS_INFORMATION_PRIVATE;
+    } SYSTEM_PROCESS_INFORMATION_PRIVATE;
 
     ULONG SystemInformationLength = sizeof(SYSTEM_PROCESS_INFORMATION_PRIVATE);
     SYSTEM_PROCESS_INFORMATION_PRIVATE *spi, *spi_buf = HeapAlloc(GetProcessHeap(), 0, SystemInformationLength);
@@ -588,7 +588,7 @@ static void test_query_process_basic(void)
         DWORD_PTR BasePriority;
         ULONG_PTR UniqueProcessId;
         ULONG_PTR InheritedFromUniqueProcessId;
-    } PROCESS_BASIC_INFORMATION_PRIVATE, *PPROCESS_BASIC_INFORMATION_PRIVATE;
+    } PROCESS_BASIC_INFORMATION_PRIVATE;
 
     PROCESS_BASIC_INFORMATION_PRIVATE pbi;
 

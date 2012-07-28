@@ -127,9 +127,96 @@ static UINT arm_disasm_branch(UINT inst, ADDRESS64 *addr)
     return 0;
 }
 
+static UINT arm_disasm_mul(UINT inst, ADDRESS64 *addr)
+{
+    short accu = (inst >> 21) & 0x01;
+    short condcodes = (inst >> 20) & 0x01;
+
+    if (accu)
+        dbg_printf("\n\tmla%s%s\t%s, %s, %s, %s", get_cond(inst), condcodes ? "s" : "",
+                   tbl_regs[get_nibble(inst, 4)], tbl_regs[get_nibble(inst, 0)],
+                   tbl_regs[get_nibble(inst, 2)], tbl_regs[get_nibble(inst, 3)]);
+    else
+        dbg_printf("\n\tmul%s%s\t%s, %s, %s", get_cond(inst), condcodes ? "s" : "",
+                   tbl_regs[get_nibble(inst, 4)], tbl_regs[get_nibble(inst, 0)],
+                   tbl_regs[get_nibble(inst, 2)]);
+    return 0;
+}
+
+static UINT arm_disasm_longmul(UINT inst, ADDRESS64 *addr)
+{
+    short sign = (inst >> 22) & 0x01;
+    short accu = (inst >> 21) & 0x01;
+    short condcodes = (inst >> 20) & 0x01;
+
+    dbg_printf("\n\t%s%s%s%s\t%s, %s, %s, %s", sign ? "s" : "u", accu ? "mlal" : "mull",
+               get_cond(inst), condcodes ? "s" : "",
+               tbl_regs[get_nibble(inst, 3)], tbl_regs[get_nibble(inst, 4)],
+               tbl_regs[get_nibble(inst, 0)], tbl_regs[get_nibble(inst, 2)]);
+    return 0;
+}
+
+static UINT arm_disasm_swp(UINT inst, ADDRESS64 *addr)
+{
+    short byte = (inst >> 22) & 0x01;
+
+    dbg_printf("\n\tswp%s%s\t%s, %s, [%s]", get_cond(inst), byte ? "b" : "",
+               tbl_regs[get_nibble(inst, 3)], tbl_regs[get_nibble(inst, 0)],
+               tbl_regs[get_nibble(inst, 4)]);
+    return 0;
+}
+
 static UINT arm_disasm_branchreg(UINT inst, ADDRESS64 *addr)
 {
     dbg_printf("\n\tb%s\t%s", get_cond(inst), tbl_regs[get_nibble(inst, 0)]);
+    return 0;
+}
+
+static UINT arm_disasm_branchxchg(UINT inst, ADDRESS64 *addr)
+{
+    dbg_printf("\n\tbx%s\t%s", get_cond(inst), tbl_regs[get_nibble(inst, 0)]);
+    return 0;
+}
+
+static UINT arm_disasm_mrstrans(UINT inst, ADDRESS64 *addr)
+{
+    short src = (inst >> 22) & 0x01;
+
+    dbg_printf("\n\tmrs%s\t%s, %s", get_cond(inst), tbl_regs[get_nibble(inst, 3)],
+               src ? "spsr" : "cpsr");
+    return 0;
+}
+
+static UINT arm_disasm_msrtrans(UINT inst, ADDRESS64 *addr)
+{
+    short immediate = (inst >> 25) & 0x01;
+    short dst = (inst >> 22) & 0x01;
+    short simple = (inst >> 16) & 0x01;
+
+    if (simple || !immediate)
+    {
+        dbg_printf("\n\tmsr%s\t%s, %s", get_cond(inst), dst ? "spsr" : "cpsr",
+                   tbl_regs[get_nibble(inst, 0)]);
+        return 0;
+    }
+
+    dbg_printf("\n\tmsr%s\t%s, #%u", get_cond(inst), dst ? "spsr" : "cpsr",
+               ROR32(inst & 0xff, 2 * get_nibble(inst, 2)));
+    return 0;
+}
+
+static UINT arm_disasm_wordmov(UINT inst, ADDRESS64 *addr)
+{
+    short top = (inst >> 22) & 0x01;
+
+    dbg_printf("\n\tmov%s%s\t%s, #%u", top ? "t" : "w", get_cond(inst),
+               tbl_regs[get_nibble(inst, 3)], (get_nibble(inst, 4) << 12) | (inst & 0x0fff));
+    return 0;
+}
+
+static UINT arm_disasm_nop(UINT inst, ADDRESS64 *addr)
+{
+    dbg_printf("\n\tnop%s", get_cond(inst));
     return 0;
 }
 
@@ -140,14 +227,6 @@ static UINT arm_disasm_dataprocessing(UINT inst, ADDRESS64 *addr)
     short immediate = (inst >> 25) & 0x01;
     short no_op1    = (opcode & 0x0d) == 0x0d;
     short no_dst    = (opcode & 0x0c) == 0x08;
-
-    /* check for nop */
-    if (get_nibble(inst, 3) == 15 /* r15 */ && condcodes == 0 &&
-        opcode >= 8 /* tst */ && opcode <= 11 /* cmn */)
-    {
-        dbg_printf("\n\tnop");
-        return 0;
-    }
 
     dbg_printf("\n\t%s%s%s", tbl_dataops[opcode], condcodes ? "s" : "", get_cond(inst));
     if (!no_dst) dbg_printf("\t%s, ", tbl_regs[get_nibble(inst, 3)]);
@@ -594,6 +673,93 @@ static UINT thumb2_disasm_misc(UINT inst, ADDRESS64 *addr)
     return inst;
 }
 
+static UINT thumb2_disasm_mul(UINT inst, ADDRESS64 *addr)
+{
+    WORD op1 = (inst >> 20) & 0x07;
+    WORD op2 = (inst >> 4) & 0x03;
+
+    if (op1)
+        return inst;
+
+    if (op2 == 0 && get_nibble(inst, 3) != 0xf)
+    {
+        dbg_printf("\n\tmla\t%s, %s, %s, %s\t", tbl_regs[get_nibble(inst, 2)],
+                                                tbl_regs[get_nibble(inst, 4)],
+                                                tbl_regs[get_nibble(inst, 0)],
+                                                tbl_regs[get_nibble(inst, 3)]);
+        return 0;
+    }
+
+    if (op2 == 0 && get_nibble(inst, 3) == 0xf)
+    {
+        dbg_printf("\n\tmul\t%s, %s, %s\t", tbl_regs[get_nibble(inst, 2)],
+                                            tbl_regs[get_nibble(inst, 4)],
+                                            tbl_regs[get_nibble(inst, 0)]);
+        return 0;
+    }
+
+    if (op2 == 1)
+    {
+        dbg_printf("\n\tmls\t%s, %s, %s, %s\t", tbl_regs[get_nibble(inst, 2)],
+                                                tbl_regs[get_nibble(inst, 4)],
+                                                tbl_regs[get_nibble(inst, 0)],
+                                                tbl_regs[get_nibble(inst, 3)]);
+        return 0;
+    }
+
+    return inst;
+}
+
+static UINT thumb2_disasm_longmuldiv(UINT inst, ADDRESS64 *addr)
+{
+    WORD op1 = (inst >> 20) & 0x07;
+    WORD op2 = (inst >> 4) & 0x0f;
+
+    if (op2 == 0)
+    {
+        switch (op1)
+        {
+        case 0:
+            dbg_printf("\n\tsmull\t");
+            break;
+        case 2:
+            dbg_printf("\n\tumull\t");
+            break;
+        case 4:
+            dbg_printf("\n\tsmlal\t");
+            break;
+        case 6:
+            dbg_printf("\n\tumlal\t");
+            break;
+        default:
+            return inst;
+        }
+        dbg_printf("%s, %s, %s, %s\t", tbl_regs[get_nibble(inst, 3)], tbl_regs[get_nibble(inst, 2)],
+                                       tbl_regs[get_nibble(inst, 4)], tbl_regs[get_nibble(inst, 0)]);
+        return 0;
+    }
+
+    if (op2 == 0xffff)
+    {
+        switch (op1)
+        {
+        case 1:
+            dbg_printf("\n\tsdiv\t");
+            break;
+        case 3:
+            dbg_printf("\n\tudiv\t");
+            break;
+        default:
+            return inst;
+        }
+        dbg_printf("%s, %s, %s\t", tbl_regs[get_nibble(inst, 2)], tbl_regs[get_nibble(inst, 4)],
+                                   tbl_regs[get_nibble(inst, 0)]);
+        return 0;
+    }
+
+    return inst;
+}
+
 struct inst_arm
 {
         UINT mask;
@@ -603,8 +769,16 @@ struct inst_arm
 
 static const struct inst_arm tbl_arm[] = {
     { 0x0e000000, 0x0a000000, arm_disasm_branch },
+    { 0x0fc000f0, 0x00000090, arm_disasm_mul },
+    { 0x0f8000f0, 0x00800090, arm_disasm_longmul },
+    { 0x0fb00ff0, 0x01000090, arm_disasm_swp },
     { 0x0e000090, 0x00000090, arm_disasm_halfwordtrans },
-    { 0x0fffff00, 0x012fff00, arm_disasm_branchreg },
+    { 0x0ffffff0, 0x012fff00, arm_disasm_branchreg },
+    { 0x0ffffff0, 0x012fff10, arm_disasm_branchxchg },
+    { 0x0fbf0fff, 0x010f0000, arm_disasm_mrstrans },
+    { 0x0dbef000, 0x0128f000, arm_disasm_msrtrans },
+    { 0x0fb00000, 0x03000000, arm_disasm_wordmov },
+    { 0x0fffffff, 0x0320f000, arm_disasm_nop },
     { 0x0c000000, 0x00000000, arm_disasm_dataprocessing },
     { 0x0c000000, 0x04000000, arm_disasm_singletrans },
     { 0x0e000000, 0x08000000, arm_disasm_blocktrans },
@@ -648,6 +822,9 @@ static const struct inst_thumb16 tbl_thumb16[] = {
 static const struct inst_arm tbl_thumb32[] = {
     { 0xf800f800, 0xf000f800, thumb2_disasm_branchlinked },
     { 0xffc0f0c0, 0xfa80f080, thumb2_disasm_misc },
+    { 0xff8000c0, 0xfb000000, thumb2_disasm_mul },
+    { 0xff8000f0, 0xfb800000, thumb2_disasm_longmuldiv },
+    { 0xff8000f0, 0xfb8000f0, thumb2_disasm_longmuldiv },
     { 0x00000000, 0x00000000, NULL }
 };
 

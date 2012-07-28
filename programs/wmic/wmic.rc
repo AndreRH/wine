@@ -1,7 +1,5 @@
 /*
- * DirectDraw HAL XVidMode interface
- *
- * Copyright 2001 TransGaming Technologies, Inc.
+ * Copyright 2012 Hans Leidekker for CodeWeavers
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -17,22 +15,14 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
-#ifndef __WINE_XVIDMODE_H
-#define __WINE_XVIDMODE_H
 
-#ifndef __WINE_CONFIG_H
-# error You must include config.h to use this header
-#endif
+#include "wmic.h"
 
-#ifdef SONAME_LIBXXF86VM
-#include <stdarg.h>
-#include "windef.h"
-#include "winbase.h"
-#include "wingdi.h"
-#include "ddrawi.h"
+LANGUAGE LANG_ENGLISH, SUBLANG_DEFAULT
 
-void X11DRV_XF86VM_Init(void) DECLSPEC_HIDDEN;
-void X11DRV_XF86VM_Cleanup(void) DECLSPEC_HIDDEN;
-
-#endif /* SONAME_LIBXXF86VM */
-#endif /* __WINE_XVIDMODE_H */
+STRINGTABLE
+{
+    STRING_CMDLINE_NOT_SUPPORTED, "Error: Command line not supported\n"
+    STRING_ALIAS_NOT_FOUND, "Error: Alias not found\n"
+    STRING_INVALID_QUERY, "Error: Invalid query\n"
+}

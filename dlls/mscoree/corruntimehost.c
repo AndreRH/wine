@@ -40,7 +40,6 @@
 
 #include "wine/debug.h"
 #include "wine/unicode.h"
-#include "wine/list.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL( mscoree );
 
@@ -1240,7 +1239,7 @@ HRESULT create_monodata(REFIID riid, LPVOID *ppObj )
     WCHAR path[CHARS_IN_GUID + ARRAYSIZE(wszCLSIDSlash) + ARRAYSIZE(wszInprocServer32) - 1];
     MonoDomain *domain;
     MonoAssembly *assembly;
-    ICLRRuntimeInfo *info;
+    ICLRRuntimeInfo *info = NULL;
     RuntimeHost *host;
     HRESULT hr;
     HKEY key;

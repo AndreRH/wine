@@ -24,6 +24,12 @@
 #ifndef __WINE_WINED3D_PRIVATE_H
 #define __WINE_WINED3D_PRIVATE_H
 
+#ifdef USE_WIN32_OPENGL
+#define WINE_GLAPI __stdcall
+#else
+#define WINE_GLAPI
+#endif
+
 #include <stdarg.h>
 #include <math.h>
 #include <limits.h>
@@ -43,6 +49,7 @@
 #include "wined3d_gl.h"
 #include "wine/list.h"
 #include "wine/rbtree.h"
+#include "wine/wgl_driver.h"
 
 /* Driver quirks */
 #define WINED3D_QUIRK_ARB_VS_OFFSET_LIMIT       0x00000001
@@ -187,10 +194,11 @@ static inline GLenum wined3d_gl_min_mip_filter(const struct min_lookup min_mip_l
  *
  * See GL_NV_half_float for a reference of the FLOAT16 / GL_HALF format
  */
-static inline float float_16_to_32(const unsigned short *in) {
+static inline float float_16_to_32(const unsigned short *in)
+{
     const unsigned short s = ((*in) & 0x8000);
-    const unsigned short e = ((*in) & 0x7C00) >> 10;
-    const unsigned short m = (*in) & 0x3FF;
+    const unsigned short e = ((*in) & 0x7c00) >> 10;
+    const unsigned short m = (*in) & 0x3ff;
     const float sgn = (s ? -1.0f : 1.0f);
 
     if(e == 0) {
@@ -199,7 +207,7 @@ static inline float float_16_to_32(const unsigned short *in) {
     } else if(e < 31) {
         return sgn * powf(2, (float)e - 15.0f) * (1.0f + ((float)m / 1024.0f));
     } else {
-        if(m == 0) return sgn / 0.0f; /* +INF / -INF */
+        if(m == 0) return sgn * INFINITY;
         else return NAN;
     }
 }
@@ -221,7 +229,7 @@ static inline float float_24_to_32(DWORD in)
     }
     else
     {
-        if (m == 0) return sgn / 0.0f; /* +INF / -INF */
+        if (m == 0) return sgn * INFINITY;
         else return NAN;
     }
 }
@@ -785,11 +793,11 @@ extern void (CDECL *wine_tsx11_unlock_ptr)(void) DECLSPEC_HIDDEN;
 extern int num_lock DECLSPEC_HIDDEN;
 
 #if 0
-#define ENTER_GL() ++num_lock; if (num_lock > 1) FIXME("Recursive use of GL lock to: %d\n", num_lock); wine_tsx11_lock_ptr()
-#define LEAVE_GL() if (num_lock != 1) FIXME("Recursive use of GL lock: %d\n", num_lock); --num_lock; wine_tsx11_unlock_ptr()
-#else
 #define ENTER_GL() wine_tsx11_lock_ptr()
 #define LEAVE_GL() wine_tsx11_unlock_ptr()
+#else
+#define ENTER_GL() do {} while(0)
+#define LEAVE_GL() do {} while(0)
 #endif
 
 /*****************************************************************************
@@ -798,17 +806,17 @@ extern int num_lock DECLSPEC_HIDDEN;
 
 /* GL related defines */
 /* ------------------ */
-#define GL_EXTCALL(f) (gl_info->f)
+#define GL_EXTCALL(f) (gl_info->gl_ops.ext.p_##f)
 
-#define D3DCOLOR_B_R(dw) (((dw) >> 16) & 0xFF)
-#define D3DCOLOR_B_G(dw) (((dw) >>  8) & 0xFF)
-#define D3DCOLOR_B_B(dw) (((dw) >>  0) & 0xFF)
-#define D3DCOLOR_B_A(dw) (((dw) >> 24) & 0xFF)
+#define D3DCOLOR_B_R(dw) (((dw) >> 16) & 0xff)
+#define D3DCOLOR_B_G(dw) (((dw) >>  8) & 0xff)
+#define D3DCOLOR_B_B(dw) (((dw) >>  0) & 0xff)
+#define D3DCOLOR_B_A(dw) (((dw) >> 24) & 0xff)
 
-#define D3DCOLOR_R(dw) (((float) (((dw) >> 16) & 0xFF)) / 255.0f)
-#define D3DCOLOR_G(dw) (((float) (((dw) >>  8) & 0xFF)) / 255.0f)
-#define D3DCOLOR_B(dw) (((float) (((dw) >>  0) & 0xFF)) / 255.0f)
-#define D3DCOLOR_A(dw) (((float) (((dw) >> 24) & 0xFF)) / 255.0f)
+#define D3DCOLOR_R(dw) (((float) (((dw) >> 16) & 0xff)) / 255.0f)
+#define D3DCOLOR_G(dw) (((float) (((dw) >>  8) & 0xff)) / 255.0f)
+#define D3DCOLOR_B(dw) (((float) (((dw) >>  0) & 0xff)) / 255.0f)
+#define D3DCOLOR_A(dw) (((float) (((dw) >> 24) & 0xff)) / 255.0f)
 
 #define D3DCOLORTOGLFLOAT4(dw, vec) do { \
   (vec)[0] = D3DCOLOR_R(dw); \
@@ -826,14 +834,14 @@ extern int num_lock DECLSPEC_HIDDEN;
 do {                                                                \
     GLint err;                                                      \
     if (!__WINE_IS_DEBUG_ON(_ERR, __wine_dbch___default)) break;    \
-    err = glGetError();                                             \
+    err = gl_info->gl_ops.gl.p_glGetError();                        \
     if (err == GL_NO_ERROR) {                                       \
        TRACE("%s call ok %s / %d\n", A, __FILE__, __LINE__);        \
                                                                     \
     } else do {                                                     \
         ERR(">>>>>>>>>>>>>>>>> %s (%#x) from %s @ %s / %d\n",       \
             debug_glerror(err), err, A, __FILE__, __LINE__);        \
-       err = glGetError();                                          \
+       err = gl_info->gl_ops.gl.p_glGetError();                     \
     } while (err != GL_NO_ERROR);                                   \
 } while(0)
 #else
@@ -1158,7 +1166,7 @@ struct fragment_caps
 
 struct fragment_pipeline
 {
-    void (*enable_extension)(BOOL enable);
+    void (*enable_extension)(const struct wined3d_gl_info *gl_info, BOOL enable);
     void (*get_caps)(const struct wined3d_gl_info *gl_info, struct fragment_caps *caps);
     HRESULT (*alloc_private)(struct wined3d_device *device);
     void (*free_private)(struct wined3d_device *device);
@@ -1315,25 +1323,13 @@ enum wined3d_pci_device
     CARD_AMD_RADEON_HD2900          = 0x9400,
     CARD_AMD_RADEON_HD3200          = 0x9620,
     CARD_AMD_RADEON_HD4350          = 0x954f,
-    CARD_AMD_RADEON_HD4550          = 0x9540,
     CARD_AMD_RADEON_HD4600          = 0x9495,
-    CARD_AMD_RADEON_HD4650          = 0x9498,
-    CARD_AMD_RADEON_HD4670          = 0x9490,
     CARD_AMD_RADEON_HD4700          = 0x944e,
-    CARD_AMD_RADEON_HD4770          = 0x94b3,
-    CARD_AMD_RADEON_HD4800          = 0x944c, /* Picked one value between 9440, 944c, 9442, 9460 */
-    CARD_AMD_RADEON_HD4830          = 0x944c,
-    CARD_AMD_RADEON_HD4850          = 0x9442,
-    CARD_AMD_RADEON_HD4870          = 0x9440,
-    CARD_AMD_RADEON_HD4890          = 0x9460,
+    CARD_AMD_RADEON_HD4800          = 0x944c,
     CARD_AMD_RADEON_HD5400          = 0x68f9,
     CARD_AMD_RADEON_HD5600          = 0x68d8,
-    CARD_AMD_RADEON_HD5700          = 0x68BE, /* Picked HD5750 */
-    CARD_AMD_RADEON_HD5750          = 0x68BE,
-    CARD_AMD_RADEON_HD5770          = 0x68B8,
-    CARD_AMD_RADEON_HD5800          = 0x6898, /* Picked HD5850 */
-    CARD_AMD_RADEON_HD5850          = 0x6898,
-    CARD_AMD_RADEON_HD5870          = 0x6899,
+    CARD_AMD_RADEON_HD5700          = 0x68be,
+    CARD_AMD_RADEON_HD5800          = 0x6898,
     CARD_AMD_RADEON_HD5900          = 0x689c,
     CARD_AMD_RADEON_HD6300          = 0x9803,
     CARD_AMD_RADEON_HD6400          = 0x6770,
@@ -1341,8 +1337,10 @@ enum wined3d_pci_device
     CARD_AMD_RADEON_HD6550D         = 0x9640,
     CARD_AMD_RADEON_HD6600          = 0x6758,
     CARD_AMD_RADEON_HD6600M         = 0x6741,
+    CARD_AMD_RADEON_HD6700          = 0x68ba,
     CARD_AMD_RADEON_HD6800          = 0x6739,
     CARD_AMD_RADEON_HD6900          = 0x6719,
+    CARD_AMD_RADEON_HD7900          = 0x679a,
 
     CARD_NVIDIA_RIVA_128            = 0x0018,
     CARD_NVIDIA_RIVA_TNT            = 0x0020,
@@ -1363,8 +1361,7 @@ enum wined3d_pci_device
     CARD_NVIDIA_GEFORCE_7300        = 0x01d7, /* GeForce Go 7300 */
     CARD_NVIDIA_GEFORCE_7600        = 0x0391,
     CARD_NVIDIA_GEFORCE_7800GT      = 0x0092,
-    CARD_NVIDIA_GEFORCE_8100        = 0x084F,
-    CARD_NVIDIA_GEFORCE_8200        = 0x0849, /* Other PCI ID 0x084B */
+    CARD_NVIDIA_GEFORCE_8200        = 0x0849, /* Other PCI ID 0x084b */
     CARD_NVIDIA_GEFORCE_8300GS      = 0x0423,
     CARD_NVIDIA_GEFORCE_8400GS      = 0x0404,
     CARD_NVIDIA_GEFORCE_8500GT      = 0x0421,
@@ -1446,25 +1443,33 @@ enum wined3d_pci_device
 
 struct wined3d_fbo_ops
 {
-    PGLFNGLISRENDERBUFFERPROC                       glIsRenderbuffer;
-    PGLFNGLBINDRENDERBUFFERPROC                     glBindRenderbuffer;
-    PGLFNGLDELETERENDERBUFFERSPROC                  glDeleteRenderbuffers;
-    PGLFNGLGENRENDERBUFFERSPROC                     glGenRenderbuffers;
-    PGLFNGLRENDERBUFFERSTORAGEPROC                  glRenderbufferStorage;
-    PGLFNRENDERBUFFERSTORAGEMULTISAMPLEPROC         glRenderbufferStorageMultisample;
-    PGLFNGLGETRENDERBUFFERPARAMETERIVPROC           glGetRenderbufferParameteriv;
-    PGLFNGLISFRAMEBUFFERPROC                        glIsFramebuffer;
-    PGLFNGLBINDFRAMEBUFFERPROC                      glBindFramebuffer;
-    PGLFNGLDELETEFRAMEBUFFERSPROC                   glDeleteFramebuffers;
-    PGLFNGLGENFRAMEBUFFERSPROC                      glGenFramebuffers;
-    PGLFNGLCHECKFRAMEBUFFERSTATUSPROC               glCheckFramebufferStatus;
-    PGLFNGLFRAMEBUFFERTEXTURE1DPROC                 glFramebufferTexture1D;
-    PGLFNGLFRAMEBUFFERTEXTURE2DPROC                 glFramebufferTexture2D;
-    PGLFNGLFRAMEBUFFERTEXTURE3DPROC                 glFramebufferTexture3D;
-    PGLFNGLFRAMEBUFFERRENDERBUFFERPROC              glFramebufferRenderbuffer;
-    PGLFNGLGETFRAMEBUFFERATTACHMENTPARAMETERIVPROC  glGetFramebufferAttachmentParameteriv;
-    PGLFNGLBLITFRAMEBUFFERPROC                      glBlitFramebuffer;
-    PGLFNGLGENERATEMIPMAPPROC                       glGenerateMipmap;
+    GLboolean (WINE_GLAPI *glIsRenderbuffer)(GLuint renderbuffer);
+    void (WINE_GLAPI *glBindRenderbuffer)(GLenum target, GLuint renderbuffer);
+    void (WINE_GLAPI *glDeleteRenderbuffers)(GLsizei n, const GLuint *renderbuffers);
+    void (WINE_GLAPI *glGenRenderbuffers)(GLsizei n, GLuint *renderbuffers);
+    void (WINE_GLAPI *glRenderbufferStorage)(GLenum target, GLenum internalformat,
+            GLsizei width, GLsizei height);
+    void (WINE_GLAPI *glRenderbufferStorageMultisample)(GLenum target, GLsizei samples,
+            GLenum internalformat, GLsizei width, GLsizei height);
+    void (WINE_GLAPI *glGetRenderbufferParameteriv)(GLenum target, GLenum pname, GLint *params);
+    GLboolean (WINE_GLAPI *glIsFramebuffer)(GLuint framebuffer);
+    void (WINE_GLAPI *glBindFramebuffer)(GLenum target, GLuint framebuffer);
+    void (WINE_GLAPI *glDeleteFramebuffers)(GLsizei n, const GLuint *framebuffers);
+    void (WINE_GLAPI *glGenFramebuffers)(GLsizei n, GLuint *framebuffers);
+    GLenum (WINE_GLAPI *glCheckFramebufferStatus)(GLenum target);
+    void (WINE_GLAPI *glFramebufferTexture1D)(GLenum target, GLenum attachment,
+            GLenum textarget, GLuint texture, GLint level);
+    void (WINE_GLAPI *glFramebufferTexture2D)(GLenum target, GLenum attachment,
+            GLenum textarget, GLuint texture, GLint level);
+    void (WINE_GLAPI *glFramebufferTexture3D)(GLenum target, GLenum attachment,
+            GLenum textarget, GLuint texture, GLint level, GLint layer);
+    void (WINE_GLAPI *glFramebufferRenderbuffer)(GLenum target, GLenum attachment,
+            GLenum renderbuffertarget, GLuint renderbuffer);
+    void (WINE_GLAPI *glGetFramebufferAttachmentParameteriv)(GLenum target, GLenum attachment,
+            GLenum pname, GLint *params);
+    void (WINE_GLAPI *glBlitFramebuffer)(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1,
+            GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter);
+    void (WINE_GLAPI *glGenerateMipmap)(GLenum target);
 };
 
 struct wined3d_gl_limits
@@ -1478,7 +1483,6 @@ struct wined3d_gl_limits
     UINT vertex_samplers;
     UINT combined_samplers;
     UINT general_combiners;
-    UINT sampler_stages;
     UINT clipplanes;
     UINT texture_size;
     UINT texture3d_size;
@@ -1514,13 +1518,8 @@ struct wined3d_gl_info
     BOOL supported[WINED3D_GL_EXT_COUNT];
     GLint wrap_lookup[WINED3D_TADDRESS_MIRROR_ONCE - WINED3D_TADDRESS_WRAP + 1];
 
+    struct opengl_funcs gl_ops;
     struct wined3d_fbo_ops fbo_ops;
-#define USE_GL_FUNC(type, pfn, ext, replace) type pfn;
-    /* GL function pointers */
-    GL_EXT_FUNCS_GEN
-    /* WGL function pointers */
-    WGL_EXT_FUNCS_GEN
-#undef USE_GL_FUNC
 
     struct wined3d_format *formats;
 };
@@ -1543,7 +1542,6 @@ struct wined3d_adapter
     BOOL                    opengl;
 
     POINT monitorPoint;
-    SIZE screen_size;
     enum wined3d_format_id screen_format;
 
     struct wined3d_gl_info  gl_info;
@@ -2085,11 +2083,9 @@ static inline GLuint surface_get_texture_name(const struct wined3d_surface *surf
 }
 
 void surface_add_dirty_rect(struct wined3d_surface *surface, const struct wined3d_box *dirty_rect) DECLSPEC_HIDDEN;
-void surface_bind(struct wined3d_surface *surface, struct wined3d_context *context, BOOL srgb) DECLSPEC_HIDDEN;
 HRESULT surface_color_fill(struct wined3d_surface *s,
         const RECT *rect, const struct wined3d_color *color) DECLSPEC_HIDDEN;
 GLenum surface_get_gl_buffer(const struct wined3d_surface *surface) DECLSPEC_HIDDEN;
-BOOL surface_init_sysmem(struct wined3d_surface *surface) DECLSPEC_HIDDEN;
 void surface_internal_preload(struct wined3d_surface *surface, enum WINED3DSRGB srgb) DECLSPEC_HIDDEN;
 BOOL surface_is_offscreen(const struct wined3d_surface *surface) DECLSPEC_HIDDEN;
 HRESULT surface_load(struct wined3d_surface *surface, BOOL srgb) DECLSPEC_HIDDEN;
@@ -2182,8 +2178,6 @@ enum wined3d_conversion_type
     WINED3D_CT_CK_ARGB32,
 };
 
-HRESULT d3dfmt_get_conv(const struct wined3d_surface *surface, BOOL need_alpha_ck, BOOL use_texturing,
-        struct wined3d_format *format, enum wined3d_conversion_type *conversion_type) DECLSPEC_HIDDEN;
 void d3dfmt_p8_init_palette(const struct wined3d_surface *surface, BYTE table[256][4], BOOL colorkey) DECLSPEC_HIDDEN;
 
 struct wined3d_vertex_declaration_element
@@ -2504,8 +2498,9 @@ BOOL is_invalid_op(const struct wined3d_state *state, int stage,
 void set_tex_op_nvrc(const struct wined3d_gl_info *gl_info, const struct wined3d_state *state,
         BOOL is_alpha, int stage, enum wined3d_texture_op op, DWORD arg1, DWORD arg2, DWORD arg3,
         INT texture_idx, DWORD dst) DECLSPEC_HIDDEN;
-void set_texture_matrix(const float *smat, DWORD flags, BOOL calculatedCoords,
-        BOOL transformed, enum wined3d_format_id coordtype, BOOL ffp_can_disable_proj) DECLSPEC_HIDDEN;
+void set_texture_matrix(const struct wined3d_gl_info *gl_info, const float *smat, DWORD flags,
+        BOOL calculatedCoords, BOOL transformed, enum wined3d_format_id coordtype,
+        BOOL ffp_can_disable_proj) DECLSPEC_HIDDEN;
 void texture_activate_dimensions(const struct wined3d_texture *texture,
         const struct wined3d_gl_info *gl_info) DECLSPEC_HIDDEN;
 void sampler_texdim(struct wined3d_context *context,

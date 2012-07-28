@@ -17,6 +17,7 @@
  */
 
 #include <stdarg.h>
+#include <assert.h>
 
 #define COBJMACROS
 
@@ -310,19 +311,9 @@ static HRESULT HTMLOptionElement_QI(HTMLDOMNode *iface, REFIID riid, void **ppv)
     return HTMLElement_QI(&This->element.node, riid, ppv);
 }
 
-static void HTMLOptionElement_destructor(HTMLDOMNode *iface)
-{
-    HTMLOptionElement *This = impl_from_HTMLDOMNode(iface);
-
-    if(This->nsoption)
-        nsIDOMHTMLOptionElement_Release(This->nsoption);
-
-    HTMLElement_destructor(&This->element.node);
-}
-
 static const NodeImplVtbl HTMLOptionElementImplVtbl = {
     HTMLOptionElement_QI,
-    HTMLOptionElement_destructor,
+    HTMLElement_destructor,
     HTMLElement_clone,
     HTMLElement_get_attr_col
 };
@@ -351,14 +342,13 @@ HRESULT HTMLOptionElement_Create(HTMLDocumentNode *doc, nsIDOMHTMLElement *nsele
     ret->IHTMLOptionElement_iface.lpVtbl = &HTMLOptionElementVtbl;
     ret->element.node.vtbl = &HTMLOptionElementImplVtbl;
 
-    nsres = nsIDOMHTMLElement_QueryInterface(nselem, &IID_nsIDOMHTMLOptionElement, (void**)&ret->nsoption);
-    if(NS_FAILED(nsres)) {
-        ERR("Could not get nsIDOMHTMLOptionElement interface: %08x\n", nsres);
-        heap_free(ret);
-        return E_FAIL;
-    }
-
     HTMLElement_Init(&ret->element, doc, nselem, &HTMLOptionElement_dispex);
+
+    nsres = nsIDOMHTMLElement_QueryInterface(nselem, &IID_nsIDOMHTMLOptionElement, (void**)&ret->nsoption);
+
+    /* Share nsoption reference with nsnode */
+    assert(nsres == NS_OK && (nsIDOMNode*)ret->nsoption == ret->element.node.nsnode);
+    nsIDOMNode_Release(ret->element.node.nsnode);
 
     *elem = &ret->element;
     return S_OK;
@@ -468,24 +458,25 @@ static HRESULT WINAPI HTMLOptionElementFactory_create(IHTMLOptionElementFactory 
     TRACE("(%p)->(%s %s %s %s %p)\n", This, debugstr_variant(&text), debugstr_variant(&value),
           debugstr_variant(&defaultselected), debugstr_variant(&selected), optelem);
 
-    if(!This->window || !This->window->doc) {
+    if(!This->window || !This->window->base.inner_window->doc) {
         WARN("NULL doc\n");
         return E_UNEXPECTED;
     }
 
     *optelem = NULL;
 
-    hres = create_nselem(This->window->doc, optionW, &nselem);
+    hres = create_nselem(This->window->base.inner_window->doc, optionW, &nselem);
     if(FAILED(hres))
         return hres;
 
-    hres = get_node(This->window->doc, (nsIDOMNode*)nselem, TRUE, &node);
+    hres = get_node(This->window->base.inner_window->doc, (nsIDOMNode*)nselem, TRUE, &node);
     nsIDOMHTMLElement_Release(nselem);
     if(FAILED(hres))
         return hres;
 
     hres = IHTMLDOMNode_QueryInterface(&node->IHTMLDOMNode_iface,
             &IID_IHTMLOptionElement, (void**)optelem);
+    node_release(node);
 
     if(V_VT(&text) == VT_BSTR)
         IHTMLOptionElement_put_text(*optelem, V_BSTR(&text));
@@ -516,15 +507,18 @@ static const IHTMLOptionElementFactoryVtbl HTMLOptionElementFactoryVtbl = {
     HTMLOptionElementFactory_create
 };
 
-HTMLOptionElementFactory *HTMLOptionElementFactory_Create(HTMLWindow *window)
+HRESULT HTMLOptionElementFactory_Create(HTMLInnerWindow *window, HTMLOptionElementFactory **ret_ptr)
 {
     HTMLOptionElementFactory *ret;
 
-    ret = heap_alloc(sizeof(HTMLOptionElementFactory));
+    ret = heap_alloc(sizeof(*ret));
+    if(!ret)
+        return E_OUTOFMEMORY;
 
     ret->IHTMLOptionElementFactory_iface.lpVtbl = &HTMLOptionElementFactoryVtbl;
     ret->ref = 1;
     ret->window = window;
 
-    return ret;
+    *ret_ptr = ret;
+    return S_OK;
 }

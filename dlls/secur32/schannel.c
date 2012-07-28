@@ -668,6 +668,7 @@ static SECURITY_STATUS SEC_ENTRY schan_InitializeSecurityContextW(
     struct schan_buffers *out_buffers;
     struct schan_credentials *cred;
     struct schan_transport transport;
+    SIZE_T expected_size = ~0UL;
     SECURITY_STATUS ret;
 
     TRACE("%p %p %s 0x%08x %d %d %p %d %p %p %p %p\n", phCredential, phContext,
@@ -714,6 +715,42 @@ static SECURITY_STATUS SEC_ENTRY schan_InitializeSecurityContextW(
     }
     else
     {
+        SIZE_T record_size = 0;
+        unsigned char *ptr;
+        SecBuffer *buffer;
+        int idx;
+
+        if (!pInput)
+            return SEC_E_INCOMPLETE_MESSAGE;
+
+        idx = schan_find_sec_buffer_idx(pInput, 0, SECBUFFER_TOKEN);
+        if (idx == -1)
+            return SEC_E_INCOMPLETE_MESSAGE;
+
+        buffer = &pInput->pBuffers[idx];
+        ptr = buffer->pvBuffer;
+        expected_size = 0;
+
+        while (buffer->cbBuffer > expected_size + 5)
+        {
+            record_size = 5 + ((ptr[3] << 8) | ptr[4]);
+
+            if (buffer->cbBuffer < expected_size + record_size)
+                break;
+
+            expected_size += record_size;
+            ptr += record_size;
+        }
+
+        if (!expected_size)
+        {
+            TRACE("Expected at least %lu bytes, but buffer only contains %u bytes.\n",
+                    max(6, record_size), buffer->cbBuffer);
+            return SEC_E_INCOMPLETE_MESSAGE;
+        }
+
+        TRACE("Using expected_size %lu.\n", expected_size);
+
         ctx = schan_get_object(phContext->dwLower, SCHAN_HANDLE_CTX);
     }
 
@@ -721,6 +758,7 @@ static SECURITY_STATUS SEC_ENTRY schan_InitializeSecurityContextW(
 
     transport.ctx = ctx;
     init_schan_buffers(&transport.in, pInput, schan_init_sec_ctx_get_next_buffer);
+    transport.in.limit = expected_size;
     init_schan_buffers(&transport.out, pOutput, schan_init_sec_ctx_get_next_buffer);
     schan_imp_set_session_transport(ctx->session, &transport);
 
@@ -1067,7 +1105,7 @@ static SECURITY_STATUS SEC_ENTRY schan_DecryptMessage(PCtxtHandle context_handle
         return SEC_E_INCOMPLETE_MESSAGE;
     }
 
-    data_size = buffer->cbBuffer;
+    data_size = expected_size - 5;
     data = HeapAlloc(GetProcessHeap(), 0, data_size);
 
     transport.ctx = ctx;
@@ -1080,23 +1118,18 @@ static SECURITY_STATUS SEC_ENTRY schan_DecryptMessage(PCtxtHandle context_handle
     {
         SIZE_T length = data_size - received;
         SECURITY_STATUS status = schan_imp_recv(ctx->session, data + received, &length);
+
         if (status == SEC_I_CONTINUE_NEEDED)
-        {
-            if (!received)
-            {
-                HeapFree(GetProcessHeap(), 0, data);
-                TRACE("Returning SEC_E_INCOMPLETE_MESSAGE\n");
-                return SEC_E_INCOMPLETE_MESSAGE;
-            }
             break;
-        }
-        else if (status != SEC_E_OK)
+
+        if (status != SEC_E_OK)
         {
             HeapFree(GetProcessHeap(), 0, data);
             ERR("Returning %d\n", status);
             return status;
         }
-        else if (!length)
+
+        if (!length)
             break;
 
         received += length;

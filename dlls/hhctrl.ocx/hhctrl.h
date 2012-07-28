@@ -40,6 +40,7 @@
 
 #include "wine/itss.h"
 #include "wine/unicode.h"
+#include "wine/list.h"
 
 #define WB_GOBACK     0
 #define WB_GOFORWARD  1
@@ -103,9 +104,12 @@ typedef struct CHMInfo
     DWORD strings_size;
 
     WCHAR *compiledFile;
+    WCHAR *defWindow;
     WCHAR *defTopic;
     WCHAR *defTitle;
     WCHAR *defToc;
+
+    UINT codePage;
 } CHMInfo;
 
 #define TAB_CONTENTS   0
@@ -133,6 +137,10 @@ typedef struct {
 } SearchTab;
 
 typedef struct {
+    HIMAGELIST hImageList;
+} ContentsTab;
+
+typedef struct {
     IOleClientSite *client_site;
     IWebBrowser2 *web_browser;
     IOleObject *wb_object;
@@ -151,11 +159,13 @@ typedef struct {
     LPWSTR pszUrlJump2;
     LPWSTR pszCustomTabs;
 
+    struct list entry;
     CHMInfo *pCHMInfo;
     ContentItem *content;
     IndexItem *index;
     IndexPopup popup;
     SearchTab search;
+    ContentsTab contents;
     HWND hwndTabCtrl;
     HWND hwndSizeBar;
     HFONT hFont;
@@ -182,8 +192,9 @@ CHMInfo *CloseCHM(CHMInfo *pCHMInfo) DECLSPEC_HIDDEN;
 void SetChmPath(ChmPath*,LPCWSTR,LPCWSTR) DECLSPEC_HIDDEN;
 IStream *GetChmStream(CHMInfo*,LPCWSTR,ChmPath*) DECLSPEC_HIDDEN;
 LPWSTR FindContextAlias(CHMInfo*,DWORD) DECLSPEC_HIDDEN;
+WCHAR *GetDocumentTitle(CHMInfo*,LPCWSTR) DECLSPEC_HIDDEN;
 
-HHInfo *CreateHelpViewer(LPCWSTR) DECLSPEC_HIDDEN;
+HHInfo *CreateHelpViewer(LPCWSTR,HWND) DECLSPEC_HIDDEN;
 void ReleaseHelpViewer(HHInfo*) DECLSPEC_HIDDEN;
 BOOL NavigateToUrl(HHInfo*,LPCWSTR) DECLSPEC_HIDDEN;
 BOOL NavigateToChm(HHInfo*,LPCWSTR,LPCWSTR) DECLSPEC_HIDDEN;
@@ -192,6 +203,8 @@ void InitSearch(HHInfo *info, const char *needle) DECLSPEC_HIDDEN;
 void ReleaseSearch(HHInfo *info) DECLSPEC_HIDDEN;
 
 LPCWSTR skip_schema(LPCWSTR url) DECLSPEC_HIDDEN;
+
+WCHAR *decode_html(const char *html_fragment, int html_fragment_len, UINT code_page);
 
 /* memory allocation functions */
 

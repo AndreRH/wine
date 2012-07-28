@@ -41,20 +41,12 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(quartz);
 
-static const IBaseFilterVtbl NullRenderer_Vtbl;
-static const IUnknownVtbl IInner_VTable;
-static const IAMFilterMiscFlagsVtbl IAMFilterMiscFlags_Vtbl;
-
 typedef struct NullRendererImpl
 {
     BaseRenderer renderer;
-
-    const IUnknownVtbl * IInner_vtbl;
-    const IAMFilterMiscFlagsVtbl *IAMFilterMiscFlags_vtbl;
-
-    IUnknown * pUnkOuter;
-    BOOL bUnkOuterValid;
-    BOOL bAggregatable;
+    IUnknown IUnknown_inner;
+    IAMFilterMiscFlags IAMFilterMiscFlags_iface;
+    IUnknown *outer_unk;
 } NullRendererImpl;
 
 static HRESULT WINAPI NullRenderer_DoRenderSample(BaseRenderer *iface, IMediaSample *pMediaSample)
@@ -90,49 +82,23 @@ static const BaseRendererFuncTable RendererFuncTable = {
     NULL,
 };
 
-HRESULT NullRenderer_create(IUnknown * pUnkOuter, LPVOID * ppv)
+static inline NullRendererImpl *impl_from_IUnknown(IUnknown *iface)
 {
-    HRESULT hr;
-    NullRendererImpl * pNullRenderer;
-
-    TRACE("(%p, %p)\n", pUnkOuter, ppv);
-
-    *ppv = NULL;
-
-    pNullRenderer = CoTaskMemAlloc(sizeof(NullRendererImpl));
-    pNullRenderer->pUnkOuter = pUnkOuter;
-    pNullRenderer->bUnkOuterValid = FALSE;
-    pNullRenderer->bAggregatable = FALSE;
-    pNullRenderer->IInner_vtbl = &IInner_VTable;
-    pNullRenderer->IAMFilterMiscFlags_vtbl = &IAMFilterMiscFlags_Vtbl;
-
-    hr = BaseRenderer_Init(&pNullRenderer->renderer, &NullRenderer_Vtbl, pUnkOuter, &CLSID_NullRenderer, (DWORD_PTR)(__FILE__ ": NullRendererImpl.csFilter"), &RendererFuncTable);
-
-    if (FAILED(hr))
-    {
-        BaseRendererImpl_Release(&pNullRenderer->renderer.filter.IBaseFilter_iface);
-        CoTaskMemFree(pNullRenderer);
-    }
-    else
-        *ppv = pNullRenderer;
-
-    return hr;
+    return CONTAINING_RECORD(iface, NullRendererImpl, IUnknown_inner);
 }
 
-static HRESULT WINAPI NullRendererInner_QueryInterface(IUnknown * iface, REFIID riid, LPVOID * ppv)
+static HRESULT WINAPI NullRendererInner_QueryInterface(IUnknown *iface, REFIID riid, void **ppv)
 {
-    ICOM_THIS_MULTI(NullRendererImpl, IInner_vtbl, iface);
-    TRACE("(%p/%p)->(%s, %p)\n", This, iface, qzdebugstr_guid(riid), ppv);
+    NullRendererImpl *This = impl_from_IUnknown(iface);
 
-    if (This->bAggregatable)
-        This->bUnkOuterValid = TRUE;
+    TRACE("(%p/%p)->(%s, %p)\n", This, iface, qzdebugstr_guid(riid), ppv);
 
     *ppv = NULL;
 
     if (IsEqualIID(riid, &IID_IUnknown))
-        *ppv = &This->IInner_vtbl;
+        *ppv = &This->IUnknown_inner;
     else if (IsEqualIID(riid, &IID_IAMFilterMiscFlags))
-        *ppv = &This->IAMFilterMiscFlags_vtbl;
+        *ppv = &This->IAMFilterMiscFlags_iface;
     else
     {
         HRESULT hr;
@@ -143,7 +109,7 @@ static HRESULT WINAPI NullRendererInner_QueryInterface(IUnknown * iface, REFIID 
 
     if (*ppv)
     {
-        IUnknown_AddRef((IUnknown *)(*ppv));
+        IUnknown_AddRef((IUnknown *)*ppv);
         return S_OK;
     }
 
@@ -153,25 +119,24 @@ static HRESULT WINAPI NullRendererInner_QueryInterface(IUnknown * iface, REFIID 
     return E_NOINTERFACE;
 }
 
-static ULONG WINAPI NullRendererInner_AddRef(IUnknown * iface)
+static ULONG WINAPI NullRendererInner_AddRef(IUnknown *iface)
 {
-    ICOM_THIS_MULTI(NullRendererImpl, IInner_vtbl, iface);
+    NullRendererImpl *This = impl_from_IUnknown(iface);
     return BaseFilterImpl_AddRef(&This->renderer.filter.IBaseFilter_iface);
 }
 
-static ULONG WINAPI NullRendererInner_Release(IUnknown * iface)
+static ULONG WINAPI NullRendererInner_Release(IUnknown *iface)
 {
-    ICOM_THIS_MULTI(NullRendererImpl, IInner_vtbl, iface);
-    ULONG refCount = BaseRendererImpl_Release(&This->renderer.filter.IBaseFilter_iface);
+    NullRendererImpl *This = impl_from_IUnknown(iface);
+    ULONG refCount = BaseFilterImpl_Release(&This->renderer.filter.IBaseFilter_iface);
 
     if (!refCount)
     {
         TRACE("Destroying Null Renderer\n");
         CoTaskMemFree(This);
-        return 0;
     }
-    else
-        return refCount;
+
+    return refCount;
 }
 
 static const IUnknownVtbl IInner_VTable =
@@ -181,52 +146,27 @@ static const IUnknownVtbl IInner_VTable =
     NullRendererInner_Release
 };
 
+static inline NullRendererImpl *impl_from_IBaseFilter(IBaseFilter *iface)
+{
+    return CONTAINING_RECORD(iface, NullRendererImpl, renderer.filter.IBaseFilter_iface);
+}
+
 static HRESULT WINAPI NullRenderer_QueryInterface(IBaseFilter * iface, REFIID riid, LPVOID * ppv)
 {
-    NullRendererImpl *This = (NullRendererImpl *)iface;
-
-    if (This->bAggregatable)
-        This->bUnkOuterValid = TRUE;
-
-    if (This->pUnkOuter)
-    {
-        if (This->bAggregatable)
-            return IUnknown_QueryInterface(This->pUnkOuter, riid, ppv);
-
-        if (IsEqualIID(riid, &IID_IUnknown))
-        {
-            HRESULT hr;
-
-            IUnknown_AddRef((IUnknown *)&(This->IInner_vtbl));
-            hr = IUnknown_QueryInterface((IUnknown *)&(This->IInner_vtbl), riid, ppv);
-            IUnknown_Release((IUnknown *)&(This->IInner_vtbl));
-            This->bAggregatable = TRUE;
-            return hr;
-        }
-
-        *ppv = NULL;
-        return E_NOINTERFACE;
-    }
-
-    return IUnknown_QueryInterface((IUnknown *)&(This->IInner_vtbl), riid, ppv);
+    NullRendererImpl *This = impl_from_IBaseFilter(iface);
+    return IUnknown_QueryInterface(This->outer_unk, riid, ppv);
 }
 
 static ULONG WINAPI NullRenderer_AddRef(IBaseFilter * iface)
 {
-    NullRendererImpl *This = (NullRendererImpl *)iface;
-
-    if (This->pUnkOuter && This->bUnkOuterValid)
-        return IUnknown_AddRef(This->pUnkOuter);
-    return IUnknown_AddRef((IUnknown *)&(This->IInner_vtbl));
+    NullRendererImpl *This = impl_from_IBaseFilter(iface);
+    return IUnknown_AddRef(This->outer_unk);
 }
 
 static ULONG WINAPI NullRenderer_Release(IBaseFilter * iface)
 {
-    NullRendererImpl *This = (NullRendererImpl *)iface;
-
-    if (This->pUnkOuter && This->bUnkOuterValid)
-        return IUnknown_Release(This->pUnkOuter);
-    return IUnknown_Release((IUnknown *)&(This->IInner_vtbl));
+    NullRendererImpl *This = impl_from_IBaseFilter(iface);
+    return IUnknown_Release(This->outer_unk);
 }
 
 static const IBaseFilterVtbl NullRenderer_Vtbl =
@@ -248,26 +188,32 @@ static const IBaseFilterVtbl NullRenderer_Vtbl =
     BaseFilterImpl_QueryVendorInfo
 };
 
-static NullRendererImpl *from_IAMFilterMiscFlags(IAMFilterMiscFlags *iface) {
-    return (NullRendererImpl*)((char*)iface - offsetof(NullRendererImpl, IAMFilterMiscFlags_vtbl));
+static NullRendererImpl *impl_from_IAMFilterMiscFlags(IAMFilterMiscFlags *iface)
+{
+    return CONTAINING_RECORD(iface, NullRendererImpl, IAMFilterMiscFlags_iface);
 }
 
-static HRESULT WINAPI AMFilterMiscFlags_QueryInterface(IAMFilterMiscFlags *iface, REFIID riid, void **ppv) {
-    NullRendererImpl *This = from_IAMFilterMiscFlags(iface);
-    return IUnknown_QueryInterface((IUnknown*)This, riid, ppv);
+static HRESULT WINAPI AMFilterMiscFlags_QueryInterface(IAMFilterMiscFlags *iface, REFIID riid,
+        void **ppv)
+{
+    NullRendererImpl *This = impl_from_IAMFilterMiscFlags(iface);
+    return IUnknown_QueryInterface(This->outer_unk, riid, ppv);
 }
 
-static ULONG WINAPI AMFilterMiscFlags_AddRef(IAMFilterMiscFlags *iface) {
-    NullRendererImpl *This = from_IAMFilterMiscFlags(iface);
-    return IUnknown_AddRef((IUnknown*)This);
+static ULONG WINAPI AMFilterMiscFlags_AddRef(IAMFilterMiscFlags *iface)
+{
+    NullRendererImpl *This = impl_from_IAMFilterMiscFlags(iface);
+    return IUnknown_AddRef(This->outer_unk);
 }
 
-static ULONG WINAPI AMFilterMiscFlags_Release(IAMFilterMiscFlags *iface) {
-    NullRendererImpl *This = from_IAMFilterMiscFlags(iface);
-    return IUnknown_Release((IUnknown*)This);
+static ULONG WINAPI AMFilterMiscFlags_Release(IAMFilterMiscFlags *iface)
+{
+    NullRendererImpl *This = impl_from_IAMFilterMiscFlags(iface);
+    return IUnknown_Release(This->outer_unk);
 }
 
-static ULONG WINAPI AMFilterMiscFlags_GetMiscFlags(IAMFilterMiscFlags *iface) {
+static ULONG WINAPI AMFilterMiscFlags_GetMiscFlags(IAMFilterMiscFlags *iface)
+{
     return AM_FILTER_MISC_FLAGS_IS_RENDERER;
 }
 
@@ -277,3 +223,36 @@ static const IAMFilterMiscFlagsVtbl IAMFilterMiscFlags_Vtbl = {
     AMFilterMiscFlags_Release,
     AMFilterMiscFlags_GetMiscFlags
 };
+
+HRESULT NullRenderer_create(IUnknown *pUnkOuter, void **ppv)
+{
+    HRESULT hr;
+    NullRendererImpl *pNullRenderer;
+
+    TRACE("(%p, %p)\n", pUnkOuter, ppv);
+
+    *ppv = NULL;
+
+    pNullRenderer = CoTaskMemAlloc(sizeof(NullRendererImpl));
+    pNullRenderer->IUnknown_inner.lpVtbl = &IInner_VTable;
+    pNullRenderer->IAMFilterMiscFlags_iface.lpVtbl = &IAMFilterMiscFlags_Vtbl;
+
+    if (pUnkOuter)
+        pNullRenderer->outer_unk = pUnkOuter;
+    else
+        pNullRenderer->outer_unk = &pNullRenderer->IUnknown_inner;
+
+    hr = BaseRenderer_Init(&pNullRenderer->renderer, &NullRenderer_Vtbl, pUnkOuter,
+            &CLSID_NullRenderer, (DWORD_PTR)(__FILE__ ": NullRendererImpl.csFilter"),
+            &RendererFuncTable);
+
+    if (FAILED(hr))
+    {
+        BaseRendererImpl_Release(&pNullRenderer->renderer.filter.IBaseFilter_iface);
+        CoTaskMemFree(pNullRenderer);
+    }
+    else
+        *ppv = &pNullRenderer->IUnknown_inner;
+
+    return S_OK;
+}

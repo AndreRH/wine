@@ -458,7 +458,7 @@ extern BOOL PSDRV_StrokePath( PHYSDEV dev ) DECLSPEC_HIDDEN;
 extern void PSDRV_MergeDevmodes(PSDRV_DEVMODE *dm1, PSDRV_DEVMODE *dm2,
 			 PRINTERINFO *pi) DECLSPEC_HIDDEN;
 extern BOOL PSDRV_GetFontMetrics(void) DECLSPEC_HIDDEN;
-extern PPD *PSDRV_ParsePPD(char *fname) DECLSPEC_HIDDEN;
+extern PPD *PSDRV_ParsePPD(char *fname, HANDLE printer) DECLSPEC_HIDDEN;
 extern PRINTERINFO *PSDRV_FindPrinterInfo(LPCWSTR name) DECLSPEC_HIDDEN;
 extern const AFM *PSDRV_FindAFMinList(FONTFAMILY *head, LPCSTR name) DECLSPEC_HIDDEN;
 extern BOOL PSDRV_AddAFMtoList(FONTFAMILY **head, const AFM *afm,
@@ -489,7 +489,8 @@ extern BOOL PSDRV_WriteLineTo(PHYSDEV dev, INT x, INT y) DECLSPEC_HIDDEN;
 extern BOOL PSDRV_WriteStroke(PHYSDEV dev) DECLSPEC_HIDDEN;
 extern BOOL PSDRV_WriteRectangle(PHYSDEV dev, INT x, INT y, INT width, INT height) DECLSPEC_HIDDEN;
 extern BOOL PSDRV_WriteRRectangle(PHYSDEV dev, INT x, INT y, INT width, INT height) DECLSPEC_HIDDEN;
-extern BOOL PSDRV_WriteSetFont(PHYSDEV dev, const char *name, matrix size, INT escapement) DECLSPEC_HIDDEN;
+extern BOOL PSDRV_WriteSetFont(PHYSDEV dev, const char *name, matrix size, INT escapement,
+                               BOOL fake_italic) DECLSPEC_HIDDEN;
 extern BOOL PSDRV_WriteGlyphShow(PHYSDEV dev, LPCSTR g_name) DECLSPEC_HIDDEN;
 extern BOOL PSDRV_WriteSetPen(PHYSDEV dev) DECLSPEC_HIDDEN;
 extern BOOL PSDRV_WriteArc(PHYSDEV dev, INT x, INT y, INT w, INT h,

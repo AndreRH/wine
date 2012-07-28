@@ -1,5 +1,6 @@
 /*
  * Copyright 2012 Vincent Povirk for CodeWeavers
+ * Copyright 2012 Dmitry Timoshkov
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,12 +20,14 @@
 #include "config.h"
 
 #include <stdarg.h>
+#include <stdio.h>
 
 #define COBJMACROS
 #define NONAMELESSUNION
 
 #include "windef.h"
 #include "winbase.h"
+#include "winternl.h"
 #include "objbase.h"
 #include "wincodec.h"
 #include "wincodecsdk.h"
@@ -130,39 +133,164 @@ static ULONG WINAPI MetadataHandler_Release(IWICMetadataWriter *iface)
     return ref;
 }
 
-static HRESULT WINAPI MetadataHandler_GetMetadataFormat(IWICMetadataWriter *iface,
-    GUID *pguidMetadataFormat)
-{
-    FIXME("(%p,%s): stub\n", iface, debugstr_guid(pguidMetadataFormat));
-    return E_NOTIMPL;
-}
-
 static HRESULT WINAPI MetadataHandler_GetMetadataHandlerInfo(IWICMetadataWriter *iface,
     IWICMetadataHandlerInfo **ppIHandler)
 {
-    FIXME("(%p,%p): stub\n", iface, ppIHandler);
-    return E_NOTIMPL;
+    HRESULT hr;
+    IWICComponentInfo *component_info;
+    MetadataHandler *This = impl_from_IWICMetadataWriter(iface);
+
+    TRACE("%p,%p\n", iface, ppIHandler);
+
+    hr = CreateComponentInfo(This->vtable->clsid, &component_info);
+    if (FAILED(hr)) return hr;
+
+    hr = IWICComponentInfo_QueryInterface(component_info, &IID_IWICMetadataHandlerInfo,
+        (void **)ppIHandler);
+
+    IWICComponentInfo_Release(component_info);
+    return hr;
+}
+
+static HRESULT WINAPI MetadataHandler_GetMetadataFormat(IWICMetadataWriter *iface,
+    GUID *pguidMetadataFormat)
+{
+    HRESULT hr;
+    IWICMetadataHandlerInfo *metadata_info;
+
+    TRACE("%p,%p\n", iface, pguidMetadataFormat);
+
+    if (!pguidMetadataFormat) return E_INVALIDARG;
+
+    hr = MetadataHandler_GetMetadataHandlerInfo(iface, &metadata_info);
+    if (FAILED(hr)) return hr;
+
+    hr = IWICMetadataHandlerInfo_GetMetadataFormat(metadata_info, pguidMetadataFormat);
+    IWICMetadataHandlerInfo_Release(metadata_info);
+
+    return hr;
 }
 
 static HRESULT WINAPI MetadataHandler_GetCount(IWICMetadataWriter *iface,
     UINT *pcCount)
 {
-    FIXME("(%p,%p): stub\n", iface, pcCount);
-    return E_NOTIMPL;
+    MetadataHandler *This = impl_from_IWICMetadataWriter(iface);
+
+    TRACE("%p,%p\n", iface, pcCount);
+
+    if (!pcCount) return E_INVALIDARG;
+
+    *pcCount = This->item_count;
+    return S_OK;
 }
 
 static HRESULT WINAPI MetadataHandler_GetValueByIndex(IWICMetadataWriter *iface,
-    UINT nIndex, PROPVARIANT *pvarSchema, PROPVARIANT *pvarId, PROPVARIANT *pvarValue)
+    UINT index, PROPVARIANT *schema, PROPVARIANT *id, PROPVARIANT *value)
 {
-    FIXME("(%p,%u,%p,%p,%p): stub\n", iface, nIndex, pvarSchema, pvarId, pvarValue);
-    return E_NOTIMPL;
+    HRESULT hr = S_OK;
+    MetadataHandler *This = impl_from_IWICMetadataWriter(iface);
+
+    TRACE("%p,%u,%p,%p,%p\n", iface, index, schema, id, value);
+
+    EnterCriticalSection(&This->lock);
+
+    if (index >= This->item_count)
+    {
+        LeaveCriticalSection(&This->lock);
+        return E_INVALIDARG;
+    }
+
+    if (schema)
+        hr = PropVariantCopy(schema, &This->items[index].schema);
+
+    if (SUCCEEDED(hr) && id)
+        hr = PropVariantCopy(id, &This->items[index].id);
+
+    if (SUCCEEDED(hr) && value)
+        hr = PropVariantCopy(value, &This->items[index].value);
+
+    LeaveCriticalSection(&This->lock);
+    return hr;
+}
+
+static BOOL get_int_value(const PROPVARIANT *pv, LONGLONG *value)
+{
+    switch (pv->vt)
+    {
+    case VT_NULL:
+    case VT_EMPTY:
+        *value = 0;
+        break;
+    case VT_I1:
+        *value = pv->u.cVal;
+        break;
+    case VT_UI1:
+        *value = pv->u.bVal;
+        break;
+    case VT_I2:
+        *value = pv->u.iVal;
+        break;
+    case VT_UI2:
+        *value = pv->u.uiVal;
+        break;
+    case VT_I4:
+        *value = pv->u.lVal;
+        break;
+    case VT_UI4:
+        *value = pv->u.ulVal;
+        break;
+    case VT_I8:
+    case VT_UI8:
+        *value = pv->u.hVal.QuadPart;
+        break;
+    default:
+        FIXME("not supported variant type %d\n", pv->vt);
+        return FALSE;
+    }
+    return TRUE;
+}
+
+/* FiXME: Use propsys.PropVariantCompareEx once it's implemented */
+static int propvar_cmp(const PROPVARIANT *v1, const PROPVARIANT *v2)
+{
+    LONGLONG value1, value2;
+
+    if (!get_int_value(v1, &value1)) return -1;
+    if (!get_int_value(v2, &value2)) return -1;
+
+    value1 -= value2;
+    if (value1) return value1 < 0 ? -1 : 1;
+    return 0;
 }
 
 static HRESULT WINAPI MetadataHandler_GetValue(IWICMetadataWriter *iface,
-    const PROPVARIANT *pvarSchema, const PROPVARIANT *pvarId, PROPVARIANT *pvarValue)
+    const PROPVARIANT *schema, const PROPVARIANT *id, PROPVARIANT *value)
 {
-    FIXME("(%p,%p,%p,%p): stub\n", iface, pvarSchema, pvarId, pvarValue);
-    return E_NOTIMPL;
+    UINT i;
+    HRESULT hr = WINCODEC_ERR_PROPERTYNOTFOUND;
+    MetadataHandler *This = impl_from_IWICMetadataWriter(iface);
+
+    TRACE("(%p,%p,%p,%p)\n", iface, schema, id, value);
+
+    if (!id) return E_INVALIDARG;
+
+    EnterCriticalSection(&This->lock);
+
+    for (i = 0; i < This->item_count; i++)
+    {
+        if (schema && This->items[i].schema.vt != VT_EMPTY)
+        {
+            if (propvar_cmp(schema, &This->items[i].schema) != 0) continue;
+        }
+
+        if (propvar_cmp(id, &This->items[i].id) != 0) continue;
+
+        hr = value ? PropVariantCopy(value, &This->items[i].value) : S_OK;
+        break;
+    }
+
+    LeaveCriticalSection(&This->lock);
+    return hr;
 }
 
 static HRESULT WINAPI MetadataHandler_GetEnumerator(IWICMetadataWriter *iface,
@@ -252,8 +380,9 @@ static HRESULT WINAPI MetadataHandler_IsDirty(IWICPersistStream *iface)
 static HRESULT WINAPI MetadataHandler_Load(IWICPersistStream *iface,
     IStream *pStm)
 {
-    FIXME("(%p,%p): stub\n", iface, pStm);
-    return E_NOTIMPL;
+    MetadataHandler *This = impl_from_IWICPersistStream(iface);
+    TRACE("(%p,%p)\n", iface, pStm);
+    return IWICPersistStream_LoadEx(&This->IWICPersistStream_iface, pStm, NULL, WICPersistOptionsDefault);
 }
 
 static HRESULT WINAPI MetadataHandler_Save(IWICPersistStream *iface,
@@ -317,7 +446,7 @@ static const IWICPersistStreamVtbl MetadataHandler_PersistStream_Vtbl = {
     MetadataHandler_SaveEx
 };
 
-HRESULT MetadataReader_Create(const MetadataHandlerVtbl *vtable, IUnknown *pUnkOuter, REFIID iid, void** ppv)
+static HRESULT MetadataReader_Create(const MetadataHandlerVtbl *vtable, IUnknown *pUnkOuter, REFIID iid, void** ppv)
 {
     MetadataHandler *This;
     HRESULT hr;
@@ -514,6 +643,8 @@ static HRESULT MetadataHandlerEnum_Create(MetadataHandler *parent, DWORD index,
 {
     MetadataHandlerEnum *This;
 
+    if (!ppIEnumMetadataItem) return E_INVALIDARG;
+
     *ppIEnumMetadataItem = NULL;
 
     This = HeapAlloc(GetProcessHeap(), 0, sizeof(MetadataHandlerEnum));
@@ -586,4 +717,427 @@ static const MetadataHandlerVtbl UnknownMetadataReader_Vtbl = {
 HRESULT UnknownMetadataReader_CreateInstance(IUnknown *pUnkOuter, REFIID iid, void** ppv)
 {
     return MetadataReader_Create(&UnknownMetadataReader_Vtbl, pUnkOuter, iid, ppv);
+}
+
+#define SWAP_USHORT(x) do { if (!native_byte_order) (x) = RtlUshortByteSwap(x); } while(0)
+#define SWAP_ULONG(x) do { if (!native_byte_order) (x) = RtlUlongByteSwap(x); } while(0)
+#define SWAP_ULONGLONG(x) do { if (!native_byte_order) (x) = RtlUlonglongByteSwap(x); } while(0)
+
+struct IFD_entry
+{
+    SHORT id;
+    SHORT type;
+    ULONG count;
+    LONG  value;
+};
+
+#define IFD_BYTE 1
+#define IFD_ASCII 2
+#define IFD_SHORT 3
+#define IFD_LONG 4
+#define IFD_RATIONAL 5
+#define IFD_SBYTE 6
+#define IFD_UNDEFINED 7
+#define IFD_SSHORT 8
+#define IFD_SLONG 9
+#define IFD_SRATIONAL 10
+#define IFD_FLOAT 11
+#define IFD_DOUBLE 12
+#define IFD_IFD 13
+
+static int tag_to_vt(SHORT tag)
+{
+    static const int tag2vt[] =
+    {
+        VT_EMPTY, /* 0 */
+        VT_UI1,   /* IFD_BYTE 1 */
+        VT_LPSTR, /* IFD_ASCII 2 */
+        VT_UI2,   /* IFD_SHORT 3 */
+        VT_UI4,   /* IFD_LONG 4 */
+        VT_UI8,   /* IFD_RATIONAL 5 */
+        VT_I1,    /* IFD_SBYTE 6 */
+        VT_BLOB,  /* IFD_UNDEFINED 7 */
+        VT_I2,    /* IFD_SSHORT 8 */
+        VT_I4,    /* IFD_SLONG 9 */
+        VT_I8,    /* IFD_SRATIONAL 10 */
+        VT_R4,    /* IFD_FLOAT 11 */
+        VT_R8,    /* IFD_DOUBLE 12 */
+        VT_BLOB,  /* IFD_IFD 13 */
+    };
+    return (tag > 0 && tag <= 13) ? tag2vt[tag] : VT_BLOB;
+}
+
+static HRESULT load_IFD_entry(IStream *input, const struct IFD_entry *entry,
+                              MetadataItem *item, BOOL native_byte_order)
+{
+    ULONG count, value, i;
+    SHORT type;
+    LARGE_INTEGER pos;
+    HRESULT hr;
+
+    item->schema.vt = VT_EMPTY;
+    item->id.vt = VT_UI2;
+    item->id.u.uiVal = entry->id;
+    SWAP_USHORT(item->id.u.uiVal);
+
+    count = entry->count;
+    SWAP_ULONG(count);
+    type = entry->type;
+    SWAP_USHORT(type);
+    item->value.vt = tag_to_vt(type);
+    value = entry->value;
+    SWAP_ULONG(value);
+
+    switch (type)
+    {
+     case IFD_BYTE:
+     case IFD_SBYTE:
+        if (!count) count = 1;
+
+        if (count <= 4)
+        {
+            const BYTE *data = (const BYTE *)&entry->value;
+
+            if (count == 1)
+                item->value.u.bVal = data[0];
+            else
+            {
+                item->value.vt |= VT_VECTOR;
+                item->value.u.caub.cElems = count;
+                item->value.u.caub.pElems = HeapAlloc(GetProcessHeap(), 0, count);
+                memcpy(item->value.u.caub.pElems, data, count);
+            }
+            break;
+        }
+
+        item->value.vt |= VT_VECTOR;
+        item->value.u.caub.cElems = count;
+        item->value.u.caub.pElems = HeapAlloc(GetProcessHeap(), 0, count);
+        if (!item->value.u.caub.pElems) return E_OUTOFMEMORY;
+
+        pos.QuadPart = value;
+        hr = IStream_Seek(input, pos, SEEK_SET, NULL);
+        if (FAILED(hr))
+        {
+            HeapFree(GetProcessHeap(), 0, item->value.u.caub.pElems);
+            return hr;
+        }
+        hr = IStream_Read(input, item->value.u.caub.pElems, count, NULL);
+        if (FAILED(hr))
+        {
+            HeapFree(GetProcessHeap(), 0, item->value.u.caub.pElems);
+            return hr;
+        }
+        break;
+    case IFD_SHORT:
+    case IFD_SSHORT:
+        if (!count) count = 1;
+
+        if (count <= 2)
+        {
+            const SHORT *data = (const SHORT *)&entry->value;
+
+            if (count == 1)
+            {
+                item->value.u.uiVal = data[0];
+                SWAP_USHORT(item->value.u.uiVal);
+            }
+            else
+            {
+                item->value.vt |= VT_VECTOR;
+                item->value.u.caui.cElems = count;
+                item->value.u.caui.pElems = HeapAlloc(GetProcessHeap(), 0, count * 2);
+                memcpy(item->value.u.caui.pElems, data, count * 2);
+                for (i = 0; i < count; i++)
+                    SWAP_USHORT(item->value.u.caui.pElems[i]);
+            }
+            break;
+        }
+
+        item->value.vt |= VT_VECTOR;
+        item->value.u.caui.cElems = count;
+        item->value.u.caui.pElems = HeapAlloc(GetProcessHeap(), 0, count * 2);
+        if (!item->value.u.caui.pElems) return E_OUTOFMEMORY;
+
+        pos.QuadPart = value;
+        hr = IStream_Seek(input, pos, SEEK_SET, NULL);
+        if (FAILED(hr))
+        {
+            HeapFree(GetProcessHeap(), 0, item->value.u.caui.pElems);
+            return hr;
+        }
+        hr = IStream_Read(input, item->value.u.caui.pElems, count * 2, NULL);
+        if (FAILED(hr))
+        {
+            HeapFree(GetProcessHeap(), 0, item->value.u.caui.pElems);
+            return hr;
+        }
+        for (i = 0; i < count; i++)
+            SWAP_USHORT(item->value.u.caui.pElems[i]);
+        break;
+    case IFD_LONG:
+    case IFD_SLONG:
+    case IFD_FLOAT:
+        if (!count) count = 1;
+
+        if (count == 1)
+        {
+            item->value.u.ulVal = value;
+            break;
+        }
+
+        item->value.vt |= VT_VECTOR;
+        item->value.u.caul.cElems = count;
+        item->value.u.caul.pElems = HeapAlloc(GetProcessHeap(), 0, count * 4);
+        if (!item->value.u.caul.pElems) return E_OUTOFMEMORY;
+
+        pos.QuadPart = value;
+        hr = IStream_Seek(input, pos, SEEK_SET, NULL);
+        if (FAILED(hr))
+        {
+            HeapFree(GetProcessHeap(), 0, item->value.u.caul.pElems);
+            return hr;
+        }
+        hr = IStream_Read(input, item->value.u.caul.pElems, count * 4, NULL);
+        if (FAILED(hr))
+        {
+            HeapFree(GetProcessHeap(), 0, item->value.u.caul.pElems);
+            return hr;
+        }
+        for (i = 0; i < count; i++)
+            SWAP_ULONG(item->value.u.caul.pElems[i]);
+        break;
+    case IFD_RATIONAL:
+    case IFD_SRATIONAL:
+    case IFD_DOUBLE:
+        if (!count)
+        {
+            FIXME("IFD field type %d, count 0\n", type);
+            item->value.vt = VT_EMPTY;
+            break;
+        }
+
+        if (count == 1)
+        {
+            ULONGLONG ull;
+
+            pos.QuadPart = value;
+            hr = IStream_Seek(input, pos, SEEK_SET, NULL);
+            if (FAILED(hr)) return hr;
+
+            hr = IStream_Read(input, &ull, sizeof(ull), NULL);
+            if (FAILED(hr)) return hr;
+
+            item->value.u.uhVal.QuadPart = ull;
+
+            if (type == IFD_DOUBLE)
+                SWAP_ULONGLONG(item->value.u.uhVal.QuadPart);
+            else
+            {
+                SWAP_ULONG(item->value.u.uhVal.u.LowPart);
+                SWAP_ULONG(item->value.u.uhVal.u.HighPart);
+            }
+            break;
+        }
+        else
+        {
+            item->value.vt |= VT_VECTOR;
+            item->value.u.cauh.cElems = count;
+            item->value.u.cauh.pElems = HeapAlloc(GetProcessHeap(), 0, count * 8);
+            if (!item->value.u.cauh.pElems) return E_OUTOFMEMORY;
+
+            pos.QuadPart = value;
+            hr = IStream_Seek(input, pos, SEEK_SET, NULL);
+            if (FAILED(hr))
+            {
+                HeapFree(GetProcessHeap(), 0, item->value.u.cauh.pElems);
+                return hr;
+            }
+            hr = IStream_Read(input, item->value.u.cauh.pElems, count * 8, NULL);
+            if (FAILED(hr))
+            {
+                HeapFree(GetProcessHeap(), 0, item->value.u.cauh.pElems);
+                return hr;
+            }
+            for (i = 0; i < count; i++)
+            {
+                if (type == IFD_DOUBLE)
+                    SWAP_ULONGLONG(item->value.u.cauh.pElems[i].QuadPart);
+                else
+                {
+                    SWAP_ULONG(item->value.u.cauh.pElems[i].u.LowPart);
+                    SWAP_ULONG(item->value.u.cauh.pElems[i].u.HighPart);
+                }
+            }
+        }
+        break;
+    case IFD_ASCII:
+        item->value.u.pszVal = HeapAlloc(GetProcessHeap(), 0, count + 1);
+        if (!item->value.u.pszVal) return E_OUTOFMEMORY;
+
+        if (count <= 4)
+        {
+            const char *data = (const char *)&entry->value;
+            memcpy(item->value.u.pszVal, data, count);
+            item->value.u.pszVal[count] = 0;
+            break;
+        }
+
+        pos.QuadPart = value;
+        hr = IStream_Seek(input, pos, SEEK_SET, NULL);
+        if (FAILED(hr))
+        {
+            HeapFree(GetProcessHeap(), 0, item->value.u.pszVal);
+            return hr;
+        }
+        hr = IStream_Read(input, item->value.u.pszVal, count, NULL);
+        if (FAILED(hr))
+        {
+            HeapFree(GetProcessHeap(), 0, item->value.u.pszVal);
+            return hr;
+        }
+        item->value.u.pszVal[count] = 0;
+        break;
+    case IFD_UNDEFINED:
+        if (!count)
+        {
+            FIXME("IFD field type %d, count 0\n", type);
+            item->value.vt = VT_EMPTY;
+            break;
+        }
+
+        item->value.u.blob.pBlobData = HeapAlloc(GetProcessHeap(), 0, count);
+        if (!item->value.u.blob.pBlobData) return E_OUTOFMEMORY;
+
+        item->value.u.blob.cbSize = count;
+
+        if (count <= 4)
+        {
+            const char *data = (const char *)&entry->value;
+            memcpy(item->value.u.blob.pBlobData, data, count);
+            break;
+        }
+
+        pos.QuadPart = value;
+        hr = IStream_Seek(input, pos, SEEK_SET, NULL);
+        if (FAILED(hr))
+        {
+            HeapFree(GetProcessHeap(), 0, item->value.u.blob.pBlobData);
+            return hr;
+        }
+        hr = IStream_Read(input, item->value.u.blob.pBlobData, count, NULL);
+        if (FAILED(hr))
+        {
+            HeapFree(GetProcessHeap(), 0, item->value.u.blob.pBlobData);
+            return hr;
+        }
+        break;
+    default:
+        FIXME("loading field of type %d, count %u is not implemented\n", type, count);
+        break;
+    }
+    return S_OK;
+}
+
+static HRESULT LoadIfdMetadata(IStream *input, const GUID *preferred_vendor,
+    DWORD persist_options, MetadataItem **items, DWORD *item_count)
+{
+    HRESULT hr;
+    MetadataItem *result;
+    USHORT count, i;
+    struct IFD_entry *entry;
+    BOOL native_byte_order = TRUE;
+
+    TRACE("\n");
+
+#ifdef WORDS_BIGENDIAN
+    if (persist_options & WICPersistOptionsLittleEndian)
+#else
+    if (persist_options & WICPersistOptionsBigEndian)
+#endif
+        native_byte_order = FALSE;
+
+    hr = IStream_Read(input, &count, sizeof(count), NULL);
+    if (FAILED(hr)) return hr;
+
+    SWAP_USHORT(count);
+
+    entry = HeapAlloc(GetProcessHeap(), 0, count * sizeof(*entry));
+    if (!entry) return E_OUTOFMEMORY;
+
+    hr = IStream_Read(input, entry, count * sizeof(*entry), NULL);
+    if (FAILED(hr))
+    {
+        HeapFree(GetProcessHeap(), 0, entry);
+        return hr;
+    }
+
+    /* limit number of IFDs to 4096 to avoid infinite loop */
+    for (i = 0; i < 4096; i++)
+    {
+        ULONG next_ifd_offset;
+        LARGE_INTEGER pos;
+        USHORT next_ifd_count;
+
+        hr = IStream_Read(input, &next_ifd_offset, sizeof(next_ifd_offset), NULL);
+        if (FAILED(hr)) break;
+
+        SWAP_ULONG(next_ifd_offset);
+        if (!next_ifd_offset) break;
+
+        pos.QuadPart = next_ifd_offset;
+        hr = IStream_Seek(input, pos, SEEK_SET, NULL);
+        if (FAILED(hr)) break;
+
+        hr = IStream_Read(input, &next_ifd_count, sizeof(next_ifd_count), NULL);
+        if (FAILED(hr)) break;
+
+        SWAP_USHORT(next_ifd_count);
+
+        pos.QuadPart = next_ifd_count * sizeof(*entry);
+        hr = IStream_Seek(input, pos, SEEK_CUR, NULL);
+        if (FAILED(hr)) break;
+    }
+
+    if (FAILED(hr) || i == 4096)
+    {
+        HeapFree(GetProcessHeap(), 0, entry);
+        return WINCODEC_ERR_BADMETADATAHEADER;
+    }
+
+    result = HeapAlloc(GetProcessHeap(), 0, count * sizeof(*result));
+    if (!result)
+    {
+        HeapFree(GetProcessHeap(), 0, entry);
+        return E_OUTOFMEMORY;
+    }
+
+    for (i = 0; i < count; i++)
+    {
+        hr = load_IFD_entry(input, &entry[i], &result[i], native_byte_order);
+        if (FAILED(hr))
+        {
+            HeapFree(GetProcessHeap(), 0, entry);
+            HeapFree(GetProcessHeap(), 0, result);
+            return hr;
+        }
+    }
+
+    HeapFree(GetProcessHeap(), 0, entry);
+
+    *items = result;
+    *item_count = count;
+
+    return S_OK;
+}
+
+static const MetadataHandlerVtbl IfdMetadataReader_Vtbl = {
+    0,
+    &CLSID_WICIfdMetadataReader,
+    LoadIfdMetadata
+};
+
+HRESULT IfdMetadataReader_CreateInstance(IUnknown *pUnkOuter, REFIID iid, void **ppv)
+{
+    return MetadataReader_Create(&IfdMetadataReader_Vtbl, pUnkOuter, iid, ppv);
 }

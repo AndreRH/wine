@@ -87,7 +87,7 @@ struct wined3d_settings wined3d_settings =
     NULL,           /* No wine logo by default */
     TRUE,           /* Multisampling enabled by default. */
     FALSE,          /* No strict draw ordering. */
-    FALSE,          /* Try to render onscreen by default. */
+    TRUE,           /* Don't try to render onscreen by default. */
 };
 
 /* Do not call while under the GL lock. */
@@ -96,7 +96,7 @@ struct wined3d * CDECL wined3d_create(UINT version, DWORD flags)
     struct wined3d *object;
     HRESULT hr;
 
-    object = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*object));
+    object = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, FIELD_OFFSET(struct wined3d, adapters[1]));
     if (!object)
     {
         ERR("Failed to allocate wined3d object memory.\n");
@@ -338,10 +338,10 @@ static BOOL wined3d_dll_init(HINSTANCE hInstDLL)
             wined3d_settings.strict_draw_ordering = TRUE;
         }
         if (!get_config_key(hkey, appkey, "AlwaysOffscreen", buffer, size)
-                && !strcmp(buffer,"enabled"))
+                && !strcmp(buffer,"disabled"))
         {
-            TRACE("Always rendering backbuffers offscreen.\n");
-            wined3d_settings.always_offscreen = TRUE;
+            TRACE("Not always rendering backbuffers offscreen.\n");
+            wined3d_settings.always_offscreen = FALSE;
         }
     }
     if (wined3d_settings.vs_mode == VS_HW)

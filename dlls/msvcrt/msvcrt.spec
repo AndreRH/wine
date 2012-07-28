@@ -1226,7 +1226,7 @@
 @ cdecl atoi(str) ntdll.atoi
 @ cdecl atol(str) ntdll.atol
 @ cdecl bsearch(ptr ptr long long ptr) ntdll.bsearch
-# stub bsearch_s(ptr ptr long long ptr ptr)
+@ cdecl bsearch_s(ptr ptr long long ptr ptr) MSVCRT_bsearch_s
 @ cdecl btowc(long) MSVCRT_btowc
 @ cdecl calloc(long long) MSVCRT_calloc
 @ cdecl ceil(double) MSVCRT_ceil
@@ -1422,7 +1422,7 @@
 @ cdecl -arch=x86_64 tanhf(float) MSVCRT_tanhf
 @ cdecl time(ptr) MSVCRT_time
 @ cdecl tmpfile() MSVCRT_tmpfile
-# stub tmpfile_s(ptr)
+@ cdecl tmpfile_s(ptr) MSVCRT_tmpfile_s
 @ cdecl tmpnam(ptr) MSVCRT_tmpnam
 # stub tmpnam_s(ptr long)
 @ cdecl tolower(long) MSVCRT_tolower

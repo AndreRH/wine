@@ -84,12 +84,6 @@ static BYTE convert_path_point_type(BYTE type)
     return ret;
 }
 
-static REAL graphics_res(GpGraphics *graphics)
-{
-    if (graphics->image) return graphics->image->xres;
-    else return (REAL)GetDeviceCaps(graphics->hdc, LOGPIXELSX);
-}
-
 static COLORREF get_gdi_brush_color(const GpBrush *brush)
 {
     ARGB argb;
@@ -260,7 +254,7 @@ static INT prepare_dc(GpGraphics *graphics, GpPen *pen)
         width = sqrt((pt[1].X - pt[0].X) * (pt[1].X - pt[0].X) +
                      (pt[1].Y - pt[0].Y) * (pt[1].Y - pt[0].Y)) / sqrt(2.0);
 
-        width *= pen->width * convert_unit(graphics_res(graphics),
+        width *= pen->width * convert_unit(graphics->xres,
                               pen->unit == UnitWorld ? graphics->unit : pen->unit);
     }
 
@@ -313,18 +307,22 @@ static GpStatus get_graphics_transform(GpGraphics *graphics, GpCoordinateSpace d
 static void transform_and_round_points(GpGraphics *graphics, POINT *pti,
     GpPointF *ptf, INT count)
 {
-    REAL unitscale;
+    REAL scale_x, scale_y;
     GpMatrix *matrix;
     int i;
 
-    unitscale = convert_unit(graphics_res(graphics), graphics->unit);
+    scale_x = convert_unit(graphics->xres, graphics->unit);
+    scale_y = convert_unit(graphics->yres, graphics->unit);
 
     /* apply page scale */
     if(graphics->unit != UnitDisplay)
-        unitscale *= graphics->scale;
+    {
+        scale_x *= graphics->scale;
+        scale_y *= graphics->scale;
+    }
 
     GdipCloneMatrix(graphics->worldtrans, &matrix);
-    GdipScaleMatrix(matrix, unitscale, unitscale, MatrixOrderAppend);
+    GdipScaleMatrix(matrix, scale_x, scale_y, MatrixOrderAppend);
     GdipTransformMatrixPoints(matrix, ptf, count);
     GdipDeleteMatrix(matrix);
 
@@ -2113,7 +2111,7 @@ end:
     return stat;
 }
 
-void get_font_hfont(GpGraphics *graphics, GDIPCONST GpFont *font, HFONT *hfont)
+static void get_font_hfont(GpGraphics *graphics, GDIPCONST GpFont *font, HFONT *hfont)
 {
     HDC hdc = CreateCompatibleDC(0);
     GpPointF pt[3];
@@ -2200,6 +2198,8 @@ GpStatus WINGDIPAPI GdipCreateFromHDC2(HDC hdc, HANDLE hDevice, GpGraphics **gra
     (*graphics)->compmode = CompositingModeSourceOver;
     (*graphics)->unit = UnitDisplay;
     (*graphics)->scale = 1.0;
+    (*graphics)->xres = GetDeviceCaps(hdc, LOGPIXELSX);
+    (*graphics)->yres = GetDeviceCaps(hdc, LOGPIXELSY);
     (*graphics)->busy = FALSE;
     (*graphics)->textcontrast = 4;
     list_init(&(*graphics)->containers);
@@ -2239,6 +2239,8 @@ GpStatus graphics_from_image(GpImage *image, GpGraphics **graphics)
     (*graphics)->compmode = CompositingModeSourceOver;
     (*graphics)->unit = UnitDisplay;
     (*graphics)->scale = 1.0;
+    (*graphics)->xres = image->xres;
+    (*graphics)->yres = image->yres;
     (*graphics)->busy = FALSE;
     (*graphics)->textcontrast = 4;
     list_init(&(*graphics)->containers);
@@ -2318,10 +2320,7 @@ GpStatus WINGDIPAPI GdipCreateMetafileFromEmf(HENHMETAFILE hemf, BOOL delete,
 
     (*metafile)->image.type = ImageTypeMetafile;
     memcpy(&(*metafile)->image.format, &ImageFormatWMF, sizeof(GUID));
-    (*metafile)->image.palette_flags = 0;
-    (*metafile)->image.palette_count = 0;
-    (*metafile)->image.palette_size = 0;
-    (*metafile)->image.palette_entries = NULL;
+    (*metafile)->image.palette = NULL;
     (*metafile)->image.xres = (REAL)copy->szlDevice.cx;
     (*metafile)->image.yres = (REAL)copy->szlDevice.cy;
     (*metafile)->bounds.X = (REAL)copy->rclBounds.left;
@@ -3276,7 +3275,8 @@ GpStatus WINGDIPAPI GdipDrawImagePointsRect(GpGraphics *graphics, GpImage *image
 
                 convert_pixels(bitmap->width, bitmap->height,
                     bitmap->width*4, temp_bits, dst_format,
-                    bitmap->stride, bitmap->bits, bitmap->format, bitmap->image.palette_entries);
+                    bitmap->stride, bitmap->bits, bitmap->format,
+                    bitmap->image.palette);
             }
             else
             {
@@ -4910,6 +4910,30 @@ static GpStatus measure_ranges_callback(HDC hdc,
     return stat;
 }
 
+static void rect_to_pixels(const RectF *in, const GpGraphics *graphics, RectF *out)
+{
+    REAL dpi;
+
+    GdipGetDpiX((GpGraphics *)graphics, &dpi);
+    out->X = units_to_pixels(in->X, graphics->unit, dpi);
+    out->Width = units_to_pixels(in->Width, graphics->unit, dpi);
+    GdipGetDpiY((GpGraphics *)graphics, &dpi);
+    out->Y = units_to_pixels(in->Y, graphics->unit, dpi);
+    out->Height = units_to_pixels(in->Height, graphics->unit, dpi);
+}
+
+static void rect_to_units(const RectF *in, const GpGraphics *graphics, RectF *out)
+{
+    REAL dpi;
+
+    GdipGetDpiX((GpGraphics *)graphics, &dpi);
+    out->X = pixels_to_units(in->X, graphics->unit, dpi);
+    out->Width = pixels_to_units(in->Width, graphics->unit, dpi);
+    GdipGetDpiY((GpGraphics *)graphics, &dpi);
+    out->Y = pixels_to_units(in->Y, graphics->unit, dpi);
+    out->Height = pixels_to_units(in->Height, graphics->unit, dpi);
+}
+
 GpStatus WINGDIPAPI GdipMeasureCharacterRanges(GpGraphics* graphics,
         GDIPCONST WCHAR* string, INT length, GDIPCONST GpFont* font,
         GDIPCONST RectF* layoutRect, GDIPCONST GpStringFormat *stringFormat,
@@ -5013,6 +5037,7 @@ GpStatus WINGDIPAPI GdipMeasureString(GpGraphics *graphics,
     struct measure_string_args args;
     HDC temp_hdc=NULL, hdc;
     GpPointF pt[3];
+    RectF rect_pixels;
 
     TRACE("(%p, %s, %i, %p, %s, %p, %p, %p, %p)\n", graphics,
         debugstr_wn(string, length), length, font, debugstr_rectf(rect), format,
@@ -5050,8 +5075,10 @@ GpStatus WINGDIPAPI GdipMeasureString(GpGraphics *graphics,
     get_font_hfont(graphics, font, &gdifont);
     oldfont = SelectObject(hdc, gdifont);
 
-    bounds->X = rect->X;
-    bounds->Y = rect->Y;
+    rect_to_pixels(rect, graphics, &rect_pixels);
+
+    bounds->X = rect_pixels.X;
+    bounds->Y = rect_pixels.Y;
     bounds->Width = 0.0;
     bounds->Height = 0.0;
 
@@ -5059,8 +5086,10 @@ GpStatus WINGDIPAPI GdipMeasureString(GpGraphics *graphics,
     args.codepointsfitted = codepointsfitted;
     args.linesfilled = linesfilled;
 
-    gdip_format_string(hdc, string, length, font, rect, format,
+    gdip_format_string(hdc, string, length, font, &rect_pixels, format,
         measure_string_callback, &args);
+
+    rect_to_units(bounds, graphics, bounds);
 
     SelectObject(hdc, oldfont);
     DeleteObject(gdifont);
@@ -5765,11 +5794,7 @@ GpStatus WINGDIPAPI GdipGetDpiX(GpGraphics *graphics, REAL* dpi)
     if(graphics->busy)
         return ObjectBusy;
 
-    if (graphics->image)
-        *dpi = graphics->image->xres;
-    else
-        *dpi = (REAL)GetDeviceCaps(graphics->hdc, LOGPIXELSX);
-
+    *dpi = graphics->xres;
     return Ok;
 }
 
@@ -5783,11 +5808,7 @@ GpStatus WINGDIPAPI GdipGetDpiY(GpGraphics *graphics, REAL* dpi)
     if(graphics->busy)
         return ObjectBusy;
 
-    if (graphics->image)
-        *dpi = graphics->image->yres;
-    else
-        *dpi = (REAL)GetDeviceCaps(graphics->hdc, LOGPIXELSY);
-
+    *dpi = graphics->yres;
     return Ok;
 }
 
@@ -5972,14 +5993,18 @@ static GpStatus get_graphics_transform(GpGraphics *graphics, GpCoordinateSpace d
         GpCoordinateSpace src_space, GpMatrix **matrix)
 {
     GpStatus stat = GdipCreateMatrix(matrix);
-    REAL unitscale;
+    REAL scale_x, scale_y;
 
     if (dst_space != src_space && stat == Ok)
     {
-        unitscale = convert_unit(graphics_res(graphics), graphics->unit);
+        scale_x = convert_unit(graphics->xres, graphics->unit);
+        scale_y = convert_unit(graphics->yres, graphics->unit);
 
         if(graphics->unit != UnitDisplay)
-            unitscale *= graphics->scale;
+        {
+            scale_x *= graphics->scale;
+            scale_y *= graphics->scale;
+        }
 
         /* transform from src_space to CoordinateSpacePage */
         switch (src_space)
@@ -5990,7 +6015,7 @@ static GpStatus get_graphics_transform(GpGraphics *graphics, GpCoordinateSpace d
         case CoordinateSpacePage:
             break;
         case CoordinateSpaceDevice:
-            GdipScaleMatrix(*matrix, 1.0/unitscale, 1.0/unitscale, MatrixOrderAppend);
+            GdipScaleMatrix(*matrix, 1.0/scale_x, 1.0/scale_y, MatrixOrderAppend);
             break;
         }
 
@@ -6013,7 +6038,7 @@ static GpStatus get_graphics_transform(GpGraphics *graphics, GpCoordinateSpace d
         case CoordinateSpacePage:
             break;
         case CoordinateSpaceDevice:
-            GdipScaleMatrix(*matrix, unitscale, unitscale, MatrixOrderAppend);
+            GdipScaleMatrix(*matrix, scale_x, scale_y, MatrixOrderAppend);
             break;
         }
     }

@@ -203,7 +203,6 @@ HRESULT to_primitive(script_ctx_t *ctx, VARIANT *v, jsexcept_t *ei, VARIANT *ret
     case VT_DISPATCH: {
         jsdisp_t *jsdisp;
         DISPID id;
-        DISPPARAMS dp = {NULL, NULL, 0, 0};
         HRESULT hres;
 
         static const WCHAR toStringW[] = {'t','o','S','t','r','i','n','g',0};
@@ -227,7 +226,7 @@ HRESULT to_primitive(script_ctx_t *ctx, VARIANT *v, jsexcept_t *ei, VARIANT *ret
 
         hres = jsdisp_get_id(jsdisp, hint == HINT_STRING ? toStringW : valueOfW, 0, &id);
         if(SUCCEEDED(hres)) {
-            hres = jsdisp_call(jsdisp, id, DISPATCH_METHOD, &dp, ret, ei);
+            hres = jsdisp_call(jsdisp, id, DISPATCH_METHOD, 0, NULL, ret, ei);
             if(FAILED(hres)) {
                 WARN("call error - forwarding exception\n");
                 jsdisp_release(jsdisp);
@@ -243,7 +242,7 @@ HRESULT to_primitive(script_ctx_t *ctx, VARIANT *v, jsexcept_t *ei, VARIANT *ret
 
         hres = jsdisp_get_id(jsdisp, hint == HINT_STRING ? valueOfW : toStringW, 0, &id);
         if(SUCCEEDED(hres)) {
-            hres = jsdisp_call(jsdisp, id, DISPATCH_METHOD, &dp, ret, ei);
+            hres = jsdisp_call(jsdisp, id, DISPATCH_METHOD, 0, NULL, ret, ei);
             if(FAILED(hres)) {
                 WARN("call error - forwarding exception\n");
                 jsdisp_release(jsdisp);
@@ -351,7 +350,7 @@ static HRESULT str_to_number(BSTR str, double *ret)
         if(*ptr)
             *ret = NAN;
         else
-            *ret = neg ? -ret_inf() : ret_inf();
+            *ret = neg ? -INFINITY : INFINITY;
         return S_OK;
     }
 
@@ -518,7 +517,7 @@ HRESULT to_uint32(script_ctx_t *ctx, VARIANT *v, jsexcept_t *ei, DWORD *ret)
     return S_OK;
 }
 
-BSTR int_to_bstr(int i)
+static BSTR int_to_bstr(int i)
 {
     WCHAR buf[12], *p;
     BOOL neg = FALSE;

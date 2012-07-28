@@ -66,8 +66,8 @@ static ULONG STDMETHODCALLTYPE d3d10_texture2d_AddRef(ID3D10Texture2D *iface)
 
     TRACE("%p increasing refcount to %u\n", This, refcount);
 
-    if (refcount == 1 && This->wined3d_surface)
-        wined3d_surface_incref(This->wined3d_surface);
+    if (refcount == 1)
+        wined3d_texture_incref(This->wined3d_texture);
 
     return refcount;
 }
@@ -88,12 +88,7 @@ static ULONG STDMETHODCALLTYPE d3d10_texture2d_Release(ID3D10Texture2D *iface)
     TRACE("%p decreasing refcount to %u\n", This, refcount);
 
     if (!refcount)
-    {
-        if (This->wined3d_surface)
-            wined3d_surface_decref(This->wined3d_surface);
-        else
-            d3d10_texture2d_wined3d_object_released(This);
-    }
+        wined3d_texture_decref(This->wined3d_texture);
 
     return refcount;
 }
@@ -155,18 +150,45 @@ static UINT STDMETHODCALLTYPE d3d10_texture2d_GetEvictionPriority(ID3D10Texture2
 
 /* ID3D10Texture2D methods */
 
-static HRESULT STDMETHODCALLTYPE d3d10_texture2d_Map(ID3D10Texture2D *iface, UINT sub_resource,
+static HRESULT STDMETHODCALLTYPE d3d10_texture2d_Map(ID3D10Texture2D *iface, UINT sub_resource_idx,
         D3D10_MAP map_type, UINT map_flags, D3D10_MAPPED_TEXTURE2D *mapped_texture)
 {
-    FIXME("iface %p, sub_resource %u, map_type %u, map_flags %#x, mapped_texture %p stub!\n",
-            iface, sub_resource, map_type, map_flags, mapped_texture);
+    struct d3d10_texture2d *texture = impl_from_ID3D10Texture2D(iface);
+    struct wined3d_map_desc wined3d_map_desc;
+    struct wined3d_resource *sub_resource;
+    HRESULT hr;
 
-    return E_NOTIMPL;
+    TRACE("iface %p, sub_resource_idx %u, map_type %u, map_flags %#x, mapped_texture %p.\n",
+            iface, sub_resource_idx, map_type, map_flags, mapped_texture);
+
+    if (map_type != D3D10_MAP_READ_WRITE)
+        FIXME("Ignoring map_type %#x.\n", map_type);
+    if (map_flags)
+        FIXME("Ignoring map_flags %#x.\n", map_flags);
+
+    if (!(sub_resource = wined3d_texture_get_sub_resource(texture->wined3d_texture, sub_resource_idx)))
+        hr = E_INVALIDARG;
+    else if (SUCCEEDED(hr = wined3d_surface_map(wined3d_surface_from_resource(sub_resource),
+            &wined3d_map_desc, NULL, 0)))
+    {
+        mapped_texture->pData = wined3d_map_desc.data;
+        mapped_texture->RowPitch = wined3d_map_desc.row_pitch;
+    }
+
+    return hr;
 }
 
-static void STDMETHODCALLTYPE d3d10_texture2d_Unmap(ID3D10Texture2D *iface, UINT sub_resource)
+static void STDMETHODCALLTYPE d3d10_texture2d_Unmap(ID3D10Texture2D *iface, UINT sub_resource_idx)
 {
-    FIXME("iface %p, sub_resource %u stub!\n", iface, sub_resource);
+    struct d3d10_texture2d *texture = impl_from_ID3D10Texture2D(iface);
+    struct wined3d_resource *sub_resource;
+
+    TRACE("iface %p, sub_resource_idx %u.\n", iface, sub_resource_idx);
+
+    if (!(sub_resource = wined3d_texture_get_sub_resource(texture->wined3d_texture, sub_resource_idx)))
+        return;
+
+    wined3d_surface_unmap(wined3d_surface_from_resource(sub_resource));
 }
 
 static void STDMETHODCALLTYPE d3d10_texture2d_GetDesc(ID3D10Texture2D *iface, D3D10_TEXTURE2D_DESC *desc)
@@ -233,20 +255,23 @@ HRESULT d3d10_texture2d_init(struct d3d10_texture2d *texture, struct d3d10_devic
             ERR("Failed to create DXGI surface, returning %#x\n", hr);
             return hr;
         }
+    }
 
-        FIXME("Implement DXGI<->wined3d usage conversion\n");
+    FIXME("Implement DXGI<->wined3d usage conversion\n");
+    if (desc->ArraySize != 1)
+        FIXME("Array textures not implemented.\n");
+    if (desc->SampleDesc.Count > 1)
+        FIXME("Multisampled textures not implemented.\n");
 
-        hr = wined3d_surface_create(device->wined3d_device, desc->Width, desc->Height,
-                wined3dformat_from_dxgi_format(desc->Format), 0, desc->Usage, WINED3D_POOL_DEFAULT,
-                desc->SampleDesc.Count > 1 ? desc->SampleDesc.Count : WINED3D_MULTISAMPLE_NONE,
-                desc->SampleDesc.Quality, WINED3D_SURFACE_TYPE_OPENGL, 0, texture, &d3d10_texture2d_wined3d_parent_ops,
-                &texture->wined3d_surface);
-        if (FAILED(hr))
-        {
-            ERR("CreateSurface failed, returning %#x\n", hr);
+    hr = wined3d_texture_create_2d(device->wined3d_device, desc->Width, desc->Height,
+            desc->MipLevels, desc->Usage, wined3dformat_from_dxgi_format(desc->Format), WINED3D_POOL_DEFAULT,
+            texture, &d3d10_texture2d_wined3d_parent_ops, &texture->wined3d_texture);
+    if (FAILED(hr))
+    {
+        WARN("Failed to create wined3d texture, hr %#x.\n", hr);
+        if (texture->dxgi_surface)
             IDXGISurface_Release(texture->dxgi_surface);
-            return hr;
-        }
+        return hr;
     }
 
     return S_OK;

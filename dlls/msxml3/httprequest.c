@@ -540,31 +540,32 @@ static HRESULT WINAPI BSCHttpNegotiate_OnResponse(IHttpNegotiate *iface, DWORD c
     This->request->status_text = NULL;
     if (resp_headers)
     {
-        const WCHAR *ptr, *line;
+        const WCHAR *ptr, *line, *status_text;
 
         ptr = line = resp_headers;
 
-        /* skip status line */
-        while (*ptr)
+        /* skip HTTP-Version */
+        ptr = strchrW(ptr, ' ');
+        if (ptr)
         {
-            if (*ptr == '\r' && *(ptr+1) == '\n')
+            /* skip Status-Code */
+            ptr = strchrW(++ptr, ' ');
+            if (ptr)
             {
-                const WCHAR *end = ptr-1;
-                line = ptr + 2;
-                /* scan back to get status phrase */
-                while (ptr > resp_headers)
+                status_text = ++ptr;
+                /* now it supposed to end with CRLF */
+                while (*ptr)
                 {
-                     if (*ptr == ' ')
-                     {
-                         This->request->status_text = SysAllocStringLen(ptr+1, end-ptr);
-                         TRACE("status text %s\n", debugstr_w(This->request->status_text));
-                         break;
-                     }
-                     ptr--;
+                    if (*ptr == '\r' && *(ptr+1) == '\n')
+                    {
+                        line = ptr + 2;
+                        This->request->status_text = SysAllocStringLen(status_text, ptr-status_text);
+                        TRACE("status text %s\n", debugstr_w(This->request->status_text));
+                        break;
+                    }
+                    ptr++;
                 }
-                break;
             }
-            ptr++;
         }
 
         /* store as unparsed string for now */
@@ -694,6 +695,7 @@ static HRESULT BindStatusCallback_create(httprequest* This, BindStatusCallback *
             break;
         }
         case VT_EMPTY:
+        case VT_ERROR:
             ptr = NULL;
             size = 0;
             break;
@@ -758,6 +760,7 @@ static HRESULT httprequest_open(httprequest *This, BSTR method, BSTR url,
     static const WCHAR MethodPutW[] = {'P','U','T',0};
     static const WCHAR MethodPostW[] = {'P','O','S','T',0};
     static const WCHAR MethodDeleteW[] = {'D','E','L','E','T','E',0};
+    static const WCHAR MethodPropFindW[] = {'P','R','O','P','F','I','N','D',0};
     VARIANT str, is_async;
     HRESULT hr;
 
@@ -781,7 +784,8 @@ static HRESULT httprequest_open(httprequest *This, BSTR method, BSTR url,
     {
         This->verb = BINDVERB_POST;
     }
-    else if (!strcmpiW(method, MethodDeleteW))
+    else if (!strcmpiW(method, MethodDeleteW) ||
+             !strcmpiW(method, MethodPropFindW))
     {
         This->verb = BINDVERB_CUSTOM;
         SysReAllocString(&This->custom, method);
@@ -812,7 +816,7 @@ static HRESULT httprequest_open(httprequest *This, BSTR method, BSTR url,
 
     VariantInit(&is_async);
     hr = VariantChangeType(&is_async, &async, 0, VT_BOOL);
-    This->async = hr == S_OK && V_BOOL(&is_async) == VARIANT_TRUE;
+    This->async = hr == S_OK && V_BOOL(&is_async);
 
     VariantInit(&str);
     hr = VariantChangeType(&str, &user, 0, VT_BSTR);

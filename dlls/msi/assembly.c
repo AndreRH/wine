@@ -43,19 +43,32 @@ static HMODULE hfusion10, hfusion11, hfusion20, hfusion40, hmscoree, hsxs;
 
 static BOOL init_function_pointers( void )
 {
-    static const WCHAR szFusion[] = {'f','u','s','i','o','n','.','d','l','l',0};
+    static const WCHAR szFusion[]    = {'f','u','s','i','o','n','.','d','l','l',0};
+    static const WCHAR szMscoree[]   = {'\\','m','s','c','o','r','e','e','.','d','l','l',0};
+    static const WCHAR szSxs[]       = {'s','x','s','.','d','l','l',0};
     static const WCHAR szVersion10[] = {'v','1','.','0','.','3','7','0','5',0};
     static const WCHAR szVersion11[] = {'v','1','.','1','.','4','3','2','2',0};
     static const WCHAR szVersion20[] = {'v','2','.','0','.','5','0','7','2','7',0};
     static const WCHAR szVersion40[] = {'v','4','.','0','.','3','0','3','1','9',0};
+    WCHAR path[MAX_PATH];
+    DWORD len = GetSystemDirectoryW( path, MAX_PATH );
 
-    if (pCreateAssemblyCacheNet10 || pCreateAssemblyCacheNet11 || pCreateAssemblyCacheNet20 ||
-        pCreateAssemblyCacheNet40 ) return TRUE;
-
-    if (!(hmscoree = LoadLibraryA( "mscoree.dll" ))) return FALSE;
+    if (!hsxs && !(hsxs = LoadLibraryW( szSxs ))) return FALSE;
+    if (!(pCreateAssemblyCacheSxs = (void *)GetProcAddress( hsxs, "CreateAssemblyCache" )))
+    {
+        FreeLibrary( hsxs );
+        hsxs = NULL;
+        return FALSE;
+    }
+    strcpyW( path + len, szMscoree );
+    if (hmscoree || !(hmscoree = LoadLibraryW( path ))) return TRUE;
     pGetFileVersion = (void *)GetProcAddress( hmscoree, "GetFileVersion" ); /* missing from v1.0.3705 */
-    if (!(pLoadLibraryShim = (void *)GetProcAddress( hmscoree, "LoadLibraryShim" ))) goto error;
-
+    if (!(pLoadLibraryShim = (void *)GetProcAddress( hmscoree, "LoadLibraryShim" )))
+    {
+        FreeLibrary( hmscoree );
+        hmscoree = NULL;
+        return TRUE;
+    }
     if (!pLoadLibraryShim( szFusion, szVersion10, NULL, &hfusion10 ))
         pCreateAssemblyCacheNet10 = (void *)GetProcAddress( hfusion10, "CreateAssemblyCache" );
 
@@ -68,76 +81,29 @@ static BOOL init_function_pointers( void )
     if (!pLoadLibraryShim( szFusion, szVersion40, NULL, &hfusion40 ))
         pCreateAssemblyCacheNet40 = (void *)GetProcAddress( hfusion40, "CreateAssemblyCache" );
 
-    if (!pCreateAssemblyCacheNet10 && !pCreateAssemblyCacheNet11 && !pCreateAssemblyCacheNet20
-        && !pCreateAssemblyCacheNet40) goto error;
-
-    if (!(hsxs = LoadLibraryA( "sxs.dll" ))) goto error;
-    if (!(pCreateAssemblyCacheSxs = (void *)GetProcAddress( hsxs, "CreateAssemblyCache" ))) goto error;
     return TRUE;
-
-error:
-    pCreateAssemblyCacheNet10 = NULL;
-    pCreateAssemblyCacheNet11 = NULL;
-    pCreateAssemblyCacheNet20 = NULL;
-    pCreateAssemblyCacheNet40 = NULL;
-    FreeLibrary( hfusion10 );
-    FreeLibrary( hfusion11 );
-    FreeLibrary( hfusion20 );
-    FreeLibrary( hfusion40 );
-    FreeLibrary( hmscoree );
-    return FALSE;
 }
 
 BOOL msi_init_assembly_caches( MSIPACKAGE *package )
 {
     if (!init_function_pointers()) return FALSE;
-    if (package->cache_net[CLR_VERSION_V10] ||
-        package->cache_net[CLR_VERSION_V11] ||
-        package->cache_net[CLR_VERSION_V20] ||
-        package->cache_net[CLR_VERSION_V40]) return TRUE;
     if (pCreateAssemblyCacheSxs( &package->cache_sxs, 0 ) != S_OK) return FALSE;
-
     if (pCreateAssemblyCacheNet10) pCreateAssemblyCacheNet10( &package->cache_net[CLR_VERSION_V10], 0 );
     if (pCreateAssemblyCacheNet11) pCreateAssemblyCacheNet11( &package->cache_net[CLR_VERSION_V11], 0 );
     if (pCreateAssemblyCacheNet20) pCreateAssemblyCacheNet20( &package->cache_net[CLR_VERSION_V20], 0 );
     if (pCreateAssemblyCacheNet40) pCreateAssemblyCacheNet40( &package->cache_net[CLR_VERSION_V40], 0 );
-
-    if (package->cache_net[CLR_VERSION_V10] ||
-        package->cache_net[CLR_VERSION_V11] ||
-        package->cache_net[CLR_VERSION_V20] ||
-        package->cache_net[CLR_VERSION_V40])
-    {
-        return TRUE;
-    }
-    if (package->cache_net[CLR_VERSION_V10])
-    {
-        IAssemblyCache_Release( package->cache_net[CLR_VERSION_V10] );
-        package->cache_net[CLR_VERSION_V10] = NULL;
-    }
-    if (package->cache_net[CLR_VERSION_V11])
-    {
-        IAssemblyCache_Release( package->cache_net[CLR_VERSION_V11] );
-        package->cache_net[CLR_VERSION_V11] = NULL;
-    }
-    if (package->cache_net[CLR_VERSION_V20])
-    {
-        IAssemblyCache_Release( package->cache_net[CLR_VERSION_V20] );
-        package->cache_net[CLR_VERSION_V20] = NULL;
-    }
-    if (package->cache_net[CLR_VERSION_V40])
-    {
-        IAssemblyCache_Release( package->cache_net[CLR_VERSION_V40] );
-        package->cache_net[CLR_VERSION_V40] = NULL;
-    }
-    IAssemblyCache_Release( package->cache_sxs );
-    package->cache_sxs = NULL;
-    return FALSE;
+    return TRUE;
 }
 
 void msi_destroy_assembly_caches( MSIPACKAGE *package )
 {
     UINT i;
 
+    if (package->cache_sxs)
+    {
+        IAssemblyCache_Release( package->cache_sxs );
+        package->cache_sxs = NULL;
+    }
     for (i = 0; i < CLR_VERSION_MAX; i++)
     {
         if (package->cache_net[i])
@@ -145,11 +111,6 @@ void msi_destroy_assembly_caches( MSIPACKAGE *package )
             IAssemblyCache_Release( package->cache_net[i] );
             package->cache_net[i] = NULL;
         }
-    }
-    if (package->cache_sxs)
-    {
-        IAssemblyCache_Release( package->cache_sxs );
-        package->cache_sxs = NULL;
     }
     pCreateAssemblyCacheNet10 = NULL;
     pCreateAssemblyCacheNet11 = NULL;
@@ -161,6 +122,12 @@ void msi_destroy_assembly_caches( MSIPACKAGE *package )
     FreeLibrary( hfusion40 );
     FreeLibrary( hmscoree );
     FreeLibrary( hsxs );
+    hfusion10 = NULL;
+    hfusion11 = NULL;
+    hfusion20 = NULL;
+    hfusion40 = NULL;
+    hmscoree = NULL;
+    hsxs = NULL;
 }
 
 static MSIRECORD *get_assembly_record( MSIPACKAGE *package, const WCHAR *comp )
@@ -278,6 +245,8 @@ static BOOL is_assembly_installed( IAssemblyCache *cache, const WCHAR *display_n
 {
     HRESULT hr;
     ASSEMBLY_INFO info;
+
+    if (!cache) return FALSE;
 
     memset( &info, 0, sizeof(info) );
     info.cbAssemblyInfo = sizeof(info);
@@ -433,6 +402,7 @@ UINT msi_install_assembly( MSIPACKAGE *package, MSICOMPONENT *comp )
     {
         manifest = msi_get_loaded_file( package, comp->KeyPath )->TargetPath;
         cache = package->cache_net[get_clr_version( manifest )];
+        if (!cache) return ERROR_SUCCESS;
     }
     TRACE("installing assembly %s\n", debugstr_w(manifest));
 
@@ -477,8 +447,11 @@ UINT msi_uninstall_assembly( MSIPACKAGE *package, MSICOMPONENT *comp )
         {
             if (!assembly->clr_version[i]) continue;
             cache = package->cache_net[i];
-            hr = IAssemblyCache_UninstallAssembly( cache, 0, assembly->display_name, NULL, NULL );
-            if (FAILED( hr )) WARN("failed to uninstall assembly 0x%08x\n", hr);
+            if (cache)
+            {
+                hr = IAssemblyCache_UninstallAssembly( cache, 0, assembly->display_name, NULL, NULL );
+                if (FAILED( hr )) WARN("failed to uninstall assembly 0x%08x\n", hr);
+            }
         }
     }
     if (feature) feature->Action = INSTALLSTATE_ABSENT;

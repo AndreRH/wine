@@ -22,6 +22,7 @@
 
 #include "hhctrl.h"
 #include "stream.h"
+#include "resource.h"
 
 #include "wine/debug.h"
 
@@ -50,17 +51,7 @@ static void free_content_item(ContentItem *item)
     }
 }
 
-static void store_param(LPWSTR *param, const char *value, int len)
-{
-    int wlen;
-
-    wlen = MultiByteToWideChar(CP_ACP, 0, value, len, NULL, 0);
-    *param = heap_alloc((wlen+1)*sizeof(WCHAR));
-    MultiByteToWideChar(CP_ACP, 0, value, len, *param, wlen);
-    (*param)[wlen] = 0;
-}
-
-static void parse_obj_node_param(ContentItem *item, ContentItem *hhc_root, const char *text)
+static void parse_obj_node_param(ContentItem *item, ContentItem *hhc_root, const char *text, UINT code_page)
 {
     const char *ptr;
     LPWSTR *param, merge;
@@ -99,11 +90,11 @@ static void parse_obj_node_param(ContentItem *item, ContentItem *hhc_root, const
         const char *local = strstr(ptr, "::")+2;
         int local_len = len-(local-ptr);
 
-        store_param(&item->local, local, local_len);
+        item->local = decode_html(local, local_len, code_page);
         param = &merge;
     }
 
-    store_param(param, ptr, len);
+    *param = decode_html(ptr, len, code_page);
 
     if(param == &merge) {
         SetChmPath(&item->merge, hhc_root->merge.chm_file, merge);
@@ -161,7 +152,7 @@ static ContentItem *parse_sitemap_object(HHInfo *info, stream_t *stream, Content
         if(!strcasecmp(node_name.buf, "/object"))
             break;
         if(!strcasecmp(node_name.buf, "param"))
-            parse_obj_node_param(item, hhc_root, node.buf);
+            parse_obj_node_param(item, hhc_root, node.buf, info->pCHMInfo->codePage);
 
         strbuf_zero(&node);
     }
@@ -277,10 +268,12 @@ static void insert_content_item(HWND hwnd, ContentItem *parent, ContentItem *ite
     TVINSERTSTRUCTW tvis;
 
     memset(&tvis, 0, sizeof(tvis));
-    tvis.u.item.mask = TVIF_TEXT|TVIF_PARAM;
+    tvis.u.item.mask = TVIF_TEXT|TVIF_PARAM|TVIF_IMAGE|TVIF_SELECTEDIMAGE;
     tvis.u.item.cchTextMax = strlenW(item->name)+1;
     tvis.u.item.pszText = item->name;
     tvis.u.item.lParam = (LPARAM)item;
+    tvis.u.item.iImage = item->child ? HHTV_FOLDER : HHTV_DOCUMENT;
+    tvis.u.item.iSelectedImage = item->child ? HHTV_FOLDER : HHTV_DOCUMENT;
     tvis.hParent = parent ? parent->id : 0;
     tvis.hInsertAfter = TVI_LAST;
 

@@ -32,16 +32,15 @@ msgstr "&Installer..."
 #: appwiz.rc:62
 msgid ""
 "The following software can be automatically removed. To remove a program or "
-"to modify its installed components, select it from the list and click Change/"
+"to modify its installed components, select it from the list and click Modify/"
 "Remove."
 msgstr ""
 "Følgende programmer kan fjernes automatisk. Merk et program og trykk Endre/"
 "Fjern for å fjerne det eller endre installerte komponenter."
 
 #: appwiz.rc:64
-#, fuzzy
 msgid "&Support Information"
-msgstr "Støtteinformasjon"
+msgstr "&Støtteinformasjon"
 
 #: appwiz.rc:65 regedit.rc:42 regedit.rc:87
 msgid "&Modify..."
@@ -385,7 +384,6 @@ msgid "Separator"
 msgstr "Adskiller"
 
 #: comctl32.rc:44 progman.rc:78
-#, fuzzy
 msgctxt "hotkey"
 msgid "None"
 msgstr "Ingen"
@@ -637,7 +635,7 @@ msgstr "Finn &kun hele ord"
 msgid "Match &Case"
 msgstr "Skill &mellom store og små bokstaver"
 
-#: comdlg32.rc:317
+#: comdlg32.rc:317 joy.rc:67
 msgid "Direction"
 msgstr "Retning"
 
@@ -2150,9 +2148,8 @@ msgid "Notice Reference"
 msgstr ""
 
 #: cryptdlg.rc:35
-#, fuzzy
 msgid "Organization="
-msgstr "Organisasjon"
+msgstr "Organisasjon="
 
 #: cryptdlg.rc:36
 #, fuzzy
@@ -2192,9 +2189,8 @@ msgid "Certification Path"
 msgstr "Sertifiseringssti"
 
 #: cryptui.rc:211
-#, fuzzy
 msgid "Certification path"
-msgstr "Sertifiseringsst&i"
+msgstr "Sertifiseringssti"
 
 #: cryptui.rc:214
 msgid "&View Certificate"
@@ -2306,16 +2302,12 @@ msgstr ""
 "over tiltrodde eller tilbakekalte sertifikater:"
 
 #: cryptui.rc:296
-#, fuzzy
-#| msgid "Cryptographic Message Syntax Standard/PKCS #7 Messages (.p7b)"
 msgid "Cryptographic Message Syntax Standard/PKCS #7 Messages (*.p7b)"
-msgstr "Standardformat for kryptografiske meldinger/PKCS #7 Messages (.p7b)"
+msgstr "Standardformat for kryptografiske meldinger/PKCS #7 Messages (*.p7b)"
 
 #: cryptui.rc:298
-#, fuzzy
-#| msgid "Personal Information Exchange/PKCS #12 (.pfx, .p12)"
 msgid "Personal Information Exchange/PKCS #12 (*.pfx; *.p12)"
-msgstr "Personlig informasjonsutveksling/PKCS #12 (.pfx, .p12)"
+msgstr "Personlig informasjonsutveksling/PKCS #12 (*.pfx; *.p12)"
 
 #: cryptui.rc:300 cryptui.rc:78 cryptui.rc:159
 msgid "Microsoft Serialized Certificate Store (*.sst)"
@@ -2455,32 +2447,24 @@ msgid "Select the format you want to use:"
 msgstr "Velg formatet du ønsker å bruke:"
 
 #: cryptui.rc:405
-#, fuzzy
-#| msgid "&DER-encoded X.509 (.cer)"
 msgid "&DER-encoded X.509 (*.cer)"
-msgstr "&DER-kodet X.509 (.cer)"
+msgstr "&DER-kodet X.509 (*.cer)"
 
 #: cryptui.rc:407
-#, fuzzy
-#| msgid "Ba&se64-encoded X.509 (.cer):"
 msgid "Ba&se64-encoded X.509 (*.cer):"
-msgstr "Ba&se64-kodet X.509 (.cer):"
+msgstr "Ba&se64-kodet X.509 (*.cer):"
 
 #: cryptui.rc:409
-#, fuzzy
-#| msgid "&Cryptographic Message Syntax Standard/PKCS #7 Message (.p7b)"
 msgid "&Cryptographic Message Syntax Standard/PKCS #7 Message (*.p7b)"
-msgstr "Standardformat for &kryptografiske meldinger/PKCS #7 Message (.p7b)"
+msgstr "Standardformat for &kryptografiske meldinger/PKCS #7 Message (*.p7b)"
 
 #: cryptui.rc:411
 msgid "&Include all certificates in the certification path if possible"
 msgstr "Ta med alle sertifikater &i sertifikatstien, hvis mulig"
 
 #: cryptui.rc:413
-#, fuzzy
-#| msgid "&Personal Information Exchange/PKCS #12 (.pfx)"
 msgid "&Personal Information Exchange/PKCS #12 (*.pfx)"
-msgstr "&Personlig informasjonsutveksling/PKCS #12 (.pfx)"
+msgstr "&Personlig informasjonsutveksling/PKCS #12 (*.pfx)"
 
 #: cryptui.rc:415
 msgid "Incl&ude all certificates in the certification path if possible"
@@ -2513,7 +2497,6 @@ msgid "Certificate Information"
 msgstr "Sertifikatinformasjon"
 
 #: cryptui.rc:29
-#, fuzzy
 msgid ""
 "This certificate has an invalid signature. The certificate may have been "
 "altered or corrupted."
@@ -2522,7 +2505,6 @@ msgstr ""
 "eller skadet."
 
 #: cryptui.rc:30
-#, fuzzy
 msgid ""
 "This root certificate is not trusted. To trust it, add it to your system's "
 "trusted root certificate store."
@@ -2672,7 +2654,6 @@ msgid "Please select a certificate store."
 msgstr "Velg et lagringssted for sertifikater."
 
 #: cryptui.rc:69
-#, fuzzy
 msgid ""
 "The file contains objects that do not match the given criteria. Please "
 "select another file."
@@ -2725,7 +2706,6 @@ msgid "Please select a file."
 msgstr "Velg en fil."
 
 #: cryptui.rc:82
-#, fuzzy
 msgid "The file format is not recognized. Please select another file."
 msgstr "Filformatet ble ikke gjenkjent. Velg en annen fil."
 
@@ -2966,7 +2946,6 @@ msgid "Specify the name of the file in which the content will be saved."
 msgstr "Angi navnet på filen som innholdet skal lagres i."
 
 #: cryptui.rc:152
-#, fuzzy
 msgid "The specified file already exists. Do you want to replace it?"
 msgstr "Filen finnes fra før. Vil du erstatte den?"
 
@@ -3035,7 +3014,6 @@ msgid "Note: The private key for this certificate could not be opened."
 msgstr "Merk: Klarte ikke åpne den private nøkkelen for dette sertifikatet."
 
 #: cryptui.rc:173
-#, fuzzy
 msgid "Note: The private key for this certificate is not exportable."
 msgstr ""
 "Merk: Den private nøkkelen for dette sertifikatet kan ikke eksporteres."
@@ -3071,9 +3049,8 @@ msgid "Player"
 msgstr "Spill av"
 
 #: dinput.rc:49
-#, fuzzy
 msgid "Device"
-msgstr "En&het:"
+msgstr "Enhet"
 
 #: dinput.rc:50
 #, fuzzy
@@ -3585,6 +3562,61 @@ msgstr ""
 #, fuzzy
 msgid "High"
 msgstr "&Høy"
+
+#: joy.rc:33
+msgid "Joysticks"
+msgstr ""
+
+#: joy.rc:36 winecfg.rc:204
+msgid "&Disable"
+msgstr "&Deaktiver"
+
+#: joy.rc:37
+#, fuzzy
+#| msgid "&enable"
+msgid "&Enable"
+msgstr "aktiv&er"
+
+#: joy.rc:38
+#, fuzzy
+msgid "Connected"
+msgstr "Røret er tilkoblet\n"
+
+#: joy.rc:40
+#, fuzzy
+#| msgid "&Disable"
+msgid "Disabled"
+msgstr "&Deaktiver"
+
+#: joy.rc:46
+msgid "Test Joystick"
+msgstr ""
+
+#: joy.rc:50
+msgid "Buttons"
+msgstr ""
+
+#: joy.rc:59
+msgid "Test Force Feedback"
+msgstr ""
+
+#: joy.rc:63
+#, fuzzy
+#| msgid "Available formats"
+msgid "Available Effects"
+msgstr "Tilgjengelige formater"
+
+#: joy.rc:65
+msgid ""
+"Press any button in the controller to activate the chosen effect. The effect "
+"direction can be changed with the controller axis."
+msgstr ""
+
+#: joy.rc:28
+#, fuzzy
+#| msgid "Create Control"
+msgid "Game Controllers"
+msgstr "Opprett kontroller"
 
 #: jscript.rc:25
 msgid "Error converting object to primitive type"
@@ -5630,7 +5662,7 @@ msgid "No user session key.\n"
 msgstr "Ingen øktnøkkel for brukeren.\n"
 
 #: winerror.mc:2376
-msgid "Licence quota exceeded.\n"
+msgid "License quota exceeded.\n"
 msgstr "Lisenskvoten er oversteget.\n"
 
 #: winerror.mc:2381
@@ -6904,12 +6936,11 @@ msgid "Done"
 msgstr ""
 
 #: msi.rc:27
-#, fuzzy
 msgid ""
 "The specified installation package could not be opened. Please check the "
 "file path and try again."
 msgstr ""
-"Klarte ikke å åpne den oppgitte installasjonspakken.  Kontroller filbanen og "
+"Klarte ikke å åpne den oppgitte installasjonspakken. Kontroller filbanen og "
 "prøv igjen."
 
 #: msi.rc:28
@@ -7442,43 +7473,39 @@ msgstr ""
 "med %s."
 
 #: oledlg.rc:36
-#, fuzzy
 msgid ""
 "Inserts the contents of the clipboard into your document so that you can "
 "activate it using %s. It will be displayed as an icon."
 msgstr ""
 "Setter innholdet fra utklippstavlen inn i dokumentet så du kan aktivere det "
-"med %s.  Det vises som et ikon."
+"med %s. Det vises som et ikon."
 
 #: oledlg.rc:37
-#, fuzzy
 msgid ""
 "Inserts the contents of the clipboard into your document as %s. The data is "
 "linked to the source file so that changes to the file will be reflected in "
 "your document."
 msgstr ""
-"Setter innholdet fra utklippstavlen inn i dokumentet som %s.  Det kobles til "
+"Setter innholdet fra utklippstavlen inn i dokumentet som %s. Det kobles til "
 "kildefilen så endringer i denne også skjer i dokumentet."
 
 #: oledlg.rc:38
-#, fuzzy
 msgid ""
 "Inserts a picture of the clipboard contents into your document. The picture "
 "is linked to the source file so that changes to the file will be reflected "
 "in your document."
 msgstr ""
-"Setter inn et bilde av utklippstavleinnholdet i dokumentet.  Bildet kobles "
+"Setter inn et bilde av utklippstavleinnholdet i dokumentet. Bildet kobles "
 "til kildefilen så endringer i denne også skjer i dokumentet."
 
 #: oledlg.rc:39
-#, fuzzy
 msgid ""
 "Inserts a shortcut which points to the location of the clipboard contents. "
 "The shortcut is linked to the source file so that changes to the file will "
 "be reflected in your document."
 msgstr ""
 "Setter inn en snarvei som peker til plasseringen av innholdet på "
-"utklippstavlen.  Snarveien kobles til kildefilen så endringer i denne også "
+"utklippstavlen. Snarveien kobles til kildefilen så endringer i denne også "
 "skjer i dokumentet."
 
 #: oledlg.rc:40
@@ -8454,7 +8481,6 @@ msgid "Confirm overwrite"
 msgstr "Bekreft overskriving av fil"
 
 #: shell32.rc:265
-#, fuzzy
 msgid ""
 "Wine is free software; you can redistribute it and/or modify it under the "
 "terms of the GNU Lesser General Public License as published by the Free "
@@ -8477,7 +8503,7 @@ msgstr ""
 "\n"
 "Wine utgis i håp om at det er nyttig, men UTEN ENHVER GARANTI; uten engang "
 "den antydede garantien om HANDELSEGNETHET eller EGNETHET FOR ET SPESIELT "
-"FORMÅL.  Se «GNU Lesser General Public License» for flere detaljer.\n"
+"FORMÅL. Se «GNU Lesser General Public License» for flere detaljer.\n"
 "\n"
 "Du skal ha mottatt et eksemplar av «GNU Lesser General Public License» "
 "sammen med dette programmet; hvis ikke, skriv til: the Free Software "
@@ -8500,24 +8526,20 @@ msgid "Don't show me th&is message again"
 msgstr "&Ikke vis denne meldingen igjen"
 
 #: shlwapi.rc:27
-#, fuzzy
 msgid "%d bytes"
-msgstr "%ld byte"
+msgstr "%d byte"
 
 #: shlwapi.rc:28
-#, fuzzy
 msgctxt "time unit: hours"
 msgid " hr"
 msgstr " hr"
 
 #: shlwapi.rc:29
-#, fuzzy
 msgctxt "time unit: minutes"
 msgid " min"
 msgstr " min"
 
 #: shlwapi.rc:30
-#, fuzzy
 msgctxt "time unit: seconds"
 msgid " sec"
 msgstr " sec"
@@ -8676,7 +8698,6 @@ msgid "The specified device handle is invalid."
 msgstr "Det oppgitte enhetshåndtaket er ugyldig."
 
 #: winmm.rc:34
-#, fuzzy
 msgid "There is no driver installed on your system!"
 msgstr "Det er ingen driver installert på systemet!"
 
@@ -8709,7 +8730,6 @@ msgid "An invalid parameter was passed to a system function."
 msgstr "En ugyldig parameter ble gitt til en systemfunksjon."
 
 #: winmm.rc:42
-#, fuzzy
 msgid ""
 "The specified format is not supported or cannot be translated. Use the "
 "Capabilities function to determine the supported formats."
@@ -8895,7 +8915,6 @@ msgid "Cannot use 'all' as the device name with the specified command."
 msgstr "Kan ikke bruke 'all' som enhetsnavn med den oppgitte kommandoen."
 
 #: winmm.rc:77
-#, fuzzy
 msgid ""
 "Errors occurred in more than one device. Specify each command and device "
 "separately to determine which devices caused the error."
@@ -9247,9 +9266,8 @@ msgid "&Output File Name:"
 msgstr "&Ut-fil:"
 
 #: winspool.rc:28
-#, fuzzy
 msgid "The output file already exists. Click OK to overwrite."
-msgstr "Ut-filen finnes allerede.  Velg «OK» for å overskrive den."
+msgstr "Ut-filen finnes allerede. Velg «OK» for å overskrive den."
 
 #: winspool.rc:29
 msgid "Unable to create the output file."
@@ -9495,13 +9513,13 @@ msgstr "Løkke under håndtering av henvisninger"
 msgid "Referral hop limit exceeded"
 msgstr "Grense for henvisningshopp overskredet"
 
-#: attrib.rc:27 cmd.rc:314
+#: attrib.rc:27 cmd.rc:325
 msgid ""
 "Not Yet Implemented\n"
 "\n"
 msgstr ""
 
-#: attrib.rc:28 cmd.rc:317
+#: attrib.rc:28 cmd.rc:328
 #, fuzzy
 msgid "%1: File Not Found\n"
 msgstr "Fant ikke filen\n"
@@ -9866,7 +9884,7 @@ msgstr "Hjelp til RD.\n"
 msgid "RMDIR <dir> deletes a subdirectory.\n"
 msgstr "Hjelp til RMDIR.\n"
 
-#: cmd.rc:193
+#: cmd.rc:204
 #, fuzzy
 msgid ""
 "SET displays or changes the cmd environment variables.\n"
@@ -9903,7 +9921,7 @@ msgstr ""
 "verdier enn i et vanlig Win32-miljø. Vær oppmerksom på at det ikke går\n"
 "an å endre mijøet i det underliggende operativsystemet fra CMD.\n"
 
-#: cmd.rc:198
+#: cmd.rc:209
 msgid ""
 "SHIFT is used in a batch file to remove one parameter from the head of\n"
 "the list, so parameter 2 becomes parameter 1 and so on. It has no effect\n"
@@ -9913,8 +9931,7 @@ msgstr ""
 "liste, sånn at parameter 2 blir parameter 1 og så videre. Det har ingen\n"
 "effekt hvis det brukes fra kommandolinjen.\n"
 
-#: cmd.rc:175 start.rc:39
-#, fuzzy
+#: cmd.rc:186 start.rc:50
 msgid ""
 "Start a program, or open a document in the program normally used for files "
 "with that suffix.\n"
@@ -9923,43 +9940,40 @@ msgid ""
 "start [options] document_filename\n"
 "\n"
 "Options:\n"
-"/M[inimized] Start the program minimized.\n"
-"/MAX[imized] Start the program maximized.\n"
-"/R[estored]  Start the program normally (neither minimized nor maximized).\n"
-"/W[ait]      Wait for started program to finish, then exit with its exit "
+"\"title\"      Specifies the title of the child windows.\n"
+"/d directory Start the program in the specified directory.\n"
+"/b           Don't create a new console for the program.\n"
+"/i           Start the program with fresh environment variables.\n"
+"/min         Start the program minimized.\n"
+"/max         Start the program maximized.\n"
+"/low         Start the program in the idle priority class.\n"
+"/normal      Start the program in the normal priority class.\n"
+"/high        Start the program in the high priority class.\n"
+"/realtime    Start the program in the realtime priority class.\n"
+"/abovenormal Start the program in the abovenormal priority class.\n"
+"/belownormal Start the program in the belownormal priority class.\n"
+"/node n      Start the program on the specified NUMA node.\n"
+"/affinity mask Start the program with the specified affinity mask.\n"
+"/wait        Wait for the started program to finish, then exit with its exit "
 "code.\n"
-"/Unix        Use a Unix filename and start the file like windows explorer.\n"
-"/ProgIDOpen  Open a document using the following progID.\n"
+"/unix        Use a Unix filename and start the file like windows explorer.\n"
+"/ProgIDOpen  Open a document using the specified progID.\n"
 "/?           Display this help and exit.\n"
 msgstr ""
-"Starte et program, eller åpne et dokument i programmet som er tilknyttet "
-"filer med det etternavnet.\n"
-"Bruk:\n"
-"start [valg] program_filnavn [...]\n"
-"start [valg] dokument_filnavn\n"
-"\n"
-"Valg:\n"
-"/M[inimized] Start programmet minimert.\n"
-"/MAX[imized] Start programmet maksimert.\n"
-"/R[estored]  Start programmet normalt (hverken minimert eller maksimert).\n"
-"/W[ait]      Vent til programmet avslutter, og avslutt med programmets\n"
-"             avsluttingskode.\n"
-"/Unix        Bruk et Unix-filnavn og start filen som Windows Utforsker "
-"(explorer).\n"
 
-#: cmd.rc:200
+#: cmd.rc:211
 #, fuzzy
 msgid "TIME sets or shows the current system time.\n"
 msgstr "Hjelp til TIME.\n"
 
-#: cmd.rc:202
+#: cmd.rc:213
 #, fuzzy
 msgid "TITLE <string> sets the window title for the cmd window.\n"
 msgstr ""
 "Angir tittelen for CMD-vinduet, syntaksen er\n"
 "TITLE [streng]\n"
 
-#: cmd.rc:206
+#: cmd.rc:217
 msgid ""
 "TYPE <filename> copies <filename> to the console device (or elsewhere\n"
 "if redirected). No check is made that the file is readable text.\n"
@@ -9968,7 +9982,7 @@ msgstr ""
 "sted hvis det omdirigeres). Det kontrolleres ikke om filen er leselig "
 "tekst.\n"
 
-#: cmd.rc:215
+#: cmd.rc:226
 #, fuzzy
 msgid ""
 "VERIFY is used to set, clear or test the verify flag. Valid forms are:\n"
@@ -9988,23 +10002,23 @@ msgstr ""
 "\n"
 "«Verify»-flagget har ingen funksjon i Wine.\n"
 
-#: cmd.rc:218
+#: cmd.rc:229
 #, fuzzy
 msgid "VER displays the version of cmd you are running.\n"
 msgstr "VER viser versjonnummeret til CMD\n"
 
-#: cmd.rc:220
+#: cmd.rc:231
 #, fuzzy
 msgid "VOL shows the volume label of a disk device.\n"
 msgstr "Hjelp til VOL.\n"
 
-#: cmd.rc:224
+#: cmd.rc:235
 msgid ""
 "ENDLOCAL ends localization of environment changes in a batch file\n"
 "which were introduced by a preceding SETLOCAL.\n"
 msgstr ""
 
-#: cmd.rc:232
+#: cmd.rc:243
 msgid ""
 "SETLOCAL starts localization of environment changes in a batch file.\n"
 "\n"
@@ -10014,7 +10028,7 @@ msgid ""
 "settings are restored.\n"
 msgstr ""
 
-#: cmd.rc:235
+#: cmd.rc:246
 msgid ""
 "PUSHD <directoryname> saves the current directory onto a\n"
 "stack, and then changes the current directory to the supplied one.\n"
@@ -10022,12 +10036,12 @@ msgstr ""
 "PUSHD <katalognavn> lagrer arbeidskatalogen i en stabel, og endrer deretter\n"
 "arbeidskatalog til den som er oppgitt.\n"
 
-#: cmd.rc:237
+#: cmd.rc:248
 #, fuzzy
 msgid "POPD changes current directory to the last one saved with PUSHD.\n"
 msgstr "POPD endrer arbeidskatalog til den som sist ble brukt med PUSHD.\n"
 
-#: cmd.rc:245
+#: cmd.rc:256
 msgid ""
 "ASSOC shows or modifies file extension associations.\n"
 "\n"
@@ -10039,7 +10053,7 @@ msgid ""
 "association, if any.\n"
 msgstr ""
 
-#: cmd.rc:256
+#: cmd.rc:267
 msgid ""
 "FTYPE shows or modifies open commands associated with file types.\n"
 "\n"
@@ -10053,18 +10067,18 @@ msgid ""
 "associated to the specified file type.\n"
 msgstr ""
 
-#: cmd.rc:258
+#: cmd.rc:269
 msgid "MORE displays output of files or piped input in pages.\n"
 msgstr "MORE lar deg bla gjennom innholdet i filer eller inndata i rør.\n"
 
-#: cmd.rc:262
+#: cmd.rc:273
 msgid ""
 "CHOICE displays a text and waits, until the User\n"
 "presses an allowed Key from a selectable list.\n"
 "CHOICE is mainly used to build a menu selection in a batch file.\n"
 msgstr ""
 
-#: cmd.rc:266
+#: cmd.rc:277
 msgid ""
 "EXIT terminates the current command session and returns\n"
 "to the operating system or shell from which you invoked cmd.\n"
@@ -10072,7 +10086,7 @@ msgstr ""
 "EXIT avslutter gjeldende kommandoøkt og returnerer til operativsystemet\n"
 "eller skallet CMD ble startet fra.\n"
 
-#: cmd.rc:304
+#: cmd.rc:315
 #, fuzzy
 msgid ""
 "CMD built-in commands are:\n"
@@ -10145,166 +10159,166 @@ msgstr ""
 "\n"
 "Skriv «HELP <kommando>» for mer informasjon om kommandoene ovenfor\n"
 
-#: cmd.rc:306
+#: cmd.rc:317
 #, fuzzy
 msgid "Are you sure?"
 msgstr "Er du sikker"
 
-#: cmd.rc:307 xcopy.rc:40
+#: cmd.rc:318 xcopy.rc:40
 msgctxt "Yes key"
 msgid "Y"
 msgstr "J"
 
-#: cmd.rc:308 xcopy.rc:41
+#: cmd.rc:319 xcopy.rc:41
 msgctxt "No key"
 msgid "N"
 msgstr "N"
 
-#: cmd.rc:309
+#: cmd.rc:320
 #, fuzzy
 msgid "File association missing for extension %1\n"
 msgstr "Manglende filtilknytning for etternavnet %s\n"
 
-#: cmd.rc:310
+#: cmd.rc:321
 #, fuzzy
 msgid "No open command associated with file type '%1'\n"
 msgstr "Ingen åpnekommando er tilknyttet filtypene '%s'\n"
 
-#: cmd.rc:311
+#: cmd.rc:322
 #, fuzzy
 msgid "Overwrite %1?"
 msgstr "Skrive over «%s»? (Ja|Nei|Alle)\n"
 
-#: cmd.rc:312
+#: cmd.rc:323
 msgid "More..."
 msgstr "Mer..."
 
-#: cmd.rc:313
+#: cmd.rc:324
 msgid "Line in Batch processing possibly truncated. Using:\n"
 msgstr ""
 
-#: cmd.rc:315
+#: cmd.rc:326
 msgid "Argument missing\n"
 msgstr ""
 
-#: cmd.rc:316
+#: cmd.rc:327
 msgid "Syntax error\n"
 msgstr ""
 
-#: cmd.rc:318
+#: cmd.rc:329
 #, fuzzy
 msgid "No help available for %1\n"
 msgstr "Ikke tilgjengelig; "
 
-#: cmd.rc:319
+#: cmd.rc:330
 msgid "Target to GOTO not found\n"
 msgstr ""
 
-#: cmd.rc:320
+#: cmd.rc:331
 #, fuzzy
 msgid "Current Date is %1\n"
 msgstr "Neste side"
 
-#: cmd.rc:321
+#: cmd.rc:332
 msgid "Current Time is %1\n"
 msgstr ""
 
-#: cmd.rc:322
+#: cmd.rc:333
 msgid "Enter new date: "
 msgstr ""
 
-#: cmd.rc:323
+#: cmd.rc:334
 msgid "Enter new time: "
 msgstr ""
 
-#: cmd.rc:324
+#: cmd.rc:335
 #, fuzzy
 msgid "Environment variable %1 not defined\n"
 msgstr "Fant ikke miljøvariablen\n"
 
-#: cmd.rc:325 xcopy.rc:38
+#: cmd.rc:336 xcopy.rc:38
 #, fuzzy
 msgid "Failed to open '%1'\n"
 msgstr "Klarte ikke åpne «%s»\n"
 
-#: cmd.rc:326
+#: cmd.rc:337
 msgid "Cannot call batch label outside of a batch script\n"
 msgstr ""
 
-#: cmd.rc:327 xcopy.rc:42
+#: cmd.rc:338 xcopy.rc:42
 msgctxt "All key"
 msgid "A"
 msgstr "A"
 
-#: cmd.rc:328
+#: cmd.rc:339
 #, fuzzy
 msgid "Delete %1?"
 msgstr "Slett"
 
-#: cmd.rc:329
+#: cmd.rc:340
 msgid "Echo is %1\n"
 msgstr ""
 
-#: cmd.rc:330
+#: cmd.rc:341
 msgid "Verify is %1\n"
 msgstr ""
 
-#: cmd.rc:331
+#: cmd.rc:342
 msgid "Verify must be ON or OFF\n"
 msgstr ""
 
-#: cmd.rc:332
+#: cmd.rc:343
 msgid "Parameter error\n"
 msgstr ""
 
-#: cmd.rc:333
+#: cmd.rc:344
 msgid ""
 "Volume Serial Number is %1!04x!-%2!04x!\n"
 "\n"
 msgstr ""
 
-#: cmd.rc:334
+#: cmd.rc:345
 msgid "Volume label (11 characters, <Enter> for none)?"
 msgstr ""
 
-#: cmd.rc:335
+#: cmd.rc:346
 msgid "PATH not found\n"
 msgstr ""
 
-#: cmd.rc:336
+#: cmd.rc:347
 msgid "Press any key to continue... "
 msgstr ""
 
-#: cmd.rc:337
+#: cmd.rc:348
 msgid "Wine Command Prompt"
 msgstr ""
 
-#: cmd.rc:338
+#: cmd.rc:349
 #, fuzzy
 msgid "CMD Version %1!S!\n"
 msgstr "CA-versjon"
 
-#: cmd.rc:339
+#: cmd.rc:350
 msgid "More? "
 msgstr ""
 
-#: cmd.rc:340
+#: cmd.rc:351
 msgid "The input line is too long.\n"
 msgstr ""
 
-#: cmd.rc:341
+#: cmd.rc:352
 msgid "Volume in drive %1!c! is %2\n"
 msgstr ""
 
-#: cmd.rc:342
+#: cmd.rc:353
 msgid "Volume in drive %1!c! has no label.\n"
 msgstr ""
 
-#: cmd.rc:343
+#: cmd.rc:354
 msgid " (Yes|No)"
 msgstr " (Ja|Nei)"
 
-#: cmd.rc:344
+#: cmd.rc:355
 msgid " (Yes|No|All)"
 msgstr " (Ja|Nei|Alle)"
 
@@ -11755,7 +11769,7 @@ msgstr "Legger til en ny flerstrengverdi"
 msgid "Exports selected branch of the registry to a text file"
 msgstr "Eksporterer den valgte greinen av registeret til en tekstfil"
 
-#: start.rc:41
+#: start.rc:52
 msgid ""
 "Application could not be started, or no application associated with the "
 "specified file.\n"
@@ -11765,7 +11779,7 @@ msgstr ""
 "filen.\n"
 "'ShellExecuteEx' feilet"
 
-#: start.rc:43
+#: start.rc:54
 msgid "Could not translate the specified Unix filename to a DOS filename."
 msgstr "Klarte ikke å konvertere Unix-filnavnet til et DOS-filnavn."
 
@@ -12730,12 +12744,10 @@ msgid "Organi&zation:"
 msgstr "Organisasjon:"
 
 #: winecfg.rc:145
-#, fuzzy
 msgid "Application settings"
-msgstr " Programminnstillinger "
+msgstr "Programminnstillinger"
 
 #: winecfg.rc:146
-#, fuzzy
 msgid ""
 "Wine can mimic different Windows versions for each application. This tab is "
 "linked to the Libraries and Graphics tabs to allow you to change systemwide "
@@ -12758,9 +12770,8 @@ msgid "&Windows Version:"
 msgstr "&Windows-versjon:"
 
 #: winecfg.rc:160
-#, fuzzy
 msgid "Window settings"
-msgstr " Vinduinnstillinger "
+msgstr "Vinduinnstillinger"
 
 #: winecfg.rc:161
 msgid "Automatically capture the &mouse in full-screen windows"
@@ -12783,18 +12794,16 @@ msgid "Desktop &size:"
 msgstr "Størrelse:"
 
 #: winecfg.rc:171
-#, fuzzy
 msgid "Screen resolution"
-msgstr " Skjermoppløsning (styrer skriftstørrelse) "
+msgstr "Skjermoppløsning"
 
 #: winecfg.rc:175
 msgid "This is a sample text using 10 point Tahoma"
 msgstr "Forhåndsvisning av tekst med 10 punkters Tahoma"
 
 #: winecfg.rc:182
-#, fuzzy
 msgid "DLL overrides"
-msgstr " DLL-overstyring "
+msgstr "DLL-overstyring"
 
 #: winecfg.rc:183
 msgid ""
@@ -12827,9 +12836,8 @@ msgid "Edit Override"
 msgstr "Rediger overstyring"
 
 #: winecfg.rc:199
-#, fuzzy
 msgid "Load order"
-msgstr " Lastingsrekkefølge "
+msgstr "Lastingsrekkefølge"
 
 #: winecfg.rc:200
 msgid "&Builtin (Wine)"
@@ -12847,18 +12855,13 @@ msgstr "&Innebygget så innfødt"
 msgid "Nati&ve then Builtin"
 msgstr "Innfdø&dt så innebygget"
 
-#: winecfg.rc:204
-msgid "&Disable"
-msgstr "&Deaktiver"
-
 #: winecfg.rc:211
 msgid "Select Drive Letter"
 msgstr "Velg stasjonsbokstav"
 
 #: winecfg.rc:223
-#, fuzzy
 msgid "Drive mappings"
-msgstr " Stasjonkartlegging "
+msgstr "Stasjonkartlegging"
 
 #: winecfg.rc:224
 msgid ""
@@ -12933,9 +12936,8 @@ msgid "&Test Sound"
 msgstr "&Test"
 
 #: winecfg.rc:274
-#, fuzzy
 msgid "Appearance"
-msgstr " Utseende "
+msgstr "Utseende"
 
 #: winecfg.rc:275
 msgid "&Theme:"
@@ -12954,7 +12956,6 @@ msgid "C&olor:"
 msgstr "Farge:"
 
 #: winecfg.rc:290
-#, fuzzy
 msgid "Folders"
 msgstr "Mappe"
 
@@ -12971,7 +12972,6 @@ msgid "Drives"
 msgstr "Stasjoner"
 
 #: winecfg.rc:33
-#, fuzzy
 msgid "Select the Unix target directory, please."
 msgstr "Velg Unix-målkatalogen."
 
@@ -13028,9 +13028,8 @@ msgid "Selected driver: %s"
 msgstr ""
 
 #: winecfg.rc:82
-#, fuzzy
 msgid "(None)"
-msgstr "Ingen"
+msgstr "(Ingen)"
 
 #: winecfg.rc:83
 #, fuzzy
@@ -13079,9 +13078,8 @@ msgid "Default Settings"
 msgstr "Globale innstillinger"
 
 #: winecfg.rc:59
-#, fuzzy
 msgid "Wine Programs (*.exe; *.exe.so)"
-msgstr "Wine-programmer (*.exe,*.exe.so)"
+msgstr "Wine-programmer (*.exe; *.exe.so)"
 
 #: winecfg.rc:60
 msgid "Use global settings"
@@ -13113,7 +13111,6 @@ msgid "CD-ROM"
 msgstr "CD-ROM"
 
 #: winecfg.rc:71
-#, fuzzy
 msgid ""
 "You cannot add any more drives.\n"
 "\n"
@@ -13121,7 +13118,7 @@ msgid ""
 msgstr ""
 "Du kan ikke legge til flere stasjoner.\n"
 "\n"
-"Hver stasjon må ha en bokstav fra A til Z, så 26 stasjoner er det meste"
+"Hver stasjon må ha en bokstav fra A til Z, så 26 stasjoner er det meste."
 
 #: winecfg.rc:72
 msgid "System drive"
@@ -13140,7 +13137,6 @@ msgstr ""
 "ikke er der. Husk å lage den på nytt hvis du fortsetter!"
 
 #: winecfg.rc:74
-#, fuzzy
 msgctxt "Drive letter"
 msgid "Letter"
 msgstr "Bokstav"
@@ -13328,7 +13324,6 @@ msgid "Command history"
 msgstr "Kommandohistorikk"
 
 #: wineconsole.rc:73
-#, fuzzy
 msgid "&Number of recalled commands:"
 msgstr "A&ntall huskede kommandoer:"
 
@@ -13354,12 +13349,10 @@ msgid "Buffer zone"
 msgstr "Hurtigminnesone"
 
 #: wineconsole.rc:101
-#, fuzzy
 msgid "&Width:"
 msgstr "&Bredde:"
 
 #: wineconsole.rc:104
-#, fuzzy
 msgid "&Height:"
 msgstr "&Høyde:"
 
@@ -13368,12 +13361,10 @@ msgid "Window size"
 msgstr "Vindustørrelse"
 
 #: wineconsole.rc:109
-#, fuzzy
 msgid "W&idth:"
 msgstr "&Bredde:"
 
 #: wineconsole.rc:112
-#, fuzzy
 msgid "H&eight:"
 msgstr "Høyd&e:"
 
@@ -13438,9 +13429,8 @@ msgid "Screen buffer size must be greater or equal to the window's one"
 msgstr "Skjermens hurtigminnestørrelse må være større eller lik vinduets"
 
 #: wineconsole.rc:34
-#, fuzzy
 msgid "Each character is %1!u! pixels wide and %2!u! pixels high"
-msgstr "Hvert tegn er %ld piksler bredt og %ld piksler høyt"
+msgstr "Hvert tegn er %1!u! piksler bredt og %2!u! piksler høyt"
 
 #: wineconsole.rc:35
 msgid "This is a test"
@@ -13497,13 +13487,11 @@ msgstr ""
 "konsoll\n"
 
 #: wineconsole.rc:50
-#, fuzzy
 msgid "  <command>                The Wine program to launch in the console.\n"
 msgstr ""
-"  <kommando>                Wine-programmet som skal kjøres i konsollet\n"
+"  <kommando>               Wine-programmet som skal kjøres i konsollet.\n"
 
 #: wineconsole.rc:51
-#, fuzzy
 msgid ""
 "\n"
 "Example:\n"
@@ -13514,7 +13502,7 @@ msgstr ""
 "\n"
 "Eksempel:\n"
 "  wineconsole cmd\n"
-"Starter Wine-ledeteksten i et Wine-konsoll\n"
+"Starter Wine-ledeteksten i et Wine-konsoll.\n"
 "\n"
 
 #: winedbg.rc:46
@@ -14008,6 +13996,23 @@ msgstr "Klarte ikke finne richedit; avbryter"
 msgid "Help topics: "
 msgstr "Emner i Hjelp: "
 
+#: wmic.rc:25
+#, fuzzy
+#| msgid "Error: Invalid command line parameters\n"
+msgid "Error: Command line not supported\n"
+msgstr "Feil: Ugyldige parametere på kommandolinjen\n"
+
+#: wmic.rc:26
+#, fuzzy
+msgid "Error: Alias not found\n"
+msgstr "Fant ikke prosedyren.\n"
+
+#: wmic.rc:27
+#, fuzzy
+#| msgid "Error: Invalid key name\n"
+msgid "Error: Invalid query\n"
+msgstr "Feil: Ugyldig nøkkelnavn\n"
+
 #: wordpad.rc:28
 msgid "&New...\tCtrl+N"
 msgstr "&Ny...\tCtrl+N"
@@ -14246,9 +14251,8 @@ msgid "Unicode text document"
 msgstr "Tekstdokument (Unicode)"
 
 #: wordpad.rc:143
-#, fuzzy
 msgid "Printer files (*.prn)"
-msgstr "Skriverfiler (*.PRN)"
+msgstr "Skriverfiler (*.prn)"
 
 #: wordpad.rc:150
 msgid "Center"
@@ -14295,13 +14299,11 @@ msgid "Pages"
 msgstr "Sider"
 
 #: wordpad.rc:172
-#, fuzzy
 msgctxt "unit: centimeter"
 msgid "cm"
 msgstr "cm"
 
 #: wordpad.rc:173
-#, fuzzy
 msgctxt "unit: inch"
 msgid "in"
 msgstr "in"
@@ -14311,7 +14313,6 @@ msgid "inch"
 msgstr "tommer"
 
 #: wordpad.rc:175
-#, fuzzy
 msgctxt "unit: point"
 msgid "pt"
 msgstr "pt"
@@ -14341,12 +14342,10 @@ msgstr ""
 "formatering går tapt. Er du sikker på at du vil fortsette?"
 
 #: wordpad.rc:187
-#, fuzzy
 msgid "Invalid number format."
 msgstr "Ugyldig tallformat."
 
 #: wordpad.rc:188
-#, fuzzy
 msgid "OLE storage documents are not supported."
 msgstr "OLE storage-dokumenter støttes ikke."
 

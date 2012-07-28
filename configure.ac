@@ -69,6 +69,8 @@ AC_ARG_WITH(opencl,    AS_HELP_STRING([--without-opencl],[do not use OpenCL]),
 AC_ARG_WITH(opengl,    AS_HELP_STRING([--without-opengl],[do not use OpenGL]))
 AC_ARG_WITH(openssl,   AS_HELP_STRING([--without-openssl],[do not use OpenSSL]),
             [if test "x$withval" = "xno"; then ac_cv_header_openssl_err_h=no; ac_cv_header_openssl_ssl_h=no; fi])
+AC_ARG_WITH(osmesa,     AS_HELP_STRING([--without-osmesa],[do not use the OSMesa library]),
+            [if test "x$withval" = "xno"; then ac_cv_header_GL_osmesa_h=no; fi])
 AC_ARG_WITH(oss,       AS_HELP_STRING([--without-oss],[do not use the OSS sound support]))
 AC_ARG_WITH(png,       AS_HELP_STRING([--without-png],[do not use PNG]),
             [if test "x$withval" = "xno"; then ac_cv_header_png_h=no; fi])
@@ -169,11 +171,11 @@ case $host in
     fi
     ;;
   arm*)
-    AC_MSG_CHECKING([whether $CC supports Thumb2])
-    WINE_TRY_ASM_LINK([".syntax unified\n.thumb\nb.w ac_test\n.arm"],[int ac_test(int i) { return i; }], [if (ac_test(1)) return 1],
+    AC_MSG_CHECKING([whether $CC supports Thumb])
+    WINE_TRY_ASM_LINK([".thumb\nblx ac_test\n.arm"],[int ac_test(int i) { return i; }], [if (ac_test(1)) return 1],
                       [AC_MSG_RESULT([yes])],
                       [AC_MSG_RESULT([no])
-                       AC_MSG_ERROR([You need a target with Thumb2 support to build Wine for ARM.])])
+                       AC_MSG_ERROR([You need a target with Thumb support to build Wine for ARM.])])
     CFLAGS="$CFLAGS -marm"
     ;;
   *-mingw32*|*-cygwin*)
@@ -1051,7 +1053,12 @@ then
         then
                 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>]], [[static typeof(XRRSetScreenConfigAndRate) * func; if (func) return 0;]])],
-                  [WINE_CHECK_SONAME(Xrandr,XRRQueryExtension,,,[$X_LIBS $XLIB $X_EXTRA_LIBS])])
+                  [WINE_CHECK_SONAME(Xrandr,XRRQueryExtension,
+                    [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <X11/extensions/Xrandr.h>]],
+                        [[static typeof(XRRGetScreenResources) *f; if (f) return 0;]])],
+                      [AC_DEFINE(HAVE_XRRGETSCREENRESOURCES, 1,
+                        [Define if Xrandr has the XRRGetScreenResources function])])],,
+                    [$X_LIBS $XLIB $X_EXTRA_LIBS])])
         fi
         WINE_NOTICE_WITH(xrandr,[test "x$ac_cv_lib_soname_Xrandr" = "x"],
                          [libxrandr ${notice_platform}development files not found, XRandr won't be supported.])
@@ -1086,7 +1093,7 @@ then
     opengl_msg=""
     if test "x$with_opengl" != "xno"
     then
-	AC_CHECK_HEADERS(GL/gl.h GL/glx.h GL/glu.h,,,
+	AC_CHECK_HEADERS(GL/gl.h GL/glx.h GL/glu.h GL/osmesa.h,,,
 [#ifdef HAVE_GL_GLX_H
 # include <GL/glx.h>
 #endif])
@@ -1122,6 +1129,13 @@ This probably prevents linking to OpenGL. Try deleting the file and restarting c
                  fi
                  WINE_NOTICE_WITH(glu,[test "x$ac_cv_lib_soname_GLU" = "x"],
                                  [libGLU ${notice_platform}development files not found, GLU won't be supported.])
+
+                 if test "$ac_cv_header_GL_osmesa_h" = "yes"
+                 then
+                    WINE_CHECK_SONAME(OSMesa,glAccum,,,[$X_LIBS $X_PRE_LIBS $XLIB -lm $X_EXTRA_LIBS])
+                 fi
+                 WINE_NOTICE_WITH(osmesa,[test "x$ac_cv_lib_soname_OSMesa" = "x"],
+                                 [libOSMesa ${notice_platform}development files not found (or too old), OpenGL rendering in bitmaps won't be supported.])
              else
                  opengl_msg="Old Mesa headers detected. Consider upgrading your Mesa libraries."
 	     fi
@@ -2219,6 +2233,12 @@ AC_CHECK_MEMBERS([struct statvfs.f_blocks],,,
 #include <sys/statvfs.h>
 #endif])
 
+dnl Check for dirent.d_reclen
+AC_CHECK_MEMBERS([struct dirent.d_reclen],,,
+[#ifdef HAVE_DIRENT_H
+#include <dirent.h>
+#endif])
+
 dnl Check for socket structure members
 AC_CHECK_MEMBERS([struct msghdr.msg_accrights, struct sockaddr.sa_len, struct sockaddr_un.sun_len],,,
 [#include <sys/types.h>
@@ -2276,6 +2296,12 @@ AC_CHECK_MEMBERS([ns_msg._msg_ptr],,,
 # include <arpa/nameser.h>
 #endif])
 
+dnl Check for struct icmpstat
+AC_CHECK_MEMBERS([struct icmpstat.icps_inhist],,,
+[#ifdef HAVE_NETINET_ICMP_VAR
+#include <netinet/icmp_var.h>
+#endif])
+
 dnl Check for struct icmpstat.icps_outhist
 AC_CHECK_MEMBERS([struct icmpstat.icps_outhist],,,
 [#ifdef HAVE_SYS_TYPES_H
@@ -2310,6 +2336,36 @@ AC_CHECK_MEMBERS([struct icmpstat.icps_outhist],,,
 #endif
 #ifdef HAVE_NETINET_ICMP_VAR
 #include <netinet/icmp_var.h>
+#endif])
+
+dnl Check for struct ipstat
+AC_CHECK_MEMBERS([struct ipstat.ips_total],,,
+[#ifdef HAVE_NETINET_IP_VAR_H
+#include <netinet/ip_var.h>
+#endif])
+
+dnl Check for struct ip_stats
+AC_CHECK_MEMBERS([struct ip_stats.ips_total],,,
+[#ifdef HAVE_NETINET_IP_VAR_H
+#include <netinet/ip_var.h>
+#endif])
+
+dnl Check for struct tcpstat
+AC_CHECK_MEMBERS([struct tcpstat.tcps_connattempt],,,
+[#ifdef HAVE_NETINET_TCP_VAR_H
+#include <netinet/tcp_var.h>
+#endif])
+
+dnl Check for struct tcp_stats
+AC_CHECK_MEMBERS([struct tcp_stats.tcps_connattempt],,,
+[#ifdef HAVE_NETINET_TCP_VAR_H
+#include <netinet/tcp_var.h>
+#endif])
+
+dnl Check for struct udpstat
+AC_CHECK_MEMBERS([struct udpstat.udps_ipackets],,,
+[#ifdef HAVE_NETINET_UDP_VAR_H
+#include <netinet/udp_var.h>
 #endif])
 
 dnl Check for struct ifreq.ifr_hwaddr
@@ -2415,6 +2471,7 @@ WINE_CONFIG_TEST(dlls/advpack/tests)
 WINE_CONFIG_DLL(amstream)
 WINE_CONFIG_TEST(dlls/amstream/tests)
 WINE_CONFIG_DLL(apphelp)
+WINE_CONFIG_TEST(dlls/apphelp/tests)
 WINE_CONFIG_DLL(appwiz.cpl,,[po])
 WINE_CONFIG_DLL(atl,,[implib])
 WINE_CONFIG_TEST(dlls/atl/tests)
@@ -2565,8 +2622,10 @@ WINE_CONFIG_DLL(drmclien)
 WINE_CONFIG_DLL(dsound,,[implib])
 WINE_CONFIG_TEST(dlls/dsound/tests)
 WINE_CONFIG_DLL(dssenh)
+WINE_CONFIG_TEST(dlls/dssenh/tests)
 WINE_CONFIG_DLL(dswave)
 WINE_CONFIG_DLL(dwmapi,,[implib])
+WINE_CONFIG_DLL(dwrite)
 WINE_CONFIG_DLL(dxdiagn,,[po])
 WINE_CONFIG_TEST(dlls/dxdiagn/tests)
 WINE_CONFIG_LIB(dxerr8)
@@ -2625,6 +2684,7 @@ WINE_CONFIG_TEST(dlls/iphlpapi/tests)
 WINE_CONFIG_DLL(itircl)
 WINE_CONFIG_DLL(itss)
 WINE_CONFIG_TEST(dlls/itss/tests)
+WINE_CONFIG_DLL(joy.cpl,,[po])
 WINE_CONFIG_DLL(jscript,,[po])
 WINE_CONFIG_TEST(dlls/jscript/tests)
 WINE_CONFIG_DLL(kernel32,,[implib,mc])
@@ -2653,6 +2713,7 @@ WINE_CONFIG_DLL(midimap)
 WINE_CONFIG_DLL(mlang,,[implib])
 WINE_CONFIG_TEST(dlls/mlang/tests)
 WINE_CONFIG_DLL(mmcndmgr)
+WINE_CONFIG_TEST(dlls/mmcndmgr/tests)
 WINE_CONFIG_DLL(mmdevapi)
 WINE_CONFIG_TEST(dlls/mmdevapi/tests)
 WINE_CONFIG_DLL(mmdevldr.vxd,enable_win16)
@@ -2661,6 +2722,7 @@ WINE_CONFIG_DLL(monodebg.vxd,enable_win16)
 WINE_CONFIG_DLL(mountmgr.sys)
 WINE_CONFIG_DLL(mouse.drv16,enable_win16)
 WINE_CONFIG_DLL(mpr,,[implib,po])
+WINE_CONFIG_TEST(dlls/mpr/tests)
 WINE_CONFIG_DLL(mprapi,,[implib])
 WINE_CONFIG_DLL(msacm.dll16,enable_win16)
 WINE_CONFIG_DLL(msacm32.drv)
@@ -2898,6 +2960,7 @@ WINE_CONFIG_DLL(vwin32.vxd,enable_win16)
 WINE_CONFIG_DLL(w32skrnl,enable_win16)
 WINE_CONFIG_DLL(w32sys.dll16,enable_win16)
 WINE_CONFIG_DLL(wbemprox)
+WINE_CONFIG_TEST(dlls/wbemprox/tests)
 WINE_CONFIG_DLL(wer,,[implib])
 WINE_CONFIG_TEST(dlls/wer/tests)
 WINE_CONFIG_DLL(wevtapi)
@@ -3021,6 +3084,7 @@ WINE_CONFIG_PROGRAM(sc,,[install])
 WINE_CONFIG_PROGRAM(secedit,,[install])
 WINE_CONFIG_PROGRAM(servicemodelreg,,[install])
 WINE_CONFIG_PROGRAM(services,,[install])
+WINE_CONFIG_TEST(programs/services/tests)
 WINE_CONFIG_PROGRAM(spoolsv,,[install])
 WINE_CONFIG_PROGRAM(start,,[install,po])
 WINE_CONFIG_PROGRAM(svchost,,[install])
@@ -3047,7 +3111,7 @@ WINE_CONFIG_PROGRAM(winhelp.exe16,enable_win16,[install])
 WINE_CONFIG_PROGRAM(winhlp32,,[install,po])
 WINE_CONFIG_PROGRAM(winoldap.mod16,enable_win16,[install])
 WINE_CONFIG_PROGRAM(winver,,[install])
-WINE_CONFIG_PROGRAM(wmic,,[install])
+WINE_CONFIG_PROGRAM(wmic,,[install,po])
 WINE_CONFIG_PROGRAM(wordpad,,[install,po])
 WINE_CONFIG_PROGRAM(write,,[install,po])
 WINE_CONFIG_PROGRAM(wscript,,[install])

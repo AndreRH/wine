@@ -40,7 +40,7 @@
 #include "wine/debug.h"
 
 /* This file implements the object returned by childNodes property. Note that this is
- * not the IXMLDOMNodeList returned by XPath querites - it's implemented in queryresult.c.
+ * not the IXMLDOMNodeList returned by XPath queries - it's implemented in selection.c.
  * They are different because the list returned by childNodes:
  *  - is "live" - changes to the XML tree are automatically reflected in the list
  *  - doesn't supports IXMLDOMSelection
@@ -52,14 +52,26 @@ WINE_DEFAULT_DEBUG_CHANNEL(msxml);
 
 #ifdef HAVE_LIBXML2
 
-typedef struct _xmlnodelist
+typedef struct
 {
     DispatchEx dispex;
     IXMLDOMNodeList IXMLDOMNodeList_iface;
     LONG ref;
     xmlNodePtr parent;
     xmlNodePtr current;
+    IEnumVARIANT *enumvariant;
 } xmlnodelist;
+
+static HRESULT nodelist_get_item(IUnknown *iface, LONG index, VARIANT *item)
+{
+    V_VT(item) = VT_DISPATCH;
+    return IXMLDOMNodeList_get_item((IXMLDOMNodeList*)iface, index, (IXMLDOMNode**)&V_DISPATCH(item));
+}
+
+static const struct enumvariant_funcs nodelist_enumvariant = {
+    nodelist_get_item,
+    NULL
+};
 
 static inline xmlnodelist *impl_from_IXMLDOMNodeList( IXMLDOMNodeList *iface )
 {
@@ -80,6 +92,16 @@ static HRESULT WINAPI xmlnodelist_QueryInterface(
          IsEqualGUID( riid, &IID_IXMLDOMNodeList ) )
     {
         *ppvObject = iface;
+    }
+    else if (IsEqualGUID( riid, &IID_IEnumVARIANT ))
+    {
+        if (!This->enumvariant)
+        {
+            HRESULT hr = create_enumvariant((IUnknown*)iface, FALSE, &nodelist_enumvariant, &This->enumvariant);
+            if (FAILED(hr)) return hr;
+        }
+
+        return IEnumVARIANT_QueryInterface(This->enumvariant, &IID_IEnumVARIANT, ppvObject);
     }
     else if (dispex_query_interface(&This->dispex, riid, ppvObject))
     {
@@ -116,6 +138,7 @@ static ULONG WINAPI xmlnodelist_Release(
     if ( ref == 0 )
     {
         xmldoc_release( This->parent->doc );
+        if (This->enumvariant) IEnumVARIANT_Release(This->enumvariant);
         heap_free( This );
     }
 
@@ -261,11 +284,11 @@ static HRESULT WINAPI xmlnodelist_reset(
 
 static HRESULT WINAPI xmlnodelist__newEnum(
         IXMLDOMNodeList* iface,
-        IUnknown** ppUnk)
+        IUnknown** enumv)
 {
     xmlnodelist *This = impl_from_IXMLDOMNodeList( iface );
-    FIXME("(%p)->(%p)\n", This, ppUnk);
-    return E_NOTIMPL;
+    TRACE("(%p)->(%p)\n", This, enumv);
+    return create_enumvariant((IUnknown*)iface, TRUE, &nodelist_enumvariant, (IEnumVARIANT**)enumv);
 }
 
 static const struct IXMLDOMNodeListVtbl xmlnodelist_vtbl =
@@ -362,6 +385,7 @@ IXMLDOMNodeList* create_children_nodelist( xmlNodePtr node )
     This->ref = 1;
     This->parent = node;
     This->current = node->children;
+    This->enumvariant = NULL;
     xmldoc_add_ref( node->doc );
 
     init_dispex(&This->dispex, (IUnknown*)&This->IXMLDOMNodeList_iface, &xmlnodelist_dispex);

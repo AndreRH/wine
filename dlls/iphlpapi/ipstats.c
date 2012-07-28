@@ -493,7 +493,7 @@ DWORD WINAPI GetIcmpStatistics(PMIB_ICMP stats)
         }
         if (kc) kstat_close( kc );
     }
-#elif defined(HAVE_SYS_SYSCTL_H) && defined(ICMPCTL_STATS)
+#elif defined(HAVE_SYS_SYSCTL_H) && defined(ICMPCTL_STATS) && defined(HAVE_STRUCT_ICMPSTAT_ICPS_INHIST)
     {
         int mib[] = {CTL_NET, PF_INET, IPPROTO_ICMP, ICMPCTL_STATS};
 #define MIB_LEN (sizeof(mib) / sizeof(mib[0]))
@@ -522,7 +522,7 @@ DWORD WINAPI GetIcmpStatistics(PMIB_ICMP stats)
             stats->stats.icmpInStats.dwAddrMasks = icmp_stat.icps_inhist[ICMP_MASKREQ];
             stats->stats.icmpInStats.dwAddrMaskReps = icmp_stat.icps_inhist[ICMP_MASKREPLY];
 
-#ifdef HAVE_ICPS_OUTHIST
+#ifdef HAVE_STRUCT_ICMPSTAT_ICPS_OUTHIST
             /* out stats */
             stats->stats.icmpOutStats.dwMsgs = icmp_stat.icps_oldshort + icmp_stat.icps_oldicmp;
             for(i = 0; i <= ICMP_MAXTYPE; i++)
@@ -541,7 +541,7 @@ DWORD WINAPI GetIcmpStatistics(PMIB_ICMP stats)
             stats->stats.icmpOutStats.dwTimestampReps = icmp_stat.icps_outhist[ICMP_TSTAMPREPLY];
             stats->stats.icmpOutStats.dwAddrMasks = icmp_stat.icps_outhist[ICMP_MASKREQ];
             stats->stats.icmpOutStats.dwAddrMaskReps = icmp_stat.icps_outhist[ICMP_MASKREPLY];
-#endif /* ICPS_OUTHIST */
+#endif /* HAVE_STRUCT_ICMPSTAT_ICPS_OUTHIST */
             ret = NO_ERROR;
         }
     }
@@ -659,12 +659,16 @@ DWORD WINAPI GetIpStatistics(PMIB_IPSTATS stats)
         }
         if (kc) kstat_close( kc );
     }
-#elif defined(HAVE_SYS_SYSCTL_H) && defined(IPCTL_STATS)
+#elif defined(HAVE_SYS_SYSCTL_H) && defined(IPCTL_STATS) && (defined(HAVE_STRUCT_IPSTAT_IPS_TOTAL) || defined(HAVE_STRUCT_IP_STATS_IPS_TOTAL))
     {
         int mib[] = {CTL_NET, PF_INET, IPPROTO_IP, IPCTL_STATS};
 #define MIB_LEN (sizeof(mib) / sizeof(mib[0]))
         int ip_ttl, ip_forwarding;
+#if defined(HAVE_STRUCT_IPSTAT_IPS_TOTAL)
         struct ipstat ip_stat;
+#elif defined(HAVE_STRUCT_IP_STATS_IPS_TOTAL)
+        struct ip_stats ip_stat;
+#endif
         size_t needed;
 
         needed = sizeof(ip_stat);
@@ -808,7 +812,7 @@ DWORD WINAPI GetTcpStatistics(PMIB_TCPSTATS stats)
         }
         if (kc) kstat_close( kc );
     }
-#elif defined(HAVE_SYS_SYSCTL_H) && defined(UDPCTL_STATS)
+#elif defined(HAVE_SYS_SYSCTL_H) && defined(TCPCTL_STATS) && (defined(HAVE_STRUCT_TCPSTAT_TCPS_CONNATTEMPT) || defined(HAVE_STRUCT_TCP_STATS_TCPS_CONNATTEMPT))
     {
 #ifndef TCPTV_MIN  /* got removed in Mac OS X for some reason */
 #define TCPTV_MIN 2
@@ -817,7 +821,11 @@ DWORD WINAPI GetTcpStatistics(PMIB_TCPSTATS stats)
         int mib[] = {CTL_NET, PF_INET, IPPROTO_TCP, TCPCTL_STATS};
 #define MIB_LEN (sizeof(mib) / sizeof(mib[0]))
 #define hz 1000
+#if defined(HAVE_STRUCT_TCPSTAT_TCPS_CONNATTEMPT)
         struct tcpstat tcp_stat;
+#elif defined(HAVE_STRUCT_TCP_STATS_TCPS_CONNATTEMPT)
+        struct tcp_stats tcp_stat;
+#endif
         size_t needed = sizeof(tcp_stat);
 
         if(sysctl(mib, MIB_LEN, &tcp_stat, &needed, NULL, 0) != -1)
@@ -919,7 +927,7 @@ DWORD WINAPI GetUdpStatistics(PMIB_UDPSTATS stats)
         }
         if (kc) kstat_close( kc );
     }
-#elif defined(HAVE_SYS_SYSCTL_H) && defined(UDPCTL_STATS)
+#elif defined(HAVE_SYS_SYSCTL_H) && defined(UDPCTL_STATS) && defined(HAVE_STRUCT_UDPSTAT_UDPS_IPACKETS)
     {
         int mib[] = {CTL_NET, PF_INET, IPPROTO_UDP, UDPCTL_STATS};
 #define MIB_LEN (sizeof(mib) / sizeof(mib[0]))

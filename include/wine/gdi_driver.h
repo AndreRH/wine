@@ -22,6 +22,7 @@
 #define __WINE_WINE_GDI_DRIVER_H
 
 struct gdi_dc_funcs;
+struct opengl_funcs;
 
 typedef struct gdi_physdev
 {
@@ -69,7 +70,6 @@ struct gdi_dc_funcs
     BOOL     (*pArcTo)(PHYSDEV,INT,INT,INT,INT,INT,INT,INT,INT);
     BOOL     (*pBeginPath)(PHYSDEV);
     DWORD    (*pBlendImage)(PHYSDEV,BITMAPINFO*,const struct gdi_image_bits*,struct bitblt_coords*,struct bitblt_coords*,BLENDFUNCTION);
-    INT      (*pChoosePixelFormat)(PHYSDEV,const PIXELFORMATDESCRIPTOR *);
     BOOL     (*pChord)(PHYSDEV,INT,INT,INT,INT,INT,INT,INT,INT);
     BOOL     (*pCloseFigure)(PHYSDEV);
     BOOL     (*pCreateCompatibleDC)(PHYSDEV,PHYSDEV*);
@@ -113,7 +113,6 @@ struct gdi_dc_funcs
     COLORREF (*pGetNearestColor)(PHYSDEV,COLORREF);
     UINT     (*pGetOutlineTextMetrics)(PHYSDEV,UINT,LPOUTLINETEXTMETRICW);
     COLORREF (*pGetPixel)(PHYSDEV,INT,INT);
-    INT      (*pGetPixelFormat)(PHYSDEV);
     UINT     (*pGetSystemPaletteEntries)(PHYSDEV,UINT,UINT,LPPALETTEENTRY);
     UINT     (*pGetTextCharsetInfo)(PHYSDEV,LPFONTSIGNATURE,DWORD);
     BOOL     (*pGetTextExtentExPoint)(PHYSDEV,LPCWSTR,INT,INT,LPINT,LPINT,LPSIZE);
@@ -192,24 +191,14 @@ struct gdi_dc_funcs
     BOOL     (*pSwapBuffers)(PHYSDEV);
     BOOL     (*pUnrealizePalette)(HPALETTE);
     BOOL     (*pWidenPath)(PHYSDEV);
-    BOOL     (*pwglCopyContext)(HGLRC,HGLRC,UINT);
-    HGLRC    (*pwglCreateContext)(PHYSDEV);
-    HGLRC    (*pwglCreateContextAttribsARB)(PHYSDEV,HGLRC,const int*);
-    BOOL     (*pwglDeleteContext)(HGLRC);
-    PROC     (*pwglGetProcAddress)(LPCSTR);
-    BOOL     (*pwglMakeContextCurrentARB)(PHYSDEV,PHYSDEV,HGLRC);
-    BOOL     (*pwglMakeCurrent)(PHYSDEV,HGLRC);
-    BOOL     (*pwglSetPixelFormatWINE)(PHYSDEV,INT,const PIXELFORMATDESCRIPTOR*);
-    BOOL     (*pwglShareLists)(HGLRC,HGLRC);
-    BOOL     (*pwglUseFontBitmapsA)(PHYSDEV,DWORD,DWORD,DWORD);
-    BOOL     (*pwglUseFontBitmapsW)(PHYSDEV,DWORD,DWORD,DWORD);
+    struct opengl_funcs * (*wine_get_wgl_driver)(PHYSDEV,UINT);
 
     /* priority order for the driver on the stack */
     UINT       priority;
 };
 
 /* increment this when you change the DC function table */
-#define WINE_GDI_DRIVER_VERSION 31
+#define WINE_GDI_DRIVER_VERSION 42
 
 #define GDI_PRIORITY_NULL_DRV        0  /* null driver */
 #define GDI_PRIORITY_FONT_DRV      100  /* any font driver */
@@ -250,5 +239,6 @@ WINGDIAPI WORD      WINAPI SetHookFlags(HDC,WORD);
 
 extern void CDECL __wine_make_gdi_object_system( HGDIOBJ handle, BOOL set );
 extern void CDECL __wine_set_visible_region( HDC hdc, HRGN hrgn, const RECT *vis_rect );
+extern struct opengl_funcs * CDECL __wine_get_wgl_driver( HDC hdc, UINT version );
 
 #endif /* __WINE_WINE_GDI_DRIVER_H */

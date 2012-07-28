@@ -17,6 +17,7 @@
  */
 
 #include <stdarg.h>
+#include <assert.h>
 
 #define COBJMACROS
 
@@ -38,7 +39,7 @@ static const WCHAR noW[] = {'n','o',0};
 HRESULT set_frame_doc(HTMLFrameBase *frame, nsIDOMDocument *nsdoc)
 {
     nsIDOMWindow *nswindow;
-    HTMLWindow *window;
+    HTMLOuterWindow *window;
     nsresult nsres;
     HRESULT hres = S_OK;
 
@@ -51,7 +52,7 @@ HRESULT set_frame_doc(HTMLFrameBase *frame, nsIDOMDocument *nsdoc)
 
     window = nswindow_to_window(nswindow);
     if(!window)
-        hres = HTMLWindow_Create(frame->element.node.doc->basedoc.doc_obj, nswindow,
+        hres = HTMLOuterWindow_Create(frame->element.node.doc->basedoc.doc_obj, nswindow,
                 frame->element.node.doc->basedoc.window, &window);
     nsIDOMWindow_Release(nswindow);
     if(FAILED(hres))
@@ -189,15 +190,49 @@ static HRESULT WINAPI HTMLFrameBase_get_border(IHTMLFrameBase *iface, VARIANT *p
 static HRESULT WINAPI HTMLFrameBase_put_frameBorder(IHTMLFrameBase *iface, BSTR v)
 {
     HTMLFrameBase *This = impl_from_IHTMLFrameBase(iface);
-    FIXME("(%p)->(%s)\n", This, debugstr_w(v));
-    return E_NOTIMPL;
+    nsAString nsstr;
+    nsresult nsres;
+
+    TRACE("(%p)->(%s)\n", This, debugstr_w(v));
+
+    if(!This->nsframe && !This->nsiframe) {
+        ERR("No attached ns frame object\n");
+        return E_UNEXPECTED;
+    }
+
+    nsAString_InitDepend(&nsstr, v);
+    if(This->nsframe)
+        nsres = nsIDOMHTMLFrameElement_SetFrameBorder(This->nsframe, &nsstr);
+    else
+        nsres = nsIDOMHTMLIFrameElement_SetFrameBorder(This->nsiframe, &nsstr);
+    nsAString_Finish(&nsstr);
+    if(NS_FAILED(nsres)) {
+        ERR("SetFrameBorder failed: %08x\n", nsres);
+        return E_FAIL;
+    }
+
+    return S_OK;
 }
 
 static HRESULT WINAPI HTMLFrameBase_get_frameBorder(IHTMLFrameBase *iface, BSTR *p)
 {
     HTMLFrameBase *This = impl_from_IHTMLFrameBase(iface);
-    FIXME("(%p)->(%p)\n", This, p);
-    return E_NOTIMPL;
+    nsAString nsstr;
+    nsresult nsres;
+
+    TRACE("(%p)->(%p)\n", This, p);
+
+    if(!This->nsframe && !This->nsiframe) {
+        ERR("No attached ns frame object\n");
+        return E_UNEXPECTED;
+    }
+
+    nsAString_Init(&nsstr, NULL);
+    if(This->nsframe)
+        nsres = nsIDOMHTMLFrameElement_GetFrameBorder(This->nsframe, &nsstr);
+    else
+        nsres = nsIDOMHTMLIFrameElement_GetFrameBorder(This->nsiframe, &nsstr);
+    return return_nsstr(nsres, &nsstr, p);
 }
 
 static HRESULT WINAPI HTMLFrameBase_put_frameSpacing(IHTMLFrameBase *iface, VARIANT v)
@@ -418,8 +453,8 @@ static HRESULT WINAPI HTMLFrameBase2_get_contentWindow(IHTMLFrameBase2 *iface, I
     TRACE("(%p)->(%p)\n", This, p);
 
     if(This->content_window) {
-        IHTMLWindow2_AddRef(&This->content_window->IHTMLWindow2_iface);
-        *p = &This->content_window->IHTMLWindow2_iface;
+        IHTMLWindow2_AddRef(&This->content_window->base.IHTMLWindow2_iface);
+        *p = &This->content_window->base.IHTMLWindow2_iface;
     }else {
         WARN("NULL content window\n");
         *p = NULL;
@@ -461,12 +496,12 @@ static HRESULT WINAPI HTMLFrameBase2_get_readyState(IHTMLFrameBase2 *iface, BSTR
 
     TRACE("(%p)->(%p)\n", This, p);
 
-    if(!This->content_window || !This->content_window->doc) {
+    if(!This->content_window || !This->content_window->base.inner_window->doc) {
         FIXME("no document associated\n");
         return E_FAIL;
     }
 
-    return IHTMLDocument2_get_readyState(&This->content_window->doc->basedoc.IHTMLDocument2_iface, p);
+    return IHTMLDocument2_get_readyState(&This->content_window->base.inner_window->doc->basedoc.IHTMLDocument2_iface, p);
 }
 
 static HRESULT WINAPI HTMLFrameBase2_put_allowTransparency(IHTMLFrameBase2 *iface, VARIANT_BOOL v)
@@ -522,11 +557,6 @@ void HTMLFrameBase_destructor(HTMLFrameBase *This)
     if(This->content_window)
         This->content_window->frame_element = NULL;
 
-    if(This->nsframe)
-        nsIDOMHTMLFrameElement_Release(This->nsframe);
-    if(This->nsiframe)
-        nsIDOMHTMLIFrameElement_Release(This->nsiframe);
-
     HTMLElement_destructor(&This->element.node);
 }
 
@@ -542,9 +572,14 @@ void HTMLFrameBase_Init(HTMLFrameBase *This, HTMLDocumentNode *doc, nsIDOMHTMLEl
 
     nsres = nsIDOMHTMLElement_QueryInterface(nselem, &IID_nsIDOMHTMLFrameElement, (void**)&This->nsframe);
     if(NS_FAILED(nsres)) {
+        This->nsframe = NULL;
         nsres = nsIDOMHTMLElement_QueryInterface(nselem, &IID_nsIDOMHTMLIFrameElement, (void**)&This->nsiframe);
-        if(NS_FAILED(nsres))
-            ERR("Could not get nsIDOMHTML[I]Frame interface\n");
-    }else
+        assert(nsres == NS_OK && (nsIDOMNode*)This->nsiframe == This->element.node.nsnode);
+    }else {
+        assert((nsIDOMNode*)This->nsframe == This->element.node.nsnode);
         This->nsiframe = NULL;
+    }
+
+    /* Share the reference with nsnode */
+    nsIDOMNode_Release(This->element.node.nsnode);
 }

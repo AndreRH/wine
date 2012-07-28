@@ -444,37 +444,6 @@ static ULONG WINAPI d3d_texture1_AddRef(IDirect3DTexture *iface)
     return IUnknown_AddRef(surface->texture_outer);
 }
 
-/*****************************************************************************
- * ddraw_surface_destroy
- *
- * A helper function for IDirectDrawSurface7::Release
- *
- * Frees the surface, regardless of its refcount.
- *  See IDirectDrawSurface7::Release for more information
- *
- * Params:
- *  This: Surface to free
- *
- *****************************************************************************/
-static void ddraw_surface_destroy(struct ddraw_surface *This)
-{
-    TRACE("surface %p.\n", This);
-
-    /* Check the iface count and give a warning */
-    if(This->iface_count > 1)
-    {
-        /* This can happen when a complex surface is destroyed,
-         * because the 2nd surface was addref()ed when the app
-         * called GetAttachedSurface
-         */
-        WARN("(%p): Destroying surface with refcounts 7: %d 4: %d 3: %d 2: %d 1: %d\n",
-                This, This->ref7, This->ref4, This->ref3, This->ref2, This->ref1);
-    }
-
-    if (This->wined3d_surface)
-        wined3d_surface_decref(This->wined3d_surface);
-}
-
 static void ddraw_surface_cleanup(struct ddraw_surface *surface)
 {
     struct ddraw_surface *surf;
@@ -498,20 +467,24 @@ static void ddraw_surface_cleanup(struct ddraw_surface *surface)
 
         surf = surface->complex_array[i];
         surface->complex_array[i] = NULL;
-        while (surf)
-        {
-            struct ddraw_surface *destroy = surf;
-            surf = surf->complex_array[0];              /* Iterate through the "tree" */
-            ddraw_surface_destroy(destroy);             /* Destroy it */
-        }
+        ddraw_surface_cleanup(surf);
     }
 
     if (surface->device1)
         IUnknown_Release(&surface->device1->IUnknown_inner);
     ifaceToRelease = surface->ifaceToRelease;
 
-    /* Destroy the root surface. */
-    ddraw_surface_destroy(surface);
+    if (surface->iface_count > 1)
+    {
+        /* This can happen when a complex surface is destroyed, because the
+         * 2nd surface was addref()ed when the app called
+         * GetAttachedSurface(). */
+        WARN("Destroying surface %p with refcounts 7: %u 4: %u 3: %u 2: %u 1: %u.\n",
+                surface, surface->ref7, surface->ref4, surface->ref3, surface->ref2, surface->ref1);
+    }
+
+    if (surface->wined3d_surface)
+        wined3d_surface_decref(surface->wined3d_surface);
 
     /* Reduce the ddraw refcount */
     if (ifaceToRelease)
@@ -739,14 +712,11 @@ static HRESULT WINAPI ddraw_surface7_GetAttachedSurface(IDirectDrawSurface7 *ifa
         surf = This->complex_array[i];
         if(!surf) break;
 
-        if (TRACE_ON(ddraw))
-        {
-            TRACE("Surface: (%p) caps: %x,%x,%x,%x\n", surf,
-                   surf->surface_desc.ddsCaps.dwCaps,
-                   surf->surface_desc.ddsCaps.dwCaps2,
-                   surf->surface_desc.ddsCaps.dwCaps3,
-                   surf->surface_desc.ddsCaps.dwCaps4);
-        }
+        TRACE("Surface: (%p) caps: %#x, %#x, %#x, %#x.\n", surf,
+                surf->surface_desc.ddsCaps.dwCaps,
+                surf->surface_desc.ddsCaps.dwCaps2,
+                surf->surface_desc.ddsCaps.dwCaps3,
+                surf->surface_desc.ddsCaps.dwCaps4);
 
         if (((surf->surface_desc.ddsCaps.dwCaps & our_caps.dwCaps) == our_caps.dwCaps) &&
             ((surf->surface_desc.ddsCaps.dwCaps2 & our_caps.dwCaps2) == our_caps.dwCaps2)) {
@@ -772,14 +742,11 @@ static HRESULT WINAPI ddraw_surface7_GetAttachedSurface(IDirectDrawSurface7 *ifa
 
     while( (surf = surf->next_attached) )
     {
-        if (TRACE_ON(ddraw))
-        {
-            TRACE("Surface: (%p) caps: %x,%x,%x,%x\n", surf,
-                   surf->surface_desc.ddsCaps.dwCaps,
-                   surf->surface_desc.ddsCaps.dwCaps2,
-                   surf->surface_desc.ddsCaps.dwCaps3,
-                   surf->surface_desc.ddsCaps.dwCaps4);
-        }
+        TRACE("Surface: (%p) caps: %#x, %#x, %#x, %#x.\n", surf,
+                surf->surface_desc.ddsCaps.dwCaps,
+                surf->surface_desc.ddsCaps.dwCaps2,
+                surf->surface_desc.ddsCaps.dwCaps3,
+                surf->surface_desc.ddsCaps.dwCaps4);
 
         if (((surf->surface_desc.ddsCaps.dwCaps & our_caps.dwCaps) == our_caps.dwCaps) &&
             ((surf->surface_desc.ddsCaps.dwCaps2 & our_caps.dwCaps2) == our_caps.dwCaps2)) {
@@ -5623,14 +5590,22 @@ static const struct wined3d_parent_ops ddraw_texture_wined3d_parent_ops =
 HRESULT ddraw_surface_create_texture(struct ddraw_surface *surface)
 {
     const DDSURFACEDESC2 *desc = &surface->surface_desc;
+    struct ddraw_surface *mip, **attach;
+    struct wined3d_resource *resource;
     enum wined3d_format_id format;
+    UINT layers, levels, i, j;
     enum wined3d_pool pool;
-    UINT levels;
+    HRESULT hr;
 
     if (desc->ddsCaps.dwCaps & DDSCAPS_MIPMAP)
         levels = desc->u2.dwMipMapCount;
     else
         levels = 1;
+
+    if (desc->ddsCaps.dwCaps2 & DDSCAPS2_CUBEMAP)
+        layers = 6;
+    else
+        layers = 1;
 
     /* DDSCAPS_SYSTEMMEMORY textures are in WINED3D_POOL_SYSTEM_MEM.
      * Should I forward the MANAGED cap to the managed pool? */
@@ -5641,11 +5616,36 @@ HRESULT ddraw_surface_create_texture(struct ddraw_surface *surface)
 
     format = PixelFormat_DD2WineD3D(&surface->surface_desc.u4.ddpfPixelFormat);
     if (desc->ddsCaps.dwCaps2 & DDSCAPS2_CUBEMAP)
-        return wined3d_texture_create_cube(surface->ddraw->wined3d_device, desc->dwWidth,
+        hr = wined3d_texture_create_cube(surface->ddraw->wined3d_device, desc->dwWidth,
                 levels, 0, format, pool, surface, &ddraw_texture_wined3d_parent_ops, &surface->wined3d_texture);
     else
-        return wined3d_texture_create_2d(surface->ddraw->wined3d_device, desc->dwWidth, desc->dwHeight,
+        hr = wined3d_texture_create_2d(surface->ddraw->wined3d_device, desc->dwWidth, desc->dwHeight,
                 levels, 0, format, pool, surface, &ddraw_texture_wined3d_parent_ops, &surface->wined3d_texture);
+
+    if (FAILED(hr))
+    {
+        WARN("Failed to create wined3d texture, hr %#x.\n", hr);
+        return hr;
+    }
+
+    for (i = 0; i < layers; ++i)
+    {
+        attach = &surface->complex_array[layers - 1 - i];
+
+        for (j = 0; j < levels; ++j)
+        {
+            resource = wined3d_texture_get_sub_resource(surface->wined3d_texture, i * levels + j);
+            mip = wined3d_resource_get_parent(resource);
+
+            if (mip == surface)
+                continue;
+
+            *attach = mip;
+            attach = &mip->complex_array[0];
+        }
+    }
+
+    return DD_OK;
 }
 
 HRESULT ddraw_surface_init(struct ddraw_surface *surface, struct ddraw *ddraw,

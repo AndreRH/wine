@@ -189,11 +189,13 @@ typedef enum {
     X(assign_ident,   1, ARG_BSTR,    ARG_UINT)   \
     X(assign_member,  1, ARG_BSTR,    ARG_UINT)   \
     X(bool,           1, ARG_INT,     0)          \
+    X(case,           0, ARG_ADDR,    0)          \
     X(concat,         1, 0,           0)          \
     X(const,          1, ARG_BSTR,    0)          \
     X(div,            1, 0,           0)          \
     X(double,         1, ARG_DOUBLE,  0)          \
     X(empty,          1, 0,           0)          \
+    X(enumnext,       0, ARG_ADDR,    ARG_BSTR)   \
     X(equal,          1, 0,           0)          \
     X(errmode,        1, ARG_INT,     0)          \
     X(eqv,            1, 0,           0)          \
@@ -220,6 +222,7 @@ typedef enum {
     X(neg,            1, 0,           0)          \
     X(nequal,         1, 0,           0)          \
     X(new,            1, ARG_STR,     0)          \
+    X(newenum,        1, 0,           0)          \
     X(not,            1, 0,           0)          \
     X(nothing,        1, 0,           0)          \
     X(null,           1, 0,           0)          \

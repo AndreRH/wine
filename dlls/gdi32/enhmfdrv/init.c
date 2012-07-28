@@ -44,7 +44,6 @@ static const struct gdi_dc_funcs EMFDRV_Funcs =
     NULL,                            /* pArcTo */
     EMFDRV_BeginPath,                /* pBeginPath */
     NULL,                            /* pBlendImage */
-    NULL,                            /* pChoosePixelFormat */
     EMFDRV_Chord,                    /* pChord */
     EMFDRV_CloseFigure,              /* pCloseFigure */
     NULL,                            /* pCreateCompatibleDC */
@@ -88,7 +87,6 @@ static const struct gdi_dc_funcs EMFDRV_Funcs =
     NULL,                            /* pGetNearestColor */
     NULL,                            /* pGetOutlineTextMetrics */
     NULL,                            /* pGetPixel */
-    NULL,                            /* pGetPixelFormat */
     NULL,                            /* pGetSystemPaletteEntries */
     NULL,                            /* pGetTextCharsetInfo */
     NULL,                            /* pGetTextExtentExPoint */
@@ -167,17 +165,7 @@ static const struct gdi_dc_funcs EMFDRV_Funcs =
     NULL,                            /* pSwapBuffers */
     NULL,                            /* pUnrealizePalette */
     EMFDRV_WidenPath,                /* pWidenPath */
-    NULL,                            /* pwglCopyContext */
-    NULL,                            /* pwglCreateContext */
-    NULL,                            /* pwglCreateContextAttribsARB */
-    NULL,                            /* pwglDeleteContext */
-    NULL,                            /* pwglGetProcAddress */
-    NULL,                            /* pwglMakeContextCurrentARB */
-    NULL,                            /* pwglMakeCurrent */
-    NULL,                            /* pwglSetPixelFormatWINE */
-    NULL,                            /* pwglShareLists */
-    NULL,                            /* pwglUseFontBitmapsA */
-    NULL,                            /* pwglUseFontBitmapsW */
+    NULL,                            /* wine_get_wgl_driver */
     GDI_PRIORITY_GRAPHICS_DRV        /* priority */
 };
 

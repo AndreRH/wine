@@ -4350,10 +4350,139 @@ static void test_east_asian_font_selection(void)
     ReleaseDC(NULL, hdc);
 }
 
+static int get_font_dpi(const LOGFONT *lf)
+{
+    HDC hdc = CreateCompatibleDC(0);
+    HFONT hfont;
+    TEXTMETRIC tm;
+    int ret;
+
+    hfont = CreateFontIndirect(lf);
+    ok(hfont != 0, "CreateFontIndirect failed\n");
+
+    SelectObject(hdc, hfont);
+    ret = GetTextMetrics(hdc, &tm);
+    ok(ret, "GetTextMetrics failed\n");
+    ret = tm.tmDigitizedAspectX;
+
+    DeleteDC(hdc);
+    DeleteObject(hfont);
+
+    return ret;
+}
+
+static void test_stock_fonts(void)
+{
+    static const int font[] =
+    {
+        ANSI_FIXED_FONT, ANSI_VAR_FONT, SYSTEM_FONT, DEVICE_DEFAULT_FONT, DEFAULT_GUI_FONT
+        /* SYSTEM_FIXED_FONT, OEM_FIXED_FONT */
+    };
+    static const struct test_data
+    {
+        int charset, weight, height, dpi;
+        const char face_name[LF_FACESIZE];
+    } td[][11] =
+    {
+        { /* ANSI_FIXED_FONT */
+            { DEFAULT_CHARSET, FW_NORMAL, 12, 96, "Courier" },
+            { DEFAULT_CHARSET, FW_NORMAL, 12, 120, "Courier" },
+            { 0 }
+        },
+        { /* ANSI_VAR_FONT */
+            { DEFAULT_CHARSET, FW_NORMAL, 12, 96, "MS Sans Serif" },
+            { DEFAULT_CHARSET, FW_NORMAL, 12, 120, "MS Sans Serif" },
+            { 0 }
+        },
+        { /* SYSTEM_FONT */
+            { SHIFTJIS_CHARSET, FW_NORMAL, 18, 96, "System" },
+            { SHIFTJIS_CHARSET, FW_NORMAL, 22, 120, "System" },
+            { HANGEUL_CHARSET, FW_NORMAL, 16, 96, "System" },
+            { HANGEUL_CHARSET, FW_NORMAL, 20, 120, "System" },
+            { DEFAULT_CHARSET, FW_BOLD, 16, 96, "System" },
+            { DEFAULT_CHARSET, FW_BOLD, 20, 120, "System" },
+            { 0 }
+        },
+        { /* DEVICE_DEFAULT_FONT */
+            { SHIFTJIS_CHARSET, FW_NORMAL, 18, 96, "System" },
+            { SHIFTJIS_CHARSET, FW_NORMAL, 22, 120, "System" },
+            { HANGEUL_CHARSET, FW_NORMAL, 16, 96, "System" },
+            { HANGEUL_CHARSET, FW_NORMAL, 20, 120, "System" },
+            { DEFAULT_CHARSET, FW_BOLD, 16, 96, "System" },
+            { DEFAULT_CHARSET, FW_BOLD, 20, 120, "System" },
+            { 0 }
+        },
+        { /* DEFAULT_GUI_FONT */
+            { SHIFTJIS_CHARSET, FW_NORMAL, -12, 96, "?MS UI Gothic" },
+            { SHIFTJIS_CHARSET, FW_NORMAL, -15, 120, "?MS UI Gothic" },
+            { HANGEUL_CHARSET, FW_NORMAL, -12, 96, "?Gulim" },
+            { HANGEUL_CHARSET, FW_NORMAL, -15, 120, "?Gulim" },
+            { GB2312_CHARSET, FW_NORMAL, -12, 96, "?SimHei" },
+            { GB2312_CHARSET, FW_NORMAL, -15, 120, "?SimHei" },
+            { CHINESEBIG5_CHARSET, FW_NORMAL, -12, 96, "?MingLiU" },
+            { CHINESEBIG5_CHARSET, FW_NORMAL, -15, 120, "?MingLiU" },
+            { DEFAULT_CHARSET, FW_NORMAL, -11, 96, "MS Shell Dlg" },
+            { DEFAULT_CHARSET, FW_NORMAL, -13, 120, "MS Shell Dlg" },
+            { 0 }
+        }
+    };
+    int i, j;
+
+    for (i = 0; i < sizeof(font)/sizeof(font[0]); i++)
+    {
+        HFONT hfont;
+        LOGFONT lf;
+        int ret;
+
+        hfont = GetStockObject(font[i]);
+        ok(hfont != 0, "%d: GetStockObject(%d) failed\n", i, font[i]);
+
+        ret = GetObject(hfont, sizeof(lf), &lf);
+        if (ret != sizeof(lf))
+        {
+            /* NT4 */
+            win_skip("%d: GetObject returned %d instead of sizeof(LOGFONT)\n", i, ret);
+            continue;
+        }
+
+        for (j = 0; td[i][j].face_name[0] != 0; j++)
+        {
+            if (lf.lfCharSet != td[i][j].charset && td[i][j].charset != DEFAULT_CHARSET)
+            {
+                continue;
+            }
+
+            ret = get_font_dpi(&lf);
+            if (ret != td[i][j].dpi)
+            {
+                trace("%d(%d): font %s %d dpi doesn't match test data %d\n",
+                      i, j, lf.lfFaceName, ret, td[i][j].dpi);
+                continue;
+            }
+
+            ok(td[i][j].weight == lf.lfWeight, "%d(%d): expected lfWeight %d, got %d\n", i, j, td[i][j].weight, lf.lfWeight);
+            ok(td[i][j].height == lf.lfHeight, "%d(%d): expected lfHeight %d, got %d\n", i, j, td[i][j].height, lf.lfHeight);
+            if (td[i][j].face_name[0] == '?')
+            {
+                /* Wine doesn't have this font, skip this case for now.
+                   Actually, the face name is localized on Windows and varies
+                   dpending on Windows versions (e.g. Japanese NT4 vs win2k). */
+                trace("%d(%d): default gui font is %s\n", i, j, lf.lfFaceName);
+            }
+            else
+            {
+                ok(!lstrcmp(td[i][j].face_name, lf.lfFaceName), "%d(%d): expected lfFaceName %s, got %s\n", i, j, td[i][j].face_name, lf.lfFaceName);
+            }
+            break;
+        }
+    }
+}
+
 START_TEST(font)
 {
     init();
 
+    test_stock_fonts();
     test_logfont();
     test_bitmap_font();
     test_outline_font();

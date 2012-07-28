@@ -219,6 +219,7 @@ static DWORD HTTP_HttpQueryInfoW(http_request_t*, DWORD, LPVOID, LPDWORD, LPDWOR
 static LPWSTR HTTP_GetRedirectURL(http_request_t *req, LPCWSTR lpszUrl);
 static UINT HTTP_DecodeBase64(LPCWSTR base64, LPSTR bin);
 static BOOL HTTP_VerifyValidHeader(http_request_t *req, LPCWSTR field);
+static BOOL drain_content(http_request_t*,BOOL);
 
 static CRITICAL_SECTION connection_pool_cs;
 static CRITICAL_SECTION_DEBUG connection_pool_debug =
@@ -244,11 +245,13 @@ void server_release(server_t *server)
 
     list_remove(&server->entry);
 
+    if(server->cert_chain)
+        CertFreeCertificateChain(server->cert_chain);
     heap_free(server->name);
     heap_free(server);
 }
 
-static server_t *get_server(const WCHAR *name, INTERNET_PORT port)
+server_t *get_server(const WCHAR *name, INTERNET_PORT port, BOOL do_create)
 {
     server_t *iter, *server = NULL;
 
@@ -262,13 +265,11 @@ static server_t *get_server(const WCHAR *name, INTERNET_PORT port)
         }
     }
 
-    if(!server) {
-        server = heap_alloc(sizeof(*server));
+    if(!server && do_create) {
+        server = heap_alloc_zero(sizeof(*server));
         if(server) {
-            server->addr_len = 0;
             server->ref = 2; /* list reference and return */
             server->port = port;
-            server->security_flags = 0;
             list_init(&server->conn_pool);
             server->name = heap_strdupW(name);
             if(server->name) {
@@ -1724,7 +1725,7 @@ static BOOL HTTP_DealWithProxy(appinfo_t *hIC, http_session_t *session, http_req
     if(UrlComponents.nPort == INTERNET_INVALID_PORT_NUMBER)
         UrlComponents.nPort = INTERNET_DEFAULT_HTTP_PORT;
 
-    new_server = get_server(UrlComponents.lpszHostName, UrlComponents.nPort);
+    new_server = get_server(UrlComponents.lpszHostName, UrlComponents.nPort, TRUE);
     if(!new_server)
         return FALSE;
 
@@ -1739,7 +1740,7 @@ static DWORD HTTP_ResolveName(http_request_t *request)
 {
     server_t *server = request->server;
     socklen_t addr_len;
-    const void *addr;
+    void *addr;
 
     if(server->addr_len)
         return ERROR_SUCCESS;
@@ -1906,22 +1907,6 @@ static void http_release_netconn(http_request_t *req, BOOL reuse)
                           INTERNET_STATUS_CONNECTION_CLOSED, 0, 0);
 }
 
-static void drain_content(http_request_t *req)
-{
-    BOOL try_reuse;
-
-    if (!req->netconn) return;
-
-    if (req->contentLength == -1)
-        try_reuse = FALSE;
-    else if(!strcmpW(req->verb, szHEAD))
-        try_reuse = TRUE;
-    else
-        try_reuse = req->data_stream->vtbl->drain_content(req->data_stream, req);
-
-    http_release_netconn(req, try_reuse);
-}
-
 static BOOL HTTP_KeepAlive(http_request_t *request)
 {
     WCHAR szVersion[10];
@@ -1951,7 +1936,7 @@ static void HTTPREQ_CloseConnection(object_header_t *hdr)
 {
     http_request_t *req = (http_request_t*)hdr;
 
-    drain_content(req);
+    http_release_netconn(req, drain_content(req, FALSE));
 }
 
 static DWORD HTTPREQ_QueryOption(object_header_t *hdr, DWORD option, void *buffer, DWORD *size, BOOL unicode)
@@ -1987,6 +1972,9 @@ static DWORD HTTPREQ_QueryOption(object_header_t *hdr, DWORD option, void *buffe
         return ERROR_SUCCESS;
     }
 
+    case 98:
+        TRACE("Queried undocumented option 98, forwarding to INTERNET_OPTION_SECURITY_FLAGS\n");
+        /* fall through */
     case INTERNET_OPTION_SECURITY_FLAGS:
     {
         DWORD flags;
@@ -2126,7 +2114,7 @@ static DWORD HTTPREQ_QueryOption(object_header_t *hdr, DWORD option, void *buffe
             INTERNET_CERTIFICATE_INFOA *info = (INTERNET_CERTIFICATE_INFOA*)buffer;
             DWORD len;
 
-            memset(info, 0, sizeof(INTERNET_CERTIFICATE_INFOW));
+            memset(info, 0, sizeof(*info));
             info->ftExpiry = context->pCertInfo->NotAfter;
             info->ftStart = context->pCertInfo->NotBefore;
             len = CertNameToStrA(context->dwCertEncodingType,
@@ -2147,6 +2135,7 @@ static DWORD HTTPREQ_QueryOption(object_header_t *hdr, DWORD option, void *buffe
             CertFreeCertificateContext(context);
             return ERROR_SUCCESS;
         }
+        return ERROR_NOT_SUPPORTED;
     }
     case INTERNET_OPTION_CONNECT_TIMEOUT:
         if (*size < sizeof(DWORD))
@@ -2187,6 +2176,15 @@ static DWORD HTTPREQ_SetOption(object_header_t *hdr, DWORD option, void *buffer,
     http_request_t *req = (http_request_t*)hdr;
 
     switch(option) {
+    case 99: /* Undocumented, seems to be INTERNET_OPTION_SECURITY_FLAGS with argument validation */
+        TRACE("Undocumented option 99\n");
+
+        if (!buffer || size != sizeof(DWORD))
+            return ERROR_INVALID_PARAMETER;
+        if(*(DWORD*)buffer & ~SECURITY_SET_MASK)
+            return ERROR_INTERNET_OPTION_NOT_SETTABLE;
+
+        /* fall through */
     case INTERNET_OPTION_SECURITY_FLAGS:
     {
         DWORD flags;
@@ -2194,10 +2192,11 @@ static DWORD HTTPREQ_SetOption(object_header_t *hdr, DWORD option, void *buffer,
         if (!buffer || size != sizeof(DWORD))
             return ERROR_INVALID_PARAMETER;
         flags = *(DWORD *)buffer;
-        TRACE("%08x\n", flags);
-        req->security_flags = flags;
+        TRACE("INTERNET_OPTION_SECURITY_FLAGS %08x\n", flags);
+        flags &= SECURITY_SET_MASK;
+        req->security_flags |= flags;
         if(req->netconn)
-            req->netconn->security_flags = flags;
+            req->netconn->security_flags |= flags;
         return ERROR_SUCCESS;
     }
     case INTERNET_OPTION_CONNECT_TIMEOUT:
@@ -2318,7 +2317,7 @@ static BOOL end_of_read_data( http_request_t *req )
 /* fetch some more data into the read buffer (the read section must be held) */
 static DWORD refill_read_buffer(http_request_t *req, read_mode_t read_mode, DWORD *read_bytes)
 {
-    DWORD res, read=0;
+    DWORD res, read=0, want;
 
     if(req->read_size == sizeof(req->read_buf))
         return ERROR_SUCCESS;
@@ -2329,8 +2328,10 @@ static DWORD refill_read_buffer(http_request_t *req, read_mode_t read_mode, DWOR
         req->read_pos = 0;
     }
 
+    want = sizeof(req->read_buf) - req->read_size;
     res = req->data_stream->vtbl->read(req->data_stream, req, req->read_buf+req->read_size,
-            sizeof(req->read_buf)-req->read_size, &read, read_mode);
+            want, &read, read_mode);
+    assert(read <= want);
     req->read_size += read;
 
     TRACE("read %u bytes, read_size %u\n", read, req->read_size);
@@ -2371,8 +2372,11 @@ static DWORD netconn_read(data_stream_t *stream, http_request_t *req, BYTE *buf,
 
     size = min(size, netconn_stream->content_length-netconn_stream->content_read);
 
-    if(read_mode == READMODE_NOBLOCK)
-        size = min(size, netconn_get_avail_data(stream, req));
+    if(read_mode == READMODE_NOBLOCK) {
+        DWORD avail = netconn_get_avail_data(stream, req);
+        if (size > avail)
+            size = avail;
+    }
 
     if(size && req->netconn) {
         if(NETCON_recv(req->netconn, buf, size, read_mode == READMODE_SYNC ? MSG_WAITALL : 0, &len) != ERROR_SUCCESS)
@@ -2743,6 +2747,39 @@ static DWORD HTTPREQ_Read(http_request_t *req, void *buffer, DWORD size, DWORD *
     return res;
 }
 
+static BOOL drain_content(http_request_t *req, BOOL blocking)
+{
+    BOOL ret;
+
+    if(!req->netconn || req->contentLength == -1)
+        return FALSE;
+
+    if(!strcmpW(req->verb, szHEAD))
+        return TRUE;
+
+    if(!blocking)
+        return req->data_stream->vtbl->drain_content(req->data_stream, req);
+
+    EnterCriticalSection( &req->read_section );
+
+    while(1) {
+        DWORD bytes_read, res;
+        BYTE buf[4096];
+
+        res = HTTPREQ_Read(req, buf, sizeof(buf), &bytes_read, TRUE);
+        if(res != ERROR_SUCCESS) {
+            ret = FALSE;
+            break;
+        }
+        if(!bytes_read) {
+            ret = TRUE;
+            break;
+        }
+    }
+
+    LeaveCriticalSection( &req->read_section );
+    return ret;
+}
 
 static DWORD HTTPREQ_ReadFile(object_header_t *hdr, void *buffer, DWORD size, DWORD *read)
 {
@@ -3090,7 +3127,7 @@ static DWORD HTTP_HttpOpenRequestW(http_session_t *session,
     if(port == INTERNET_INVALID_PORT_NUMBER)
         port = dwFlags & INTERNET_FLAG_SECURE ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT;
 
-    request->server = get_server(session->hostName, port);
+    request->server = get_server(session->hostName, port, TRUE);
     if(!request->server) {
         WININET_Release(&request->hdr);
         return ERROR_OUTOFMEMORY;
@@ -3466,12 +3503,14 @@ static DWORD HTTP_HttpQueryInfoW(http_request_t *request, DWORD dwInfoLevel,
             DWORD size;
             static const WCHAR formatW[] = {'%','u',0};
 
-            size = (sprintfW(buf, formatW, request->status_code)+1) * sizeof(WCHAR);
+            size = sprintfW(buf, formatW, request->status_code) * sizeof(WCHAR);
 
-            if(size <= *lpdwBufferLength)
-                memcpy(lpBuffer, buf, size);
-            else
+            if(size <= *lpdwBufferLength) {
+                memcpy(lpBuffer, buf, size+sizeof(WCHAR));
+            }else {
+                size += sizeof(WCHAR);
                 res = ERROR_INSUFFICIENT_BUFFER;
+            }
 
             *lpdwBufferLength = size;
         }
@@ -3918,7 +3957,7 @@ static DWORD HTTP_HandleRedirect(http_request_t *request, LPCWSTR lpszUrl)
         if(!using_proxy && (strcmpiW(request->server->name, hostName) || request->server->port != urlComponents.nPort)) {
             server_t *new_server;
 
-            new_server = get_server(hostName, urlComponents.nPort);
+            new_server = get_server(hostName, urlComponents.nPort, TRUE);
             server_release(request->server);
             request->server = new_server;
         }
@@ -4753,10 +4792,8 @@ static DWORD HTTP_HttpSendRequestW(http_request_t *request, LPCWSTR lpszHeaders,
         char *ascii_req;
 
         loop_next = FALSE;
+        reusing_connection = request->netconn != NULL;
 
-        /* like native, just in case the caller forgot to call InternetReadFile
-         * for all the data */
-        drain_content(request);
         if(redirected) {
             request->contentLength = ~0u;
             request->bytesToWrite = 0;
@@ -4791,7 +4828,7 @@ static DWORD HTTP_HttpSendRequestW(http_request_t *request, LPCWSTR lpszHeaders,
  
         TRACE("Request header -> %s\n", debugstr_w(requestString) );
 
-        if ((res = open_http_connection(request, &reusing_connection)) != ERROR_SUCCESS)
+        if (!reusing_connection && (res = open_http_connection(request, &reusing_connection)) != ERROR_SUCCESS)
             break;
 
         /* send the request as ASCII, tack on the optional data */
@@ -4879,7 +4916,7 @@ static DWORD HTTP_HttpSendRequestW(http_request_t *request, LPCWSTR lpszHeaders,
                         heap_free(request->verb);
                         request->verb = heap_strdupW(szGET);
                     }
-                    drain_content(request);
+                    http_release_netconn(request, drain_content(request, FALSE));
                     if ((new_url = HTTP_GetRedirectURL( request, szNewLocation )))
                     {
                         INTERNET_SendCallback(&request->hdr, request->hdr.dwContext, INTERNET_STATUS_REDIRECT,
@@ -4912,6 +4949,10 @@ static DWORD HTTP_HttpSendRequestW(http_request_t *request, LPCWSTR lpszHeaders,
                                                  Host->lpszValue))
                         {
                             heap_free(requestString);
+                            if(!drain_content(request, TRUE)) {
+                                FIXME("Could not drain content\n");
+                                http_release_netconn(request, FALSE);
+                            }
                             loop_next = TRUE;
                             break;
                         }
@@ -4934,6 +4975,10 @@ static DWORD HTTP_HttpSendRequestW(http_request_t *request, LPCWSTR lpszHeaders,
                                                  request->session->appInfo->proxyPassword,
                                                  NULL))
                         {
+                            if(!drain_content(request, TRUE)) {
+                                FIXME("Could not drain content\n");
+                                http_release_netconn(request, FALSE);
+                            }
                             loop_next = TRUE;
                             break;
                         }
@@ -5048,7 +5093,7 @@ static DWORD HTTP_HttpEndRequestW(http_request_t *request, DWORD dwFlags, DWORD_
                 heap_free(request->verb);
                 request->verb = heap_strdupW(szGET);
             }
-            drain_content(request);
+            http_release_netconn(request, drain_content(request, FALSE));
             if ((new_url = HTTP_GetRedirectURL( request, szNewLocation )))
             {
                 INTERNET_SendCallback(&request->hdr, request->hdr.dwContext, INTERNET_STATUS_REDIRECT,

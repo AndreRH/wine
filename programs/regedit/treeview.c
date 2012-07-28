@@ -483,7 +483,7 @@ HTREEITEM InsertNode(HWND hwndTV, HTREEITEM hItem, LPWSTR name)
 
     if (!hItem) hItem = (HTREEITEM)SendMessageW(hwndTV, TVM_GETNEXTITEM, TVGN_CARET, 0);
     if (!hItem) return FALSE;
-    if (SendMessageW(hwndTV, TVM_GETITEMSTATE, (WPARAM)hItem, TVIS_EXPANDEDONCE)) {
+    if (SendMessageW(hwndTV, TVM_GETITEMSTATE, (WPARAM)hItem, TVIS_EXPANDEDONCE) & TVIS_EXPANDEDONCE) {
         hNewItem = AddEntryToTree(hwndTV, hItem, name, 0, 0);
     } else {
 	item.mask = TVIF_CHILDREN | TVIF_HANDLE;
@@ -681,7 +681,7 @@ HWND CreateTreeView(HWND hwndParent, LPWSTR pHostName, UINT id)
     /* Get the dimensions of the parent window's client area, and create the tree view control.  */
     GetClientRect(hwndParent, &rcClient);
     hwndTV = CreateWindowExW(WS_EX_CLIENTEDGE, WC_TREEVIEWW, TreeView,
-                            WS_VISIBLE | WS_CHILD | WS_TABSTOP | TVS_HASLINES | TVS_HASBUTTONS | TVS_LINESATROOT,
+                            WS_VISIBLE | WS_CHILD | WS_TABSTOP | TVS_HASLINES | TVS_HASBUTTONS | TVS_LINESATROOT | TVS_EDITLABELS,
                             0, 0, rcClient.right, rcClient.bottom,
                             hwndParent, ULongToHandle(id), hInst, NULL);
     SendMessageW(hwndTV, TVM_SETUNICODEFORMAT, TRUE, 0);

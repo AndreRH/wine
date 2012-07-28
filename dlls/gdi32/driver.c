@@ -198,11 +198,6 @@ static BOOL nulldrv_Arc( PHYSDEV dev, INT left, INT top, INT right, INT bottom,
     return TRUE;
 }
 
-static INT nulldrv_ChoosePixelFormat( PHYSDEV dev, const PIXELFORMATDESCRIPTOR *descr )
-{
-    return 0;
-}
-
 static BOOL nulldrv_Chord( PHYSDEV dev, INT left, INT top, INT right, INT bottom,
                            INT xstart, INT ystart, INT xend, INT yend )
 {
@@ -387,11 +382,6 @@ static DWORD nulldrv_GetKerningPairs( PHYSDEV dev, DWORD count, LPKERNINGPAIR pa
 }
 
 static UINT nulldrv_GetOutlineTextMetrics( PHYSDEV dev, UINT size, LPOUTLINETEXTMETRICW otm )
-{
-    return 0;
-}
-
-static INT nulldrv_GetPixelFormat( PHYSDEV dev )
 {
     return 0;
 }
@@ -670,59 +660,9 @@ static BOOL nulldrv_UnrealizePalette( HPALETTE palette )
     return FALSE;
 }
 
-static BOOL nulldrv_wglCopyContext( HGLRC ctx_src, HGLRC ctx_dst, UINT mask )
+static struct opengl_funcs *nulldrv_wine_get_wgl_driver( PHYSDEV dev, UINT version )
 {
-    return FALSE;
-}
-
-static HGLRC nulldrv_wglCreateContext( PHYSDEV dev )
-{
-    return 0;
-}
-
-static HGLRC nulldrv_wglCreateContextAttribsARB( PHYSDEV dev, HGLRC share_ctx, const int *attribs )
-{
-    return 0;
-}
-
-static BOOL nulldrv_wglDeleteContext( HGLRC ctx )
-{
-    return FALSE;
-}
-
-static PROC nulldrv_wglGetProcAddress( LPCSTR name )
-{
-    return NULL;
-}
-
-static BOOL nulldrv_wglMakeCurrent( PHYSDEV dev, HGLRC ctx )
-{
-    return FALSE;
-}
-
-static BOOL nulldrv_wglMakeContextCurrentARB( PHYSDEV dev_draw, PHYSDEV dev_read, HGLRC ctx )
-{
-    return FALSE;
-}
-
-static BOOL nulldrv_wglSetPixelFormatWINE( PHYSDEV dev, INT format, const PIXELFORMATDESCRIPTOR *descr )
-{
-    return FALSE;
-}
-
-static BOOL nulldrv_wglShareLists( HGLRC ctx1, HGLRC ctx2 )
-{
-    return FALSE;
-}
-
-static BOOL nulldrv_wglUseFontBitmapsA( PHYSDEV dev, DWORD start, DWORD count, DWORD base )
-{
-    return FALSE;
-}
-
-static BOOL nulldrv_wglUseFontBitmapsW( PHYSDEV dev, DWORD start, DWORD count, DWORD base )
-{
-    return FALSE;
+    return (void *)-1;
 }
 
 const struct gdi_dc_funcs null_driver =
@@ -735,7 +675,6 @@ const struct gdi_dc_funcs null_driver =
     nulldrv_ArcTo,                      /* pArcTo */
     nulldrv_BeginPath,                  /* pBeginPath */
     nulldrv_BlendImage,                 /* pBlendImage */
-    nulldrv_ChoosePixelFormat,          /* pChoosePixelFormat */
     nulldrv_Chord,                      /* pChord */
     nulldrv_CloseFigure,                /* pCloseFigure */
     nulldrv_CreateCompatibleDC,         /* pCreateCompatibleDC */
@@ -779,7 +718,6 @@ const struct gdi_dc_funcs null_driver =
     nulldrv_GetNearestColor,            /* pGetNearestColor */
     nulldrv_GetOutlineTextMetrics,      /* pGetOutlineTextMetrics */
     nulldrv_GetPixel,                   /* pGetPixel */
-    nulldrv_GetPixelFormat,             /* pGetPixelFormat */
     nulldrv_GetSystemPaletteEntries,    /* pGetSystemPaletteEntries */
     nulldrv_GetTextCharsetInfo,         /* pGetTextCharsetInfo */
     nulldrv_GetTextExtentExPoint,       /* pGetTextExtentExPoint */
@@ -858,17 +796,7 @@ const struct gdi_dc_funcs null_driver =
     nulldrv_SwapBuffers,                /* pSwapBuffers */
     nulldrv_UnrealizePalette,           /* pUnrealizePalette */
     nulldrv_WidenPath,                  /* pWidenPath */
-    nulldrv_wglCopyContext,             /* pwglCopyContext */
-    nulldrv_wglCreateContext,           /* pwglCreateContext */
-    nulldrv_wglCreateContextAttribsARB, /* pwglCreateContextAttribsARB */
-    nulldrv_wglDeleteContext,           /* pwglDeleteContext */
-    nulldrv_wglGetProcAddress,          /* pwglGetProcAddress */
-    nulldrv_wglMakeContextCurrentARB,   /* pwglMakeContextCurrentARB */
-    nulldrv_wglMakeCurrent,             /* pwglMakeCurrent */
-    nulldrv_wglSetPixelFormatWINE,      /* pwglSetPixelFormatWINE */
-    nulldrv_wglShareLists,              /* pwglShareLists */
-    nulldrv_wglUseFontBitmapsA,         /* pwglUseFontBitmapsA */
-    nulldrv_wglUseFontBitmapsW,         /* pwglUseFontBitmapsW */
+    nulldrv_wine_get_wgl_driver,        /* wine_get_wgl_driver */
 
     GDI_PRIORITY_NULL_DRV               /* priority */
 };

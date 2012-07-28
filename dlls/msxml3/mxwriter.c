@@ -42,6 +42,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(msxml);
 static const WCHAR emptyW[] = {0};
 static const WCHAR spaceW[] = {' '};
 static const WCHAR quotW[]  = {'\"'};
+static const WCHAR closetagW[] = {'>','\r','\n'};
 
 /* should be ordered as encoding names are sorted */
 typedef enum
@@ -536,7 +537,10 @@ static void close_element_starttag(const mxwriter *This)
 static void set_element_name(mxwriter *This, const WCHAR *name, int len)
 {
     SysFreeString(This->element);
-    This->element = name ? SysAllocStringLen(name, len) : NULL;
+    if (name)
+        This->element = len != -1 ? SysAllocStringLen(name, len) : SysAllocString(name);
+    else
+        This->element = NULL;
 }
 
 static inline HRESULT flush_output_buffer(mxwriter *This)
@@ -755,6 +759,8 @@ static HRESULT WINAPI mxwriter_get_output(IMXWriter *iface, VARIANT *dest)
 
     TRACE("(%p)->(%p)\n", This, dest);
 
+    if (!dest) return E_POINTER;
+
     if (!This->dest)
     {
         HRESULT hr = flush_output_buffer(This);
@@ -766,10 +772,13 @@ static HRESULT WINAPI mxwriter_get_output(IMXWriter *iface, VARIANT *dest)
 
         return S_OK;
     }
-    else
-        FIXME("not implemented when stream is set up\n");
 
-    return E_NOTIMPL;
+    /* we only support IStream output so far */
+    V_VT(dest) = VT_UNKNOWN;
+    V_UNKNOWN(dest) = (IUnknown*)This->dest;
+    IStream_AddRef(This->dest);
+
+    return S_OK;
 }
 
 static HRESULT WINAPI mxwriter_put_encoding(IMXWriter *iface, BSTR encoding)
@@ -1063,7 +1072,8 @@ static HRESULT WINAPI SAXContentHandler_startElement(
     TRACE("(%p)->(%s %s %s %p)\n", This, debugstr_wn(namespaceUri, nnamespaceUri),
         debugstr_wn(local_name, nlocal_name), debugstr_wn(QName, nQName), attr);
 
-    if ((!namespaceUri || !local_name || !QName) && This->class_version != MSXML6)
+    if (((!namespaceUri || !local_name || !QName) && This->class_version != MSXML6) ||
+        (nQName == -1 && This->class_version == MSXML6))
         return E_INVALIDARG;
 
     close_element_starttag(This);
@@ -1131,13 +1141,13 @@ static HRESULT WINAPI SAXContentHandler_endElement(
     TRACE("(%p)->(%s:%d %s:%d %s:%d)\n", This, debugstr_wn(namespaceUri, nnamespaceUri), nnamespaceUri,
         debugstr_wn(local_name, nlocal_name), nlocal_name, debugstr_wn(QName, nQName), nQName);
 
-    if ((!namespaceUri || !local_name || !QName) && This->class_version != MSXML6)
+    if (((!namespaceUri || !local_name || !QName) && This->class_version != MSXML6) ||
+         (nQName == -1 && This->class_version == MSXML6))
         return E_INVALIDARG;
 
-    if (This->element && QName && !strncmpW(This->element, QName, nQName))
+    if (This->element)
     {
         static const WCHAR closeW[] = {'/','>'};
-
         write_output_buffer(This->buffer, closeW, 2);
     }
     else
@@ -1446,7 +1456,6 @@ static HRESULT WINAPI SAXDeclHandler_elementDecl(ISAXDeclHandler *iface,
     const WCHAR *name, int n_name, const WCHAR *model, int n_model)
 {
     static const WCHAR elementW[] = {'<','!','E','L','E','M','E','N','T',' '};
-    static const WCHAR closeelementW[] = {'>','\r','\n'};
     mxwriter *This = impl_from_ISAXDeclHandler( iface );
 
     TRACE("(%p)->(%s:%d %s:%d)\n", This, debugstr_wn(name, n_name), n_name,
@@ -1461,7 +1470,7 @@ static HRESULT WINAPI SAXDeclHandler_elementDecl(ISAXDeclHandler *iface,
     }
     if (n_model)
         write_output_buffer(This->buffer, model, n_model);
-    write_output_buffer(This->buffer, closeelementW, sizeof(closeelementW)/sizeof(WCHAR));
+    write_output_buffer(This->buffer, closetagW, sizeof(closetagW)/sizeof(WCHAR));
 
     return S_OK;
 }
@@ -1472,19 +1481,65 @@ static HRESULT WINAPI SAXDeclHandler_attributeDecl(ISAXDeclHandler *iface,
     const WCHAR *value, int n_value)
 {
     mxwriter *This = impl_from_ISAXDeclHandler( iface );
-    FIXME("(%p)->(%s:%d %s:%d %s:%d %s:%d %s:%d): stub\n", This, debugstr_wn(element, n_element), n_element,
+    static const WCHAR attlistW[] = {'<','!','A','T','T','L','I','S','T',' '};
+    static const WCHAR closetagW[] = {'>','\r','\n'};
+
+    TRACE("(%p)->(%s:%d %s:%d %s:%d %s:%d %s:%d)\n", This, debugstr_wn(element, n_element), n_element,
         debugstr_wn(attr, n_attr), n_attr, debugstr_wn(type, n_type), n_type, debugstr_wn(Default, n_default), n_default,
         debugstr_wn(value, n_value), n_value);
-    return E_NOTIMPL;
+
+    write_output_buffer(This->buffer, attlistW, sizeof(attlistW)/sizeof(WCHAR));
+    if (n_element) {
+        write_output_buffer(This->buffer, element, n_element);
+        write_output_buffer(This->buffer, spaceW, sizeof(spaceW)/sizeof(WCHAR));
+    }
+
+    if (n_attr) {
+        write_output_buffer(This->buffer, attr, n_attr);
+        write_output_buffer(This->buffer, spaceW, sizeof(spaceW)/sizeof(WCHAR));
+    }
+
+    if (n_type) {
+        write_output_buffer(This->buffer, type, n_type);
+        write_output_buffer(This->buffer, spaceW, sizeof(spaceW)/sizeof(WCHAR));
+    }
+
+    if (n_default) {
+        write_output_buffer(This->buffer, Default, n_default);
+        write_output_buffer(This->buffer, spaceW, sizeof(spaceW)/sizeof(WCHAR));
+    }
+
+    if (n_value)
+        write_output_buffer_quoted(This->buffer, value, n_value);
+
+    write_output_buffer(This->buffer, closetagW, sizeof(closetagW)/sizeof(WCHAR));
+
+    return S_OK;
 }
 
 static HRESULT WINAPI SAXDeclHandler_internalEntityDecl(ISAXDeclHandler *iface,
     const WCHAR *name, int n_name, const WCHAR *value, int n_value)
 {
     mxwriter *This = impl_from_ISAXDeclHandler( iface );
-    FIXME("(%p)->(%s:%d %s:%d): stub\n", This, debugstr_wn(name, n_name), n_name,
+    static const WCHAR entityW[] = {'<','!','E','N','T','I','T','Y',' '};
+
+    TRACE("(%p)->(%s:%d %s:%d)\n", This, debugstr_wn(name, n_name), n_name,
         debugstr_wn(value, n_value), n_value);
-    return E_NOTIMPL;
+
+    if (!name || !value) return E_INVALIDARG;
+
+    write_output_buffer(This->buffer, entityW, sizeof(entityW)/sizeof(WCHAR));
+    if (n_name) {
+        write_output_buffer(This->buffer, name, n_name);
+        write_output_buffer(This->buffer, spaceW, sizeof(spaceW)/sizeof(WCHAR));
+    }
+
+    if (n_value)
+        write_output_buffer_quoted(This->buffer, value, n_value);
+
+    write_output_buffer(This->buffer, closetagW, sizeof(closetagW)/sizeof(WCHAR));
+
+    return S_OK;
 }
 
 static HRESULT WINAPI SAXDeclHandler_externalEntityDecl(ISAXDeclHandler *iface,

@@ -37,6 +37,10 @@ static BOOL   (WINAPI *pDeleteTimerQueueTimer)(HANDLE, HANDLE, HANDLE);
 static HANDLE (WINAPI *pOpenWaitableTimerA)(DWORD,BOOL,LPCSTR);
 static HANDLE (WINAPI *pCreateMemoryResourceNotification)(MEMORY_RESOURCE_NOTIFICATION_TYPE);
 static BOOL   (WINAPI *pQueryMemoryResourceNotification)(HANDLE, PBOOL);
+static VOID   (WINAPI *pInitOnceInitialize)(PINIT_ONCE);
+static BOOL   (WINAPI *pInitOnceExecuteOnce)(PINIT_ONCE,PINIT_ONCE_FN,PVOID,LPVOID*);
+static BOOL   (WINAPI *pInitOnceBeginInitialize)(PINIT_ONCE,DWORD,BOOL*,LPVOID*);
+static BOOL   (WINAPI *pInitOnceComplete)(PINIT_ONCE,DWORD,LPVOID);
 
 static void test_signalandwait(void)
 {
@@ -704,11 +708,11 @@ static void CALLBACK timer_queue_cb6(PVOID p, BOOLEAN timedOut)
 
 static void test_timer_queue(void)
 {
-    HANDLE q, t1, t2, t3, t4, t5;
-    int n1, n2, n3, n4, n5;
+    HANDLE q, t0, t1, t2, t3, t4, t5;
+    int n0, n1, n2, n3, n4, n5;
     struct timer_queue_data1 d1, d2, d3, d4;
     HANDLE e, et1, et2;
-    BOOL ret;
+    BOOL ret, ret0;
 
     if (!pChangeTimerQueueTimer || !pCreateTimerQueue || !pCreateTimerQueueTimer
         || !pDeleteTimerQueueEx || !pDeleteTimerQueueTimer)
@@ -730,6 +734,18 @@ static void test_timer_queue(void)
     /* Test synchronous deletion of the queue and running timers. */
     q = pCreateTimerQueue();
     ok(q != NULL, "CreateTimerQueue\n");
+
+    /* Not called. */
+    t0 = NULL;
+    n0 = 0;
+    ret = pCreateTimerQueueTimer(&t0, q, timer_queue_cb1, &n0, 0,
+                                 300, 0);
+    ok(ret, "CreateTimerQueueTimer\n");
+    ok(t0 != NULL, "CreateTimerQueueTimer\n");
+    ret0 = pDeleteTimerQueueTimer(q, t0, NULL);
+    ok((!ret0 && GetLastError() == ERROR_IO_PENDING) ||
+       broken(ret0), /* Win 2000 & XP & 2003 */
+       "DeleteTimerQueueTimer ret=%d le=%u\n", ret0, GetLastError());
 
     /* Called once.  */
     t1 = NULL;
@@ -784,10 +800,12 @@ static void test_timer_queue(void)
 
     ret = pDeleteTimerQueueEx(q, INVALID_HANDLE_VALUE);
     ok(ret, "DeleteTimerQueueEx\n");
-    ok(n1 == 1, "Timer callback 1\n");
-    ok(n2 < n3, "Timer callback 2 should be much slower than 3\n");
-    ok(n4 == 0, "Timer callback 4\n");
-    ok(n5 == 1, "Timer callback 5\n");
+    todo_wine
+    ok(n0 == 1 || broken(ret0 && n0 == 0), "Timer callback 0 expected 1 got %d\n", n0);
+    ok(n1 == 1, "Timer callback 1 expected 1 got %d\n", n1);
+    ok(n2 < n3, "Timer callback 2 & 3 expected %d < %d\n", n2, n3);
+    ok(n4 == 0, "Timer callback 4 expected 0 got %d\n", n4);
+    ok(n5 == 1, "Timer callback 5 expected 1 got %d\n", n5);
 
     /* Test synchronous deletion of the timer/queue with event trigger. */
     e = CreateEvent(NULL, TRUE, FALSE, NULL);
@@ -1121,6 +1139,105 @@ static void test_WaitForMultipleObjects(void)
         if (maxevents[i]) CloseHandle(maxevents[i]);
 }
 
+static BOOL g_initcallback_ret, g_initcallback_called;
+static void *g_initctxt;
+
+static BOOL CALLBACK initonce_callback(INIT_ONCE *initonce, void *parameter, void **ctxt)
+{
+    g_initcallback_called = TRUE;
+    /* zero bit set means here that initialization is taking place - initialization locked */
+    ok(g_initctxt == *ctxt, "got wrong context value %p, expected %p\n", *ctxt, g_initctxt);
+    ok(initonce->Ptr == (void*)0x1, "got %p\n", initonce->Ptr);
+    ok(parameter == (void*)0xdeadbeef, "got wrong parameter\n");
+    return g_initcallback_ret;
+}
+
+static void test_initonce(void)
+{
+    INIT_ONCE initonce;
+    BOOL ret, pending;
+
+    if (!pInitOnceInitialize || !pInitOnceExecuteOnce)
+    {
+        skip("one-time initialization API not supported\n");
+        return;
+    }
+
+    /* blocking initialization with callback */
+    initonce.Ptr = (void*)0xdeadbeef;
+    pInitOnceInitialize(&initonce);
+    ok(initonce.Ptr == NULL, "got %p\n", initonce.Ptr);
+
+    /* initialisation completed successfully */
+    g_initcallback_ret = TRUE;
+    g_initctxt = NULL;
+    ret = pInitOnceExecuteOnce(&initonce, initonce_callback, (void*)0xdeadbeef, &g_initctxt);
+    ok(ret, "got wrong ret value %d\n", ret);
+    ok(initonce.Ptr == (void*)0x2, "got %p\n", initonce.Ptr);
+    ok(g_initctxt == (void*)0x0, "got %p\n", g_initctxt);
+    ok(g_initcallback_called, "got %d\n", g_initcallback_called);
+
+    /* so it's been called already so won't be called again */
+    g_initctxt = NULL;
+    g_initcallback_called = FALSE;
+    ret = pInitOnceExecuteOnce(&initonce, initonce_callback, (void*)0xdeadbeef, &g_initctxt);
+    ok(ret, "got wrong ret value %d\n", ret);
+    ok(initonce.Ptr == (void*)0x2, "got %p\n", initonce.Ptr);
+    ok(g_initctxt == NULL, "got %p\n", g_initctxt);
+    ok(!g_initcallback_called, "got %d\n", g_initcallback_called);
+
+    pInitOnceInitialize(&initonce);
+    g_initcallback_called = FALSE;
+    /* 2 lower order bits should never be used, you'll get a crash in result */
+    g_initctxt = (void*)0xFFFFFFF0;
+    ret = pInitOnceExecuteOnce(&initonce, initonce_callback, (void*)0xdeadbeef, &g_initctxt);
+    ok(ret, "got wrong ret value %d\n", ret);
+    ok(initonce.Ptr == (void*)0xFFFFFFF2, "got %p\n", initonce.Ptr);
+    ok(g_initctxt == (void*)0xFFFFFFF0, "got %p\n", g_initctxt);
+    ok(g_initcallback_called, "got %d\n", g_initcallback_called);
+
+    /* callback failed */
+    g_initcallback_ret = FALSE;
+    g_initcallback_called = FALSE;
+    g_initctxt = NULL;
+    pInitOnceInitialize(&initonce);
+    ret = pInitOnceExecuteOnce(&initonce, initonce_callback, (void*)0xdeadbeef, &g_initctxt);
+    ok(!ret, "got wrong ret value %d\n", ret);
+    ok(initonce.Ptr == NULL, "got %p\n", initonce.Ptr);
+    ok(g_initctxt == NULL, "got %p\n", g_initctxt);
+    ok(g_initcallback_called, "got %d\n", g_initcallback_called);
+
+    /* blocking initialzation without a callback */
+    pInitOnceInitialize(&initonce);
+    g_initctxt = NULL;
+    pending = FALSE;
+    ret = pInitOnceBeginInitialize(&initonce, 0, &pending, &g_initctxt);
+    ok(ret, "got wrong ret value %d\n", ret);
+    ok(pending, "got %d\n", pending);
+    ok(initonce.Ptr == (void*)1, "got %p\n", initonce.Ptr);
+    ok(g_initctxt == NULL, "got %p\n", g_initctxt);
+    /* another attempt to begin initialization with block a single thread */
+
+    g_initctxt = NULL;
+    pending = 0xf;
+    ret = pInitOnceBeginInitialize(&initonce, INIT_ONCE_CHECK_ONLY, &pending, &g_initctxt);
+    ok(!ret, "got wrong ret value %d\n", ret);
+    ok(pending == 0xf, "got %d\n", pending);
+    ok(initonce.Ptr == (void*)1, "got %p\n", initonce.Ptr);
+    ok(g_initctxt == NULL, "got %p\n", g_initctxt);
+
+    g_initctxt = (void*)0xdeadbee0;
+    ret = pInitOnceComplete(&initonce, INIT_ONCE_INIT_FAILED, g_initctxt);
+    ok(!ret, "got wrong ret value %d\n", ret);
+    ok(initonce.Ptr == (void*)1, "got %p\n", initonce.Ptr);
+
+    /* once failed already */
+    g_initctxt = (void*)0xdeadbee0;
+    ret = pInitOnceComplete(&initonce, 0, g_initctxt);
+    ok(ret, "got wrong ret value %d\n", ret);
+    ok(initonce.Ptr == (void*)0xdeadbee2, "got %p\n", initonce.Ptr);
+}
+
 START_TEST(sync)
 {
     HMODULE hdll = GetModuleHandle("kernel32");
@@ -1133,6 +1250,10 @@ START_TEST(sync)
     pOpenWaitableTimerA = (void*)GetProcAddress(hdll, "OpenWaitableTimerA");
     pCreateMemoryResourceNotification = (void *)GetProcAddress(hdll, "CreateMemoryResourceNotification");
     pQueryMemoryResourceNotification = (void *)GetProcAddress(hdll, "QueryMemoryResourceNotification");
+    pInitOnceInitialize = (void *)GetProcAddress(hdll, "InitOnceInitialize");
+    pInitOnceExecuteOnce = (void *)GetProcAddress(hdll, "InitOnceExecuteOnce");
+    pInitOnceBeginInitialize = (void *)GetProcAddress(hdll, "InitOnceBeginInitialize");
+    pInitOnceComplete = (void *)GetProcAddress(hdll, "InitOnceComplete");
 
     test_signalandwait();
     test_mutex();
@@ -1144,4 +1265,5 @@ START_TEST(sync)
     test_timer_queue();
     test_WaitForSingleObject();
     test_WaitForMultipleObjects();
+    test_initonce();
 }

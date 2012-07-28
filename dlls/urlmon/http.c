@@ -79,18 +79,13 @@ static LPWSTR query_http_info(HttpProtocol *This, DWORD option)
     return ret;
 }
 
-static inline BOOL set_security_flag(HttpProtocol *This, DWORD new_flag)
+static inline BOOL set_security_flag(HttpProtocol *This, DWORD flags)
 {
-    DWORD flags, size = sizeof(flags);
     BOOL res;
 
-    res = InternetQueryOptionW(This->base.request, INTERNET_OPTION_SECURITY_FLAGS, &flags, &size);
-    if(res) {
-        flags |= new_flag;
-        res = InternetSetOptionW(This->base.request, INTERNET_OPTION_SECURITY_FLAGS, &flags, size);
-    }
+    res = InternetSetOptionW(This->base.request, INTERNET_OPTION_SECURITY_FLAGS, &flags, sizeof(flags));
     if(!res)
-        ERR("Failed to set security flag(s): %x\n", new_flag);
+        ERR("Failed to set security flags: %x\n", flags);
 
     return res;
 }
@@ -129,6 +124,8 @@ static HRESULT handle_http_error(HttpProtocol *This, DWORD error)
     DWORD res;
     HRESULT hres;
 
+    TRACE("(%p %u)\n", This, error);
+
     switch(error) {
     case ERROR_INTERNET_SEC_CERT_DATE_INVALID:
     case ERROR_INTERNET_SEC_CERT_CN_INVALID:
@@ -162,6 +159,8 @@ static HRESULT handle_http_error(HttpProtocol *This, DWORD error)
             hres = IHttpSecurity_OnSecurityProblem(http_security, error);
             IHttpSecurity_Release(http_security);
 
+            TRACE("OnSecurityProblem returned %08x\n", hres);
+
             if(hres != S_FALSE)
             {
                 BOOL res = FALSE;
@@ -193,35 +192,44 @@ static HRESULT handle_http_error(HttpProtocol *This, DWORD error)
         }
     }
 
-    hres = IServiceProvider_QueryService(serv_prov, &IID_IWindowForBindingUI, &IID_IWindowForBindingUI,
-                                         (void**)&wfb_ui);
-    if(SUCCEEDED(hres)) {
-        const IID *iid_reason;
+    switch(error) {
+    case ERROR_INTERNET_SEC_CERT_REV_FAILED:
+        if(hres != S_FALSE) {
+            /* Silently ignore the error. We will get more detailed error from wininet anyway. */
+            set_security_flag(This, SECURITY_FLAG_IGNORE_REVOCATION);
+            hres = RPC_E_RETRY;
+            break;
+        }
+        /* fallthrough */
+    default:
+        hres = IServiceProvider_QueryService(serv_prov, &IID_IWindowForBindingUI, &IID_IWindowForBindingUI, (void**)&wfb_ui);
+        if(SUCCEEDED(hres)) {
+            const IID *iid_reason;
 
-        if(security_problem)
-            iid_reason = &IID_IHttpSecurity;
-        else if(error == ERROR_INTERNET_INCORRECT_PASSWORD)
-            iid_reason = &IID_IAuthenticate;
-        else
-            iid_reason = &IID_IWindowForBindingUI;
+            if(security_problem)
+                iid_reason = &IID_IHttpSecurity;
+            else if(error == ERROR_INTERNET_INCORRECT_PASSWORD)
+                iid_reason = &IID_IAuthenticate;
+            else
+                iid_reason = &IID_IWindowForBindingUI;
 
-        hres = IWindowForBindingUI_GetWindow(wfb_ui, iid_reason, &hwnd);
-        IWindowForBindingUI_Release(wfb_ui);
-        if(FAILED(hres))
-            hwnd = NULL;
+            hres = IWindowForBindingUI_GetWindow(wfb_ui, iid_reason, &hwnd);
+            IWindowForBindingUI_Release(wfb_ui);
+            if(FAILED(hres))
+                hwnd = NULL;
+        }
+
+
+        dlg_flags = FLAGS_ERROR_UI_FLAGS_CHANGE_OPTIONS | FLAGS_ERROR_UI_FLAGS_GENERATE_DATA;
+        if(This->base.bindf & BINDF_NO_UI)
+            dlg_flags |= FLAGS_ERROR_UI_FLAGS_NO_UI;
+
+        res = InternetErrorDlg(hwnd, This->base.request, error, dlg_flags, NULL);
+        hres = res == ERROR_INTERNET_FORCE_RETRY || res == ERROR_SUCCESS ? RPC_E_RETRY : internet_error_to_hres(error);
     }
 
     IServiceProvider_Release(serv_prov);
-
-    dlg_flags = FLAGS_ERROR_UI_FLAGS_CHANGE_OPTIONS | FLAGS_ERROR_UI_FLAGS_GENERATE_DATA;
-    if(This->base.bindf & BINDF_NO_UI)
-        dlg_flags |= FLAGS_ERROR_UI_FLAGS_NO_UI;
-
-    res = InternetErrorDlg(hwnd, This->base.request, error, dlg_flags, NULL);
-    if(res == ERROR_INTERNET_FORCE_RETRY || res == ERROR_SUCCESS)
-        return RPC_E_RETRY;
-
-    return internet_error_to_hres(error);
+    return hres;
 }
 
 static ULONG send_http_request(HttpProtocol *This)
@@ -604,7 +612,7 @@ static HRESULT WINAPI HttpProtocol_QueryInterface(IInternetProtocolEx *iface, RE
     }
 
     if(*ppv) {
-        IInternetProtocol_AddRef(iface);
+        IInternetProtocolEx_AddRef(iface);
         return S_OK;
     }
 

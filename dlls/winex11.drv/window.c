@@ -847,7 +847,6 @@ static unsigned long *get_bitmap_argb( HDC hdc, HBITMAP color, HBITMAP mask, uns
                 if (!((mask_bits[i * width_bytes + j / 8] << (j % 8)) & 0x80)) *ptr |= 0xff000000;
         HeapFree( GetProcessHeap(), 0, mask_bits );
     }
-    HeapFree( GetProcessHeap(), 0, info );
 
     /* convert to array of longs */
     if (bits && sizeof(long) > sizeof(int))
@@ -2325,7 +2324,6 @@ void CDECL X11DRV_GetDC( HDC hdc, HWND hwnd, HWND top, const RECT *win_rect,
     escape.dc_rect.top          = win_rect->top - top_rect->top;
     escape.dc_rect.right        = win_rect->right - top_rect->left;
     escape.dc_rect.bottom       = win_rect->bottom - top_rect->top;
-    escape.drawable_rect        = *top_rect;
 
     if (top == hwnd)
     {
@@ -2356,7 +2354,6 @@ void CDECL X11DRV_GetDC( HDC hdc, HWND hwnd, HWND top, const RECT *win_rect,
             POINT pt = { 0, 0 };
             MapWindowPoints( top, parent, &pt, 1 );
             OffsetRect( &escape.dc_rect, pt.x, pt.y );
-            OffsetRect( &escape.drawable_rect, -pt.x, -pt.y );
         }
         else escape.drawable = X11DRV_get_client_window( top );
 
@@ -2381,10 +2378,9 @@ void CDECL X11DRV_ReleaseDC( HWND hwnd, HDC hdc )
     escape.code = X11DRV_SET_DRAWABLE;
     escape.drawable = root_window;
     escape.mode = IncludeInferiors;
-    escape.drawable_rect = virtual_screen_rect;
     SetRect( &escape.dc_rect, 0, 0, virtual_screen_rect.right - virtual_screen_rect.left,
              virtual_screen_rect.bottom - virtual_screen_rect.top );
-    OffsetRect( &escape.dc_rect, -escape.drawable_rect.left, -escape.drawable_rect.top );
+    OffsetRect( &escape.dc_rect, -virtual_screen_rect.left, -virtual_screen_rect.top );
     escape.fbconfig_id = 0;
     escape.gl_drawable = 0;
     escape.pixmap = 0;

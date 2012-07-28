@@ -131,6 +131,7 @@ interface IHTMLElement2;
 interface IHTMLStyleSheetsCollection;
 interface IHTMLFrameBase;
 interface IHTMLStorage;
+interface IDOMEvent;
 
 /*****************************************************************************
  *    IHTMLFiltersCollection interface
@@ -7799,6 +7800,198 @@ methods:
 
     [propget, id(DISPID_IHTMLIMGELEMENT2_LONGDESC), displaybind, bindable]
     BSTR longDesc();
+}
+
+/*****************************************************************************
+ *    IHTMLXMLHttpRequest interface
+ */
+[
+    odl,
+    oleautomation,
+    dual,
+    uuid(3051040a-98b5-11cf-bb82-00aa00bdce0b)
+]
+interface IHTMLXMLHttpRequest : IDispatch
+{
+    [propget, id(DISPID_IHTMLXMLHTTPREQUEST_READYSTATE)]
+    HRESULT readyState([out, retval] long *p);
+
+    [propget, id(DISPID_IHTMLXMLHTTPREQUEST_RESPONSEBODY)]
+    HRESULT responseBody([out, retval] VARIANT *p);
+
+    [propget, id(DISPID_IHTMLXMLHTTPREQUEST_RESPONSETEXT)]
+    HRESULT responseText([out, retval] BSTR *p);
+
+    [propget, id(DISPID_IHTMLXMLHTTPREQUEST_RESPONSEXML)]
+    HRESULT responseXML([out, retval] IDispatch **p);
+
+    [propget, id(DISPID_IHTMLXMLHTTPREQUEST_STATUS)]
+    HRESULT status([out, retval] long *p);
+
+    [propget, id(DISPID_IHTMLXMLHTTPREQUEST_STATUSTEXT)]
+    HRESULT statusText([out, retval] BSTR *p);
+
+    [propput, id(DISPID_IHTMLXMLHTTPREQUEST_ONREADYSTATECHANGE), displaybind, bindable]
+    HRESULT onreadystatechange([in] VARIANT v);
+
+    [propget, id(DISPID_IHTMLXMLHTTPREQUEST_ONREADYSTATECHANGE), displaybind, bindable]
+    HRESULT onreadystatechange([out, retval] VARIANT *p);
+
+    [id(DISPID_IHTMLXMLHTTPREQUEST_ABORT)] HRESULT abort();
+
+    [id(DISPID_IHTMLXMLHTTPREQUEST_OPEN)]
+    HRESULT open(
+            [in] BSTR bstrMethod,
+            [in] BSTR bstrUrl,
+            [in] VARIANT varAsync,
+            [in, optional] VARIANT varUser,
+            [in, optional] VARIANT varPassword);
+
+    [id(DISPID_IHTMLXMLHTTPREQUEST_SEND)]
+    HRESULT send([in, optional] VARIANT varBody);
+
+    [id(DISPID_IHTMLXMLHTTPREQUEST_GETALLRESPONSEHEADERS)]
+    HRESULT getAllResponseHeaders([out, retval] BSTR *p);
+
+    [id(DISPID_IHTMLXMLHTTPREQUEST_GETRESPONSEHEADER)]
+    HRESULT getResponseHeader(
+            [in] BSTR bstrHeader,
+            [out, retval] BSTR *p);
+
+    [id(DISPID_IHTMLXMLHTTPREQUEST_SETREQUESTHEADER)]
+    HRESULT setRequestHeader(
+            [in] BSTR bstrHeader,
+            [in] BSTR bstrValue);
+}
+
+/*****************************************************************************
+ *    IHTMLXMLHttpRequest2 interface
+ */
+[
+    odl,
+    oleautomation,
+    dual,
+    uuid(30510482-98b5-11cf-bb82-00aa00bdce0b)
+]
+interface IHTMLXMLHttpRequest2 : IDispatch
+{
+    [propput, id(DISPID_IHTMLXMLHTTPREQUEST2_TIMEOUT)]
+    HRESULT timeout([in] long v);
+
+    [propget, id(DISPID_IHTMLXMLHTTPREQUEST2_TIMEOUT)]
+    HRESULT timeout([out, retval] long *p);
+
+    [propput, id(DISPID_IHTMLXMLHTTPREQUEST2_ONTIMEOUT), displaybind, bindable]
+    HRESULT ontimeout([in] VARIANT v);
+
+    [propget, id(DISPID_IHTMLXMLHTTPREQUEST2_ONTIMEOUT), displaybind, bindable]
+    HRESULT ontimeout([out, retval] VARIANT *p);
+}
+
+/*****************************************************************************
+ *    IHTMLXMLHttpRequestFactory interface
+ */
+[
+    odl,
+    oleautomation,
+    dual,
+    uuid(3051040c-98b5-11cf-bb82-00aa00bdce0b)
+]
+interface IHTMLXMLHttpRequestFactory : IDispatch
+{
+    [id(DISPID_IHTMLXMLHTTPREQUESTFACTORY_CREATE)]
+    HRESULT create([out, retval] IHTMLXMLHttpRequest **p);
+}
+
+/*****************************************************************************
+ *    DispHTMLXMLHttpRequest dispinterface
+ */
+[
+    hidden,
+    uuid(3050f596-98b5-11cf-bb82-00aa00bdce0b)
+]
+dispinterface DispHTMLXMLHttpRequest
+{
+properties:
+methods:
+    [propget, id(DISPID_IHTMLXMLHTTPREQUEST_READYSTATE)]
+    long readyState();
+
+    [propget, id(DISPID_IHTMLXMLHTTPREQUEST_RESPONSEBODY)]
+    VARIANT responseBody();
+
+    [propget, id(DISPID_IHTMLXMLHTTPREQUEST_RESPONSETEXT)]
+    BSTR responseText();
+
+    [propget, id(DISPID_IHTMLXMLHTTPREQUEST_RESPONSEXML)]
+    IDispatch *responseXML();
+
+    [propget, id(DISPID_IHTMLXMLHTTPREQUEST_STATUS)]
+    long status();
+
+    [propget, id(DISPID_IHTMLXMLHTTPREQUEST_STATUSTEXT)]
+    BSTR statusText();
+
+    [propput, id(DISPID_IHTMLXMLHTTPREQUEST_ONREADYSTATECHANGE), displaybind, bindable]
+    void onreadystatechange(VARIANT v);
+
+    [propget, id(DISPID_IHTMLXMLHTTPREQUEST_ONREADYSTATECHANGE), displaybind, bindable]
+    VARIANT onreadystatechange();
+
+    [id(DISPID_IHTMLXMLHTTPREQUEST_ABORT)]
+    void abort();
+
+    [id(DISPID_IHTMLXMLHTTPREQUEST_OPEN)]
+    void open(
+            [in] BSTR bstrMethod,
+            [in] BSTR bstrUrl,
+            [in] VARIANT varAsync,
+            [in, optional] VARIANT varUser,
+            [in, optional] VARIANT varPassword);
+
+    [id(DISPID_IHTMLXMLHTTPREQUEST_SEND)]
+    void send([in, optional] VARIANT varBody);
+
+    [id(DISPID_IHTMLXMLHTTPREQUEST_GETALLRESPONSEHEADERS)]
+    BSTR getAllResponseHeaders();
+
+    [id(DISPID_IHTMLXMLHTTPREQUEST_GETRESPONSEHEADER)]
+    BSTR getResponseHeader([in] BSTR bstrHeader);
+
+    [id(DISPID_IHTMLXMLHTTPREQUEST_SETREQUESTHEADER)]
+    void setRequestHeader(
+            [in] BSTR bstrHeader,
+            [in] BSTR bstrValue);
+
+    [propput, id(DISPID_IHTMLXMLHTTPREQUEST2_TIMEOUT)]
+    void timeout(long v);
+
+    [propget, id(DISPID_IHTMLXMLHTTPREQUEST2_TIMEOUT)]
+    long timeout();
+
+    [propput, id(DISPID_IHTMLXMLHTTPREQUEST2_ONTIMEOUT), displaybind, bindable]
+    void ontimeout(VARIANT v);
+
+    [propget, id(DISPID_IHTMLXMLHTTPREQUEST2_ONTIMEOUT), displaybind, bindable]
+    VARIANT ontimeout();
+
+    WINE_IHTMLDOMCONSTRUCTOR_DISPINTERFACE_DECL;
+
+
+    [id(DISPID_IEVENTTARGET_ADDEVENTLISTENER)]
+    void addEventListener(
+            [in] BSTR type,
+            [in] IDispatch *listener,
+            [in] VARIANT_BOOL useCapture);
+
+    [id(DISPID_IEVENTTARGET_REMOVEEVENTLISTENER)]
+    void removeEventListener(
+            [in] BSTR type,
+            [in] IDispatch *listener,
+            [in] VARIANT_BOOL useCapture);
+
+    [id(DISPID_IEVENTTARGET_DISPATCHEVENT)]
+    VARIANT_BOOL dispatchEvent([in] IDOMEvent *evt);
 }
 
 /*****************************************************************************
@@ -17029,6 +17222,98 @@ interface IHTMLStorage : IDispatch
 
     [id(DISPID_IHTMLSTORAGE_CLEAR)]
     HRESULT clear();
+}
+
+/*****************************************************************************
+ *    IDOMEventTarget interface
+ */
+[
+    odl,
+    oleautomation,
+    dual,
+    uuid(305104b9-98b5-11cf-bb82-00aa00bdce0b)
+]
+interface IEventTarget : IDispatch
+{
+    [id(DISPID_IEVENTTARGET_ADDEVENTLISTENER)]
+    HRESULT addEventListener(
+            [in] BSTR type,
+            [in] IDispatch *listener,
+            [in] VARIANT_BOOL useCapture);
+
+    [id(DISPID_IEVENTTARGET_REMOVEEVENTLISTENER)]
+    HRESULT removeEventListener(
+            [in] BSTR type,
+            [in] IDispatch *listener,
+            [in] VARIANT_BOOL useCapture);
+
+    [id(DISPID_IEVENTTARGET_DISPATCHEVENT)]
+    HRESULT dispatchEvent(
+            [in] IDOMEvent *evt,
+            [out, retval] VARIANT_BOOL *pfResult);
+}
+
+/*****************************************************************************
+ *    IDOMEvent interface
+ */
+[
+    odl,
+    oleautomation,
+    dual,
+    uuid(305104ba-98b5-11cf-bb82-00aa00bdce0b)
+]
+interface IDOMEvent : IDispatch
+{
+    [propget, id(DISPID_IDOMEVENT_BUBBLES)]
+    HRESULT bubbles([out, retval] VARIANT_BOOL *p);
+
+    [propget, id(DISPID_IDOMEVENT_CANCELABLE)]
+    HRESULT cancelable([out, retval] VARIANT_BOOL *p);
+
+    [propget, id(DISPID_IDOMEVENT_CURRENTTARGET)]
+    HRESULT currentTarget([out, retval] IEventTarget **p);
+
+    [propget, id(DISPID_IDOMEVENT_DEFAULTPREVENTED)]
+    HRESULT defaultPrevented([out, retval] VARIANT_BOOL *p);
+
+    [propget, id(DISPID_IDOMEVENT_EVENTPHASE)]
+    HRESULT eventPhase([out, retval] USHORT *p);
+
+    [propget, id(DISPID_IDOMEVENT_TARGET)]
+    HRESULT target([out, retval] IEventTarget **p);
+
+    [propget, id(DISPID_IDOMEVENT_TIMESTAMP)]
+    HRESULT timeStamp([out, retval] ULONGLONG *p);
+
+    [propget, id(DISPID_IDOMEVENT_TYPE)]
+    HRESULT type([out, retval] BSTR *p);
+
+    [id(DISPID_IDOMEVENT_INITEVENT)]
+    HRESULT initEvent(
+            [in] BSTR eventType,
+            [in] VARIANT_BOOL canBubble,
+            [in] VARIANT_BOOL cancelable);
+
+    [id(DISPID_IDOMEVENT_PREVENTDEFAULT)]
+    HRESULT preventDefault();
+
+    [id(DISPID_IDOMEVENT_STOPPROPAGATION)]
+    HRESULT stopPropagation();
+
+    [id(DISPID_IDOMEVENT_STOPIMMEDIATEPROPAGATION)]
+    HRESULT stopImmediatePropagation();
+
+    [propget, id(DISPID_IDOMEVENT_ISTRUSTED)]
+    HRESULT isTrusted([out, retval] VARIANT_BOOL *p);
+
+    [propput, id(DISPID_IDOMEVENT_CANCELBUBBLE)]
+    HRESULT cancelBubble([in] VARIANT_BOOL v);
+
+    [propget, id(DISPID_IDOMEVENT_CANCELBUBBLE)]
+    HRESULT cancelBubble([out, retval] VARIANT_BOOL *p);
+
+    [propget, id(DISPID_IDOMEVENT_SRCELEMENT)]
+    HRESULT srcElement([out, retval] IHTMLElement **p);
 }
 
 /*****************************************************************************

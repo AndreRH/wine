@@ -21,11 +21,11 @@
 #ifndef __WINE_SHELL_CPANEL_H
 #define __WINE_SHELL_CPANEL_H
 
+#include "wine/list.h"
 #include "cpl.h"
 
 struct applet_info
 {
-    BOOL     valid;
     LONG_PTR data;
     HICON    icon;
     WCHAR    name[256];
@@ -34,7 +34,7 @@ struct applet_info
 };
 
 typedef struct CPlApplet {
-    struct CPlApplet*   next;		/* linked list */
+    struct list         entry;
     HWND		hWnd;
     LPWSTR		cmd;        /* path to applet */
     unsigned		count;		/* number of subprograms */
@@ -44,7 +44,7 @@ typedef struct CPlApplet {
 } CPlApplet;
 
 typedef struct CPanel {
-    CPlApplet*  first;
+    struct list applets;
     HWND        hWnd;
     HINSTANCE   hInst;
     unsigned    total_subprogs;
@@ -61,6 +61,6 @@ typedef struct CPlItem {
 } CPlItem;
 
 CPlApplet* Control_LoadApplet(HWND hWnd, LPCWSTR cmd, CPanel* panel) DECLSPEC_HIDDEN;
-CPlApplet* Control_UnloadApplet(CPlApplet* applet) DECLSPEC_HIDDEN;
+void Control_UnloadApplet(CPlApplet* applet) DECLSPEC_HIDDEN;
 
 #endif /* __WINE_SHELL_CPANEL_H */

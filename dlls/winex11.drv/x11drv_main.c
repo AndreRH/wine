@@ -47,8 +47,6 @@
 #include "winreg.h"
 
 #include "x11drv.h"
-#include "xvidmode.h"
-#include "xrandr.h"
 #include "xcomposite.h"
 #include "wine/server.h"
 #include "wine/debug.h"
@@ -575,14 +573,10 @@ static BOOL process_attach(void)
     xinerama_init( WidthOfScreen(screen), HeightOfScreen(screen) );
     X11DRV_Settings_Init();
 
-#ifdef SONAME_LIBXXF86VM
     /* initialize XVidMode */
     X11DRV_XF86VM_Init();
-#endif
-#ifdef SONAME_LIBXRANDR
     /* initialize XRandR */
     X11DRV_XRandR_Init();
-#endif
 #ifdef SONAME_LIBXCOMPOSITE
     X11DRV_XComposite_Init();
 #endif
@@ -625,10 +619,8 @@ static void thread_detach(void)
 static void process_detach(void)
 {
     X11DRV_Clipboard_Cleanup();
-#ifdef SONAME_LIBXXF86VM
     /* cleanup XVidMode */
     X11DRV_XF86VM_Cleanup();
-#endif
     X11DRV_XRender_Finalize();
 
     /* cleanup GDI */

@@ -1290,7 +1290,7 @@
 @ cdecl atoi(str) msvcrt.atoi
 @ cdecl atol(str) msvcrt.atol
 @ cdecl bsearch(ptr ptr long long ptr) msvcrt.bsearch
-@ stub bsearch_s
+@ cdecl bsearch_s(ptr ptr long long ptr ptr) msvcrt.bsearch_s
 @ cdecl btowc(long) msvcrt.btowc
 @ cdecl calloc(long long) msvcrt.calloc
 @ cdecl ceil(double) msvcrt.ceil
@@ -1463,7 +1463,7 @@
 @ cdecl tan(double) msvcrt.tan
 @ cdecl tanh(double) msvcrt.tanh
 @ cdecl tmpfile() msvcrt.tmpfile
-@ stub tmpfile_s
+@ cdecl tmpfile_s(ptr) msvcrt.tmpfile_s
 @ cdecl tmpnam(ptr) msvcrt.tmpnam
 @ stub tmpnam_s
 @ cdecl tolower(long) msvcrt.tolower

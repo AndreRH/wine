@@ -746,18 +746,24 @@ static inline BYTE get_cache_pitch_family(SCRIPT_CACHE *psc)
 
 static inline WORD get_cache_glyph(SCRIPT_CACHE *psc, DWORD c)
 {
-    WORD *block = ((ScriptCache *)*psc)->glyphs[c >> GLYPH_BLOCK_SHIFT];
+    CacheGlyphPage *page = ((ScriptCache *)*psc)->page[c / 0x10000];
+    WORD *block;
 
+    if (!page) return 0;
+    block = page->glyphs[(c % 0x10000) >> GLYPH_BLOCK_SHIFT];
     if (!block) return 0;
-    return block[c & GLYPH_BLOCK_MASK];
+    return block[(c % 0x10000) & GLYPH_BLOCK_MASK];
 }
 
 static inline WORD set_cache_glyph(SCRIPT_CACHE *psc, WCHAR c, WORD glyph)
 {
-    WORD **block = &((ScriptCache *)*psc)->glyphs[c >> GLYPH_BLOCK_SHIFT];
+    CacheGlyphPage **page = &((ScriptCache *)*psc)->page[c / 0x10000];
+    WORD **block;
+    if (!*page && !(*page = heap_alloc_zero(sizeof(CacheGlyphPage)))) return 0;
 
+    block = &(*page)->glyphs[(c % 0x10000) >> GLYPH_BLOCK_SHIFT];
     if (!*block && !(*block = heap_alloc_zero(sizeof(WORD) * GLYPH_BLOCK_SIZE))) return 0;
-    return ((*block)[c & GLYPH_BLOCK_MASK] = glyph);
+    return ((*block)[(c % 0x10000) & GLYPH_BLOCK_MASK] = glyph);
 }
 
 static inline BOOL get_cache_glyph_widths(SCRIPT_CACHE *psc, WORD glyph, ABC *abc)
@@ -965,12 +971,20 @@ HRESULT WINAPI ScriptFreeCache(SCRIPT_CACHE *psc)
         unsigned int i;
         for (i = 0; i < GLYPH_MAX / GLYPH_BLOCK_SIZE; i++)
         {
-            heap_free(((ScriptCache *)*psc)->glyphs[i]);
             heap_free(((ScriptCache *)*psc)->widths[i]);
+        }
+        for (i = 0; i < 0x10; i++)
+        {
+            int j;
+            if (((ScriptCache *)*psc)->page[i])
+                for (j = 0; j < GLYPH_MAX / GLYPH_BLOCK_SIZE; j++)
+                    heap_free(((ScriptCache *)*psc)->page[i]->glyphs[j]);
+            heap_free(((ScriptCache *)*psc)->page[i]);
         }
         heap_free(((ScriptCache *)*psc)->GSUB_Table);
         heap_free(((ScriptCache *)*psc)->GDEF_Table);
         heap_free(((ScriptCache *)*psc)->CMAP_Table);
+        heap_free(((ScriptCache *)*psc)->GPOS_Table);
         for (i = 0; i < ((ScriptCache *)*psc)->script_count; i++)
         {
             int j;
@@ -3030,6 +3044,8 @@ HRESULT WINAPI ScriptPlaceOpenType( HDC hdc, SCRIPT_CACHE *psc, SCRIPT_ANALYSIS 
         if (piAdvance) piAdvance[i] = abc.abcA + abc.abcB + abc.abcC;
     }
 
+    SHAPE_ApplyOpenTypePositions(hdc, (ScriptCache *)*psc, psa, pwGlyphs, cGlyphs, piAdvance, pGoffset);
+
     if (pABC) TRACE("Total for run: abcA=%d, abcB=%d, abcC=%d\n", pABC->abcA, pABC->abcB, pABC->abcC);
     return S_OK;
 }
@@ -3160,6 +3176,8 @@ HRESULT WINAPI ScriptTextOut(const HDC hdc, SCRIPT_CACHE *psc, int x, int y, UIN
                              const int *piJustify, const GOFFSET *pGoffset)
 {
     HRESULT hr = S_OK;
+    INT i;
+    INT *lpDx;
 
     TRACE("(%p, %p, %d, %d, %04x, %p, %p, %p, %d, %p, %d, %p, %p, %p)\n",
          hdc, psc, x, y, fuOptions, lprc, psa, pwcReserved, iReserved, pwGlyphs, cGlyphs,
@@ -3173,6 +3191,45 @@ HRESULT WINAPI ScriptTextOut(const HDC hdc, SCRIPT_CACHE *psc, int x, int y, UIN
     if  (!psa->fNoGlyphIndex)                                     /* Have Glyphs?                      */
         fuOptions |= ETO_GLYPH_INDEX;                             /* Say don't do translation to glyph */
 
+    lpDx = heap_alloc(cGlyphs * sizeof(INT) * 2);
+
+    if (pGoffset)
+    {
+        for (i = 0; i < cGlyphs; i++)
+            if (!(fuOptions&ETO_PDY) && pGoffset[i].dv)
+                fuOptions |= ETO_PDY;
+    }
+    for (i = 0; i < cGlyphs; i++)
+    {
+        int idx = i;
+        if (fuOptions&ETO_PDY)
+        {
+            idx *=2;
+            lpDx[idx+1] = 0;
+        }
+        lpDx[idx] = piAdvance[i];
+    }
+    if (pGoffset)
+    {
+        for (i = 1; i < cGlyphs; i++)
+        {
+            int idx = i;
+            int prev_idx = i-1;
+            if (fuOptions&ETO_PDY)
+            {
+                idx*=2;
+                prev_idx = idx-2;
+            }
+            lpDx[prev_idx] += pGoffset[i].du;
+            lpDx[idx] -= pGoffset[i].du;
+            if (fuOptions&ETO_PDY)
+            {
+                lpDx[prev_idx+1] += pGoffset[i].dv;
+                lpDx[idx+1] -= pGoffset[i].dv;
+            }
+        }
+    }
+
     if (psa->fRTL && psa->fLogicalOrder)
     {
         int i;
@@ -3185,13 +3242,15 @@ HRESULT WINAPI ScriptTextOut(const HDC hdc, SCRIPT_CACHE *psc, int x, int y, UIN
         for (i = 0; i < cGlyphs; i++)
             rtlGlyphs[i] = pwGlyphs[cGlyphs-1-i];
 
-        if (!ExtTextOutW(hdc, x, y, fuOptions, lprc, rtlGlyphs, cGlyphs, NULL))
+        if (!ExtTextOutW(hdc, x, y, fuOptions, lprc, rtlGlyphs, cGlyphs, lpDx))
             hr = S_FALSE;
         heap_free(rtlGlyphs);
     }
     else
-        if (!ExtTextOutW(hdc, x, y, fuOptions, lprc, pwGlyphs, cGlyphs, NULL))
+        if (!ExtTextOutW(hdc, x, y, fuOptions, lprc, pwGlyphs, cGlyphs, lpDx))
             hr = S_FALSE;
+
+    heap_free(lpDx);
 
     return hr;
 }

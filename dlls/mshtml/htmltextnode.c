@@ -18,6 +18,7 @@
 
 
 #include <stdarg.h>
+#include <assert.h>
 
 #define COBJMACROS
 
@@ -178,32 +179,16 @@ static HRESULT HTMLDOMTextNode_QI(HTMLDOMNode *iface, REFIID riid, void **ppv)
     return S_OK;
 }
 
-static void HTMLDOMTextNode_destructor(HTMLDOMNode *iface)
-{
-    HTMLDOMTextNode *This = impl_from_HTMLDOMNode(iface);
-
-    if(This->nstext)
-        IHTMLDOMTextNode_Release(This->nstext);
-
-    HTMLDOMNode_destructor(&This->node);
-}
-
 static HRESULT HTMLDOMTextNode_clone(HTMLDOMNode *iface, nsIDOMNode *nsnode, HTMLDOMNode **ret)
 {
     HTMLDOMTextNode *This = impl_from_HTMLDOMNode(iface);
-    HRESULT hres;
 
-    hres = HTMLDOMTextNode_Create(This->node.doc, nsnode, ret);
-    if(FAILED(hres))
-        return hres;
-
-    IHTMLDOMNode_AddRef(&(*ret)->IHTMLDOMNode_iface);
-    return S_OK;
+    return HTMLDOMTextNode_Create(This->node.doc, nsnode, ret);
 }
 
 static const NodeImplVtbl HTMLDOMTextNodeImplVtbl = {
     HTMLDOMTextNode_QI,
-    HTMLDOMTextNode_destructor,
+    HTMLDOMNode_destructor,
     HTMLDOMTextNode_clone
 };
 
@@ -232,16 +217,16 @@ HRESULT HTMLDOMTextNode_Create(HTMLDocumentNode *doc, nsIDOMNode *nsnode, HTMLDO
     ret->node.vtbl = &HTMLDOMTextNodeImplVtbl;
     ret->IHTMLDOMTextNode_iface.lpVtbl = &HTMLDOMTextNodeVtbl;
 
-    nsres = nsIDOMNode_QueryInterface(nsnode, &IID_nsIDOMText, (void**)&ret->nstext);
-    if(NS_FAILED(nsres)) {
-        ERR("Could not get nsIDOMText iface: %08x\n", nsres);
-        heap_free(ret);
-        return E_FAIL;
-    }
-
     init_dispex(&ret->node.dispex, (IUnknown*)&ret->IHTMLDOMTextNode_iface,
             &HTMLDOMTextNode_dispex);
+
     HTMLDOMNode_Init(doc, &ret->node, nsnode);
+
+    nsres = nsIDOMNode_QueryInterface(nsnode, &IID_nsIDOMText, (void**)&ret->nstext);
+    assert(nsres == NS_OK && (nsIDOMNode*)ret->nstext == ret->node.nsnode);
+
+    /* Share reference with nsnode */
+    nsIDOMNode_Release(ret->node.nsnode);
 
     *node = &ret->node;
     return S_OK;

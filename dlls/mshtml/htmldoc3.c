@@ -130,12 +130,11 @@ static HRESULT WINAPI HTMLDocument3_createTextNode(IHTMLDocument3 *iface, BSTR t
     }
 
     hres = HTMLDOMTextNode_Create(This->doc_node, (nsIDOMNode*)nstext, &node);
-    nsIDOMElement_Release(nstext);
+    nsIDOMText_Release(nstext);
     if(FAILED(hres))
         return hres;
 
     *newTextNode = &node->IHTMLDOMNode_iface;
-    IHTMLDOMNode_AddRef(&node->IHTMLDOMNode_iface);
     return S_OK;
 }
 
@@ -175,7 +174,9 @@ static HRESULT WINAPI HTMLDocument3_get_documentElement(IHTMLDocument3 *iface, I
     if(FAILED(hres))
         return hres;
 
-    return IHTMLDOMNode_QueryInterface(&node->IHTMLDOMNode_iface, &IID_IHTMLElement, (void**)p);
+    hres = IHTMLDOMNode_QueryInterface(&node->IHTMLDOMNode_iface, &IID_IHTMLElement, (void**)p);
+    node_release(node);
+    return hres;
 }
 
 static HRESULT WINAPI HTMLDocument3_uniqueID(IHTMLDocument3 *iface, BSTR *p)
@@ -532,9 +533,10 @@ static HRESULT WINAPI HTMLDocument3_getElementById(IHTMLDocument3 *iface, BSTR v
         hres = get_node(This->doc_node, nsnode, TRUE, &node);
         nsIDOMNode_Release(nsnode);
 
-        if(SUCCEEDED(hres))
-            hres = IHTMLDOMNode_QueryInterface(&node->IHTMLDOMNode_iface, &IID_IHTMLElement,
-                    (void**)pel);
+        if(SUCCEEDED(hres)) {
+            hres = IHTMLDOMNode_QueryInterface(&node->IHTMLDOMNode_iface, &IID_IHTMLElement, (void**)pel);
+            node_release(node);
+        }
     }else {
         *pel = NULL;
         hres = S_OK;
@@ -570,8 +572,7 @@ static HRESULT WINAPI HTMLDocument3_getElementsByTagName(IHTMLDocument3 *iface, 
         return E_FAIL;
     }
 
-    *pelColl = create_collection_from_nodelist(This->doc_node,
-                                               (IUnknown*)&This->IHTMLDocument3_iface, nslist);
+    *pelColl = create_collection_from_nodelist(This->doc_node, nslist);
     nsIDOMNodeList_Release(nslist);
 
     return S_OK;

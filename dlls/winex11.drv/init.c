@@ -144,7 +144,6 @@ static BOOL X11DRV_CreateDC( PHYSDEV *pdev, LPCWSTR driver, LPCWSTR device,
 
     physDev->depth         = screen_depth;
     physDev->color_shifts  = &X11DRV_PALETTE_default_shifts;
-    physDev->drawable_rect = virtual_screen_rect;
     SetRect( &physDev->dc_rect, 0, 0, virtual_screen_rect.right - virtual_screen_rect.left,
              virtual_screen_rect.bottom - virtual_screen_rect.top );
     push_dc_driver( pdev, &physDev->dev, &x11drv_funcs );
@@ -165,8 +164,7 @@ static BOOL X11DRV_CreateCompatibleDC( PHYSDEV orig, PHYSDEV *pdev )
     if (!physDev) return FALSE;
 
     physDev->depth  = 1;
-    SetRect( &physDev->drawable_rect, 0, 0, 1, 1 );
-    physDev->dc_rect = physDev->drawable_rect;
+    SetRect( &physDev->dc_rect, 0, 0, 1, 1 );
     push_dc_driver( pdev, &physDev->dev, &x11drv_funcs );
     if (orig) return TRUE;  /* we already went through Xrender if we have an orig device */
     if (xrender_funcs && !xrender_funcs->pCreateCompatibleDC( NULL, pdev )) return FALSE;
@@ -352,13 +350,19 @@ static INT X11DRV_ExtEscape( PHYSDEV dev, INT escape, INT in_count, LPCVOID in_d
                     const struct x11drv_escape_set_drawable *data = in_data;
                     physDev->dc_rect = data->dc_rect;
                     physDev->drawable = data->drawable;
-                    physDev->drawable_rect = data->drawable_rect;
                     wine_tsx11_lock();
                     XSetSubwindowMode( gdi_display, physDev->gc, data->mode );
                     wine_tsx11_unlock();
-                    TRACE( "SET_DRAWABLE hdc %p drawable %lx dc_rect %s drawable_rect %s\n",
-                           dev->hdc, physDev->drawable, wine_dbgstr_rect(&physDev->dc_rect),
-                           wine_dbgstr_rect(&physDev->drawable_rect) );
+                    TRACE( "SET_DRAWABLE hdc %p drawable %lx dc_rect %s\n",
+                           dev->hdc, physDev->drawable, wine_dbgstr_rect(&physDev->dc_rect) );
+                    return TRUE;
+                }
+                break;
+            case X11DRV_GET_DRAWABLE:
+                if (out_count >= sizeof(struct x11drv_escape_get_drawable))
+                {
+                    struct x11drv_escape_get_drawable *data = out_data;
+                    data->drawable = physDev->drawable;
                     return TRUE;
                 }
                 break;
@@ -439,15 +443,6 @@ static inline void opengl_error(void)
 }
 
 /***********************************************************************
- *		X11DRV_ChoosePixelFormat
- */
-static int X11DRV_ChoosePixelFormat( PHYSDEV dev, const PIXELFORMATDESCRIPTOR *ppfd )
-{
-    opengl_error();
-    return 0;
-}
-
-/***********************************************************************
  *		X11DRV_DescribePixelFormat
  */
 static int X11DRV_DescribePixelFormat( PHYSDEV dev, int fmt, UINT size, PIXELFORMATDESCRIPTOR *ppfd )
@@ -465,42 +460,6 @@ static BOOL X11DRV_SetPixelFormat( PHYSDEV dev, int fmt, const PIXELFORMATDESCRI
     return FALSE;
 }
 
-/***********************************************************************
- *		X11DRV_wglCreateContext
- */
-static HGLRC X11DRV_wglCreateContext( PHYSDEV dev )
-{
-    opengl_error();
-    return NULL;
-}
-
-/***********************************************************************
- *		X11DRV_wglCreateContextAttribsARB
- */
-static HGLRC X11DRV_wglCreateContextAttribsARB( PHYSDEV dev, HGLRC hShareContext, const int* attribList )
-{
-    opengl_error();
-    return NULL;
-}
-
-/***********************************************************************
- *		X11DRV_wglGetProcAddress
- */
-static PROC X11DRV_wglGetProcAddress( LPCSTR proc )
-{
-    opengl_error();
-    return NULL;
-}
-
-/***********************************************************************
- *		X11DRV_wglSetPixelFormatWINE
- */
-static BOOL X11DRV_wglSetPixelFormatWINE( PHYSDEV dev, int fmt, const PIXELFORMATDESCRIPTOR *ppfd )
-{
-    opengl_error();
-    return FALSE;
-}
-
 
 static const struct gdi_dc_funcs x11drv_funcs =
 {
@@ -512,7 +471,6 @@ static const struct gdi_dc_funcs x11drv_funcs =
     NULL,                               /* pArcTo */
     NULL,                               /* pBeginPath */
     NULL,                               /* pBlendImage */
-    X11DRV_ChoosePixelFormat,           /* pChoosePixelFormat */
     X11DRV_Chord,                       /* pChord */
     NULL,                               /* pCloseFigure */
     X11DRV_CreateCompatibleDC,          /* pCreateCompatibleDC */
@@ -556,7 +514,6 @@ static const struct gdi_dc_funcs x11drv_funcs =
     X11DRV_GetNearestColor,             /* pGetNearestColor */
     NULL,                               /* pGetOutlineTextMetrics */
     NULL,                               /* pGetPixel */
-    NULL,                               /* pGetPixelFormat */
     X11DRV_GetSystemPaletteEntries,     /* pGetSystemPaletteEntries */
     NULL,                               /* pGetTextCharsetInfo */
     NULL,                               /* pGetTextExtentExPoint */
@@ -635,17 +592,7 @@ static const struct gdi_dc_funcs x11drv_funcs =
     NULL,                               /* pSwapBuffers */
     X11DRV_UnrealizePalette,            /* pUnrealizePalette */
     NULL,                               /* pWidenPath */
-    NULL,                               /* pwglCopyContext */
-    X11DRV_wglCreateContext,            /* pwglCreateContext */
-    X11DRV_wglCreateContextAttribsARB,  /* pwglCreateContextAttribsARB */
-    NULL,                               /* pwglDeleteContext */
-    X11DRV_wglGetProcAddress,           /* pwglGetProcAddress */
-    NULL,                               /* pwglMakeContextCurrentARB */
-    NULL,                               /* pwglMakeCurrent */
-    X11DRV_wglSetPixelFormatWINE,       /* pwglSetPixelFormatWINE */
-    NULL,                               /* pwglShareLists */
-    NULL,                               /* pwglUseFontBitmapsA */
-    NULL,                               /* pwglUseFontBitmapsW */
+    NULL,                               /* wine_get_wgl_driver */
     GDI_PRIORITY_GRAPHICS_DRV           /* priority */
 };
 

@@ -746,11 +746,24 @@ static void D3DXQuaternionTest(void)
     expectedquat.x = 0.093768f; expectedquat.y = 0.187536f; expectedquat.z = 0.375073f; expectedquat.w = 0.0f;
     D3DXQuaternionLn(&gotquat,&Nq);
     expect_vec4(expectedquat,gotquat);
-    /* Test the cas where the norm of the quaternion is <1 */
-    Nq1.x = 0.2f; Nq1.y = 0.1f; Nq1.z = 0.3; Nq1.w= 0.9f;
+    Nq.x = 0.0f; Nq.y = 0.0f; Nq.z = 0.0f; Nq.w = 1.0f;
+    expectedquat.x = 0.0f; expectedquat.y = 0.0f; expectedquat.z = 0.0f; expectedquat.w = 0.0f;
+    D3DXQuaternionLn(&gotquat,&Nq);
+    expect_vec4(expectedquat,gotquat);
+    Nq.x = 5.4f; Nq.y = 1.2f; Nq.z = -0.3f; Nq.w = -0.3f;
+    expectedquat.x = 10.616652f; expectedquat.y = 2.359256f; expectedquat.z = -0.589814f; expectedquat.w = 0.0f;
+    D3DXQuaternionLn(&gotquat,&Nq);
+    expect_vec4(expectedquat,gotquat);
+    /* Test the case where the norm of the quaternion is <1 */
+    Nq1.x = 0.2f; Nq1.y = 0.1f; Nq1.z = 0.3; Nq1.w = 0.9f;
     expectedquat.x = 0.206945f; expectedquat.y = 0.103473f; expectedquat.z = 0.310418f; expectedquat.w = 0.0f;
     D3DXQuaternionLn(&gotquat,&Nq1);
-    todo_wine{ expect_vec4(expectedquat,gotquat) };
+    expect_vec4(expectedquat,gotquat);
+    /* Test the case where the real part of the quaternion is -1.0f */
+    Nq1.x = 0.2f; Nq1.y = 0.1f; Nq1.z = 0.3; Nq1.w = -1.0f;
+    expectedquat.x = 0.2f; expectedquat.y = 0.1f; expectedquat.z = 0.3f; expectedquat.w = 0.0f;
+    D3DXQuaternionLn(&gotquat,&Nq1);
+    expect_vec4(expectedquat,gotquat);
 
 /*_______________D3DXQuaternionMultiply________________________*/
     expectedquat.x = 3.0f; expectedquat.y = 61.0f; expectedquat.z = -32.0f; expectedquat.w = 85.0f;
@@ -926,6 +939,48 @@ static void D3DXQuaternionTest(void)
     expectedquat.x = -156.296f; expectedquat.y = 30.242f; expectedquat.z = -2.5022f; expectedquat.w = 7.3576f;
     D3DXQuaternionSquad(&gotquat,&q,&r,&t,&u,scale);
     expect_vec4(expectedquat,gotquat);
+
+/*_______________D3DXQuaternionSquadSetup___________________*/
+    r.x = 1.0f, r.y = 2.0f; r.z = 4.0f; r.w = 10.0f;
+    s.x = -3.0f; s.y = 4.0f; s.z = -5.0f; s.w = 7.0;
+    t.x = -1111.0f, t.y = 111.0f; t.z = -11.0f; t.w = 1.0f;
+    u.x = 91.0f; u.y = - 82.0f; u.z = 7.3f; u.w = -6.4f;
+    D3DXQuaternionSquadSetup(&gotquat,&Nq,&Nq1,&r,&s,&t,&u);
+    expectedquat.x = 7.121285f; expectedquat.y = 2.159964f; expectedquat.z = -3.855094f; expectedquat.w = 5.362844f;
+    expect_vec4(expectedquat,gotquat);
+    expectedquat.x = -1113.492920f; expectedquat.y = 82.679260f; expectedquat.z = -6.696645f; expectedquat.w = -4.090050f;
+    expect_vec4(expectedquat,Nq);
+    expectedquat.x = -1111.0f; expectedquat.y = 111.0f; expectedquat.z = -11.0f; expectedquat.w = 1.0f;
+    expect_vec4(expectedquat,Nq1);
+    r.x = 0.2f; r.y = 0.3f; r.z = 1.3f; r.w = -0.6f;
+    s.x = -3.0f; s.y =-2.0f; s.z = 4.0f; s.w = 0.2f;
+    t.x = 0.4f; t.y = 8.3f; t.z = -3.1f; t.w = -2.7f;
+    u.x = 1.1f; u.y = -0.7f; u.z = 9.2f; u.w = 0.0f;
+    D3DXQuaternionSquadSetup(&gotquat,&Nq,&Nq1,&r,&s,&u,&t);
+    expectedquat.x = -4.139569f; expectedquat.y = -2.469115f; expectedquat.z = 2.364477f; expectedquat.w = 0.465494f;
+    expect_vec4(expectedquat,gotquat);
+    expectedquat.x = 2.342533f; expectedquat.y = 2.365127f; expectedquat.z = 8.628538f; expectedquat.w = -0.898356f;
+    expect_vec4(expectedquat,Nq);
+    expectedquat.x = 1.1f; expectedquat.y = -0.7f; expectedquat.z = 9.2f; expectedquat.w = 0.0f;
+    expect_vec4(expectedquat,Nq1);
+    D3DXQuaternionSquadSetup(&gotquat,&Nq,&Nq1,&r,&s,&t,&u);
+    expectedquat.x = -3.754567f; expectedquat.y = -0.586085f; expectedquat.z = 3.815818f; expectedquat.w = -0.198150f;
+    expect_vec4(expectedquat,gotquat);
+    expectedquat.x = 0.140773f; expectedquat.y = -8.737090f; expectedquat.z = -0.516593f; expectedquat.w = 3.053942f;
+    expect_vec4(expectedquat,Nq);
+    expectedquat.x = -0.4f; expectedquat.y = -8.3f; expectedquat.z = 3.1f; expectedquat.w = 2.7f;
+    expect_vec4(expectedquat,Nq1);
+    r.x = -1.0f; r.y = 0.0f; r.z = 0.0f; r.w = 0.0f;
+    s.x = 1.0f; s.y =0.0f; s.z = 0.0f; s.w = 0.0f;
+    t.x = 1.0f; t.y = 0.0f; t.z = 0.0f; t.w = 0.0f;
+    u.x = -1.0f; u.y = 0.0f; u.z = 0.0f; u.w = 0.0f;
+    D3DXQuaternionSquadSetup(&gotquat,&Nq,&Nq1,&r,&s,&t,&u);
+    expectedquat.x = 1.0f; expectedquat.y = 0.0f; expectedquat.z = 0.0f; expectedquat.w = 0.0f;
+    expect_vec4(expectedquat,gotquat);
+    expectedquat.x = 1.0f; expectedquat.y = 0.0f; expectedquat.z = 0.0f; expectedquat.w = 0.0f;
+    expect_vec4(expectedquat,Nq);
+    expectedquat.x = 1.0f; expectedquat.y = 0.0f; expectedquat.z = 0.0f; expectedquat.w = 0.0f;
+    expect_vec4(expectedquat,Nq1);
 
 /*_______________D3DXQuaternionToAxisAngle__________________*/
     Nq.x = 1.0f/22.0f; Nq.y = 2.0f/22.0f; Nq.z = 4.0f/22.0f; Nq.w = 10.0f/22.0f;
@@ -2344,6 +2399,187 @@ static void test_D3DXSHAdd(void)
     }
 }
 
+static void test_D3DXSHDot(void)
+{
+    unsigned int i;
+    FLOAT a[64], b[64], got;
+    CONST FLOAT expected[] =
+    { 0.5f, 0.5f, 25.0f, 262.5f, 1428.0f, 5362.0f, 15873.0f, 39812.0f, 88400.0f, };
+
+    for (i = 0; i < 64; i++)
+    {
+        a[i] = (FLOAT)i + 1.0f;
+        b[i] = (FLOAT)i + 0.5f;
+    }
+
+    /* D3DXSHDot computes by using order * order elements */
+    for (i = 0; i < 9; i++)
+    {
+        got = D3DXSHDot(i, a, b);
+        ok(relative_error(got, expected[i]) < admitted_error, "order %d: expected %f, received %f\n", i, expected[i], got);
+    }
+
+    return;
+}
+
+static void test_D3DXSHEvalDirection(void)
+{
+    unsigned int i, order;
+    D3DXVECTOR3 d;
+    FLOAT a[100], expected[100], *received_ptr;
+    CONST FLOAT table[36] =
+    { 0.282095f, -0.977205f, 1.465808f, -0.488603f, 2.185097f, -6.555291f,
+      8.200181f, -3.277646f, -1.638823f, 1.180087f, 17.343668f, -40.220032f,
+      47.020218f, -20.110016f, -13.007751f, 6.490479f, -15.020058f, 10.620785f,
+      117.325661f, -240.856750f, 271.657288f, -120.428375f, -87.994247f, 58.414314f,
+      -4.380850f, 24.942520f, -149.447693f, 78.278130f, 747.791748f, -1427.687866f,
+      1574.619141, -713.843933f, -560.843811f, 430.529724, -43.588909, -26.911665, };
+
+    d.x = 1.0; d.y = 2.0f; d.z = 3.0f;
+
+    for(order = 0; order < 10; order++)
+    {
+        for(i = 0; i < 100; i++)
+            a[i] = 1.5f + i;
+
+        received_ptr = D3DXSHEvalDirection(a, order, &d);
+        ok(received_ptr == a, "Expected %p, received %p\n", a, received_ptr);
+
+        for(i = 0; i < 100; i++)
+        {
+            /* if the order is < D3DXSH_MINORDER or order > D3DXSH_MAXORDER or the index of the element is greater than order * order - 1, D3DXSHEvalDirection does not modify the output */
+            if ( (order < D3DXSH_MINORDER) || (order > D3DXSH_MAXORDER) || (i >= order * order) )
+                expected[i] = 1.5f + i;
+            else
+                expected[i] = table[i];
+
+            ok(relative_error(a[i], expected[i]) < admitted_error, "order %u, index %u: expected %f, received %f\n", order, i, expected[i], a[i]);
+        }
+    }
+}
+
+static void test_D3DXSHMultiply2(void)
+{
+    unsigned int i;
+    FLOAT a[20], b[20], c[20];
+    /* D3DXSHMultiply2 only modifies the first 4 elements of the array */
+    const FLOAT expected[20] =
+    { 3.418594f, 1.698211f, 1.703853f, 1.709494f, 4.0f, 5.0f,
+      6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f,
+      14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f };
+
+    for (i = 0; i < 20; i++)
+    {
+        a[i] = 1.0f + i / 100.0f;
+        b[i] = 3.0f - i / 100.0f;
+        c[i] = i;
+    }
+
+    D3DXSHMultiply2(c, a, b);
+    for (i = 0; i < 20; i++)
+        ok(relative_error(c[i], expected[i]) < admitted_error, "Expected[%d] = %f, received = %f\n", i, expected[i], c[i]);
+}
+
+static void test_D3DXSHMultiply3(void)
+{
+    unsigned int i;
+    FLOAT a[20], b[20], c[20];
+    /* D3DXSHMultiply only modifies the first 9 elements of the array */
+    const FLOAT expected[20] =
+    { 7.813913f, 2.256058f, 5.9484005f, 4.970894f, 2.899858f, 3.598946f,
+      1.726572f, 5.573538f, 0.622063f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f,
+      14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f };
+
+    for (i = 0; i < 20; i++)
+    {
+        a[i] = 1.0f + (FLOAT)i/100.0f;
+        b[i] = 3.0f - (FLOAT)i/100.0f;
+        c[i] = (FLOAT)i;
+    }
+
+    D3DXSHMultiply3(c, a, b);
+    for (i = 0; i < 20; i++)
+        ok(relative_error(c[i], expected[i]) < admitted_error, "Expected[%d] = %f, received = %f\n", i, expected[i], c[i]);
+}
+
+static void test_D3DXSHRotateZ(void)
+{
+    unsigned int i, j, order, square;
+    FLOAT angle[] = { D3DX_PI / 3.0f, -D3DX_PI / 3.0f, 4.0f * D3DX_PI / 3.0f, }, expected, in[100], out[100], *received_ptr, table[] =
+    { /* Angle =  D3DX_PI / 3.0f */
+      1.01f, 4.477762f, 3.010000f, 0.264289f, 5.297888f, 9.941864f, 7.010000f, -1.199813f,
+      -8.843789f, -10.010002f, 7.494040f, 18.138016f, 13.010000, -3.395966f, -17.039942f,
+      -16.009998f, -30.164297f, -18.010004f, 10.422242f, 29.066219f, 21.010000f, -6.324171f,
+      -27.968145f, -24.009998f, 2.226099f, -18.180565, -43.824551f, -28.010004f, 14.082493f,
+      42.726471f,  31.010000f, -9.984426f, -41.628399f, -34.009995f, 5.886358f, 40.530331f,
+      /* Angle =  D3DX_PI / 3.0f */
+      1.01f, -2.467762f, 3.010000f, 3.745711f, -10.307890f, -3.931864f, 7.010000f, 9.209813f,
+      -0.166214f, -10.010002f, -18.504044f, -6.128017f, 13.010000f, 17.405966f, 2.029938f,
+      -16.009998f, 13.154303f, -18.010004f, -29.432247f, -9.056221f, 21.010000f, 28.334169f,
+      4.958139f, -24.010002f, -27.236092f, 44.190582f, 16.814558f, -28.009996f, -43.092499f,
+      -12.716474f, 31.010000f, 41.994423f, 8.618393f, -34.010002f, -40.896347f, -4.520310f,
+      /* Angle =  4.0f * D3DX_PI / 3.0f */
+      1.01f, -4.477762f, 3.010000f, -0.264289f, 5.297887f, -9.941864f, 7.010000f, 1.199814f,
+      -8.843788f, 10.010004f, 7.494038f, -18.138016f, 13.010000f, 3.395967f, -17.039940f,
+      16.009996f, -30.164293f, 18.010006f, 10.422239f, -29.066219f, 21.010000f, 6.324172f,
+      -27.968143f, 24.009993f, 2.226105f, 18.180552f, -43.824543f, 28.010008f, 14.082489f,
+      -42.726471f, 31.010000f, 9.984427f, -41.628399f, 34.009987f, 5.886366f, -40.530327, };
+
+    for (i = 0; i < 100; i++)
+        in[i] = i + 1.01f;
+
+    for (j = 0; j < 3; j++)
+    {
+        for (order = 0; order < 10; order++)
+        {
+            for (i = 0; i < 100; i++)
+                out[i] = ( i + 1.0f ) * ( i + 1.0f );
+
+            received_ptr = D3DXSHRotateZ(out, order, angle[j], in);
+            ok(received_ptr == out, "angle %f, order %u, Expected %p, received %p\n", angle[j], order, out, received_ptr);
+
+            for (i = 0; i < 100; i++)
+            {
+                /* order = 0 or order = 1 behaves like order = D3DXSH_MINORDER */
+                square = ( order <= D3DXSH_MINORDER ) ? D3DXSH_MINORDER * D3DXSH_MINORDER : order * order;
+                expected = table[36 * j + i];
+                if ( i >= square || ( (order >= D3DXSH_MAXORDER) && ( i >= D3DXSH_MAXORDER * D3DXSH_MAXORDER ) ) )
+                    expected = ( i + 1.0f ) * ( i + 1.0f );
+
+                ok(relative_error(out[i], expected) < admitted_error, "angle %f, order %u index %u, Expected %f, received %f\n", angle[j], order, i, expected, out[i]);
+            }
+        }
+    }
+}
+
+static void test_D3DXSHScale(void)
+{
+    unsigned int i, order;
+    FLOAT a[100], b[100], expected, *received_array;
+
+    for (i = 0; i < 100; i++)
+    {
+        a[i] = i;
+        b[i] = i;
+    }
+
+    for (order = 0; order < 10; order++)
+    {
+        received_array = D3DXSHScale(b, order, a, 5.0f);
+        ok(received_array == b, "Expected %p, received %p\n", b, received_array);
+
+        for (i = 0; i < 100; i++)
+        {
+            if (i < order * order)
+                expected = 5.0f * a[i];
+            /* D3DXSHScale does not modify the elements of the array after the order * order-th element */
+            else
+                expected = a[i];
+            ok(relative_error(b[i], expected) < admitted_error, "order %d, element %d, expected %f, received %f\n", order, i, expected, b[i]);
+        }
+    }
+}
+
 START_TEST(math)
 {
     D3DXColorTest();
@@ -2361,4 +2597,10 @@ START_TEST(math)
     test_D3DXVec_Array();
     test_D3DXFloat_Array();
     test_D3DXSHAdd();
+    test_D3DXSHDot();
+    test_D3DXSHEvalDirection();
+    test_D3DXSHMultiply2();
+    test_D3DXSHMultiply3();
+    test_D3DXSHRotateZ();
+    test_D3DXSHScale();
 }

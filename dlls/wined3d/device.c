@@ -646,6 +646,7 @@ void device_clear_render_targets(struct wined3d_device *device, UINT rt_count, c
 {
     const RECT *clear_rect = (rect_count > 0 && rects) ? (const RECT *)rects : NULL;
     struct wined3d_surface *target = rt_count ? fb->render_targets[0] : NULL;
+    const struct wined3d_gl_info *gl_info;
     UINT drawable_width, drawable_height;
     struct wined3d_context *context;
     GLbitfield clear_mask = 0;
@@ -678,6 +679,7 @@ void device_clear_render_targets(struct wined3d_device *device, UINT rt_count, c
         WARN("Invalid context, skipping clear.\n");
         return;
     }
+    gl_info = context->gl_info;
 
     if (target)
     {
@@ -713,14 +715,14 @@ void device_clear_render_targets(struct wined3d_device *device, UINT rt_count, c
     /* Only set the values up once, as they are not changing. */
     if (flags & WINED3DCLEAR_STENCIL)
     {
-        if (context->gl_info->supported[EXT_STENCIL_TWO_SIDE])
+        if (gl_info->supported[EXT_STENCIL_TWO_SIDE])
         {
-            glDisable(GL_STENCIL_TEST_TWO_SIDE_EXT);
+            gl_info->gl_ops.gl.p_glDisable(GL_STENCIL_TEST_TWO_SIDE_EXT);
             context_invalidate_state(context, STATE_RENDER(WINED3D_RS_TWOSIDEDSTENCILMODE));
         }
-        glStencilMask(~0U);
+        gl_info->gl_ops.gl.p_glStencilMask(~0U);
         context_invalidate_state(context, STATE_RENDER(WINED3D_RS_STENCILWRITEMASK));
-        glClearStencil(stencil);
+        gl_info->gl_ops.gl.p_glClearStencil(stencil);
         checkGLcall("glClearStencil");
         clear_mask = clear_mask | GL_STENCIL_BUFFER_BIT;
     }
@@ -731,9 +733,9 @@ void device_clear_render_targets(struct wined3d_device *device, UINT rt_count, c
 
         surface_modify_ds_location(fb->depth_stencil, location, ds_rect.right, ds_rect.bottom);
 
-        glDepthMask(GL_TRUE);
+        gl_info->gl_ops.gl.p_glDepthMask(GL_TRUE);
         context_invalidate_state(context, STATE_RENDER(WINED3D_RS_ZWRITEENABLE));
-        glClearDepth(depth);
+        gl_info->gl_ops.gl.p_glClearDepth(depth);
         checkGLcall("glClearDepth");
         clear_mask = clear_mask | GL_DEPTH_BUFFER_BIT;
     }
@@ -748,12 +750,12 @@ void device_clear_render_targets(struct wined3d_device *device, UINT rt_count, c
                 surface_modify_location(rt, rt->draw_binding, TRUE);
         }
 
-        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        gl_info->gl_ops.gl.p_glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
         context_invalidate_state(context, STATE_RENDER(WINED3D_RS_COLORWRITEENABLE));
         context_invalidate_state(context, STATE_RENDER(WINED3D_RS_COLORWRITEENABLE1));
         context_invalidate_state(context, STATE_RENDER(WINED3D_RS_COLORWRITEENABLE2));
         context_invalidate_state(context, STATE_RENDER(WINED3D_RS_COLORWRITEENABLE3));
-        glClearColor(color->r, color->g, color->b, color->a);
+        gl_info->gl_ops.gl.p_glClearColor(color->r, color->g, color->b, color->a);
         checkGLcall("glClearColor");
         clear_mask = clear_mask | GL_COLOR_BUFFER_BIT;
     }
@@ -762,16 +764,16 @@ void device_clear_render_targets(struct wined3d_device *device, UINT rt_count, c
     {
         if (render_offscreen)
         {
-            glScissor(draw_rect->left, draw_rect->top,
+            gl_info->gl_ops.gl.p_glScissor(draw_rect->left, draw_rect->top,
                     draw_rect->right - draw_rect->left, draw_rect->bottom - draw_rect->top);
         }
         else
         {
-            glScissor(draw_rect->left, drawable_height - draw_rect->bottom,
+            gl_info->gl_ops.gl.p_glScissor(draw_rect->left, drawable_height - draw_rect->bottom,
                         draw_rect->right - draw_rect->left, draw_rect->bottom - draw_rect->top);
         }
         checkGLcall("glScissor");
-        glClear(clear_mask);
+        gl_info->gl_ops.gl.p_glClear(clear_mask);
         checkGLcall("glClear");
     }
     else
@@ -799,17 +801,17 @@ void device_clear_render_targets(struct wined3d_device *device, UINT rt_count, c
 
             if (render_offscreen)
             {
-                glScissor(current_rect.left, current_rect.top,
+                gl_info->gl_ops.gl.p_glScissor(current_rect.left, current_rect.top,
                         current_rect.right - current_rect.left, current_rect.bottom - current_rect.top);
             }
             else
             {
-                glScissor(current_rect.left, drawable_height - current_rect.bottom,
+                gl_info->gl_ops.gl.p_glScissor(current_rect.left, drawable_height - current_rect.bottom,
                           current_rect.right - current_rect.left, current_rect.bottom - current_rect.top);
             }
             checkGLcall("glScissor");
 
-            glClear(clear_mask);
+            gl_info->gl_ops.gl.p_glClear(clear_mask);
             checkGLcall("glClear");
         }
     }
@@ -819,7 +821,7 @@ void device_clear_render_targets(struct wined3d_device *device, UINT rt_count, c
     if (wined3d_settings.strict_draw_ordering || (flags & WINED3DCLEAR_TARGET
             && target->container.type == WINED3D_CONTAINER_SWAPCHAIN
             && target->container.u.swapchain->front_buffer == target))
-        wglFlush(); /* Flush to ensure ordering across contexts. */
+        gl_info->gl_ops.gl.p_glFlush(); /* Flush to ensure ordering across contexts. */
 
     context_release(context);
 }
@@ -944,7 +946,7 @@ static void device_load_logo(struct wined3d_device *device, const char *filename
     }
 
     hr = wined3d_surface_create(device, bm.bmWidth, bm.bmHeight, WINED3DFMT_B5G6R5_UNORM, 0, 0,
-            WINED3D_POOL_DEFAULT, WINED3D_MULTISAMPLE_NONE, 0, WINED3D_SURFACE_TYPE_OPENGL, WINED3D_SURFACE_MAPPABLE,
+            WINED3D_POOL_SYSTEM_MEM, WINED3D_MULTISAMPLE_NONE, 0, WINED3D_SURFACE_TYPE_OPENGL, WINED3D_SURFACE_MAPPABLE,
             NULL, &wined3d_null_parent_ops, &device->logo_surface);
     if (FAILED(hr))
     {
@@ -989,7 +991,7 @@ static void create_dummy_textures(struct wined3d_device *device, struct wined3d_
     if (gl_info->supported[APPLE_CLIENT_STORAGE])
     {
         /* The dummy texture does not have client storage backing */
-        glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_FALSE);
+        gl_info->gl_ops.gl.p_glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_FALSE);
         checkGLcall("glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_FALSE)");
     }
 
@@ -1001,36 +1003,38 @@ static void create_dummy_textures(struct wined3d_device *device, struct wined3d_
         /* Make appropriate texture active */
         context_active_texture(context, gl_info, i);
 
-        glGenTextures(1, &device->dummy_texture_2d[i]);
+        gl_info->gl_ops.gl.p_glGenTextures(1, &device->dummy_texture_2d[i]);
         checkGLcall("glGenTextures");
         TRACE("Dummy 2D texture %u given name %u.\n", i, device->dummy_texture_2d[i]);
 
-        glBindTexture(GL_TEXTURE_2D, device->dummy_texture_2d[i]);
+        gl_info->gl_ops.gl.p_glBindTexture(GL_TEXTURE_2D, device->dummy_texture_2d[i]);
         checkGLcall("glBindTexture");
 
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, &color);
+        gl_info->gl_ops.gl.p_glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1, 0,
+                GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, &color);
         checkGLcall("glTexImage2D");
 
         if (gl_info->supported[ARB_TEXTURE_RECTANGLE])
         {
-            glGenTextures(1, &device->dummy_texture_rect[i]);
+            gl_info->gl_ops.gl.p_glGenTextures(1, &device->dummy_texture_rect[i]);
             checkGLcall("glGenTextures");
             TRACE("Dummy rectangle texture %u given name %u.\n", i, device->dummy_texture_rect[i]);
 
-            glBindTexture(GL_TEXTURE_RECTANGLE_ARB, device->dummy_texture_rect[i]);
+            gl_info->gl_ops.gl.p_glBindTexture(GL_TEXTURE_RECTANGLE_ARB, device->dummy_texture_rect[i]);
             checkGLcall("glBindTexture");
 
-            glTexImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, &color);
+            gl_info->gl_ops.gl.p_glTexImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA8, 1, 1, 0,
+                    GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, &color);
             checkGLcall("glTexImage2D");
         }
 
         if (gl_info->supported[EXT_TEXTURE3D])
         {
-            glGenTextures(1, &device->dummy_texture_3d[i]);
+            gl_info->gl_ops.gl.p_glGenTextures(1, &device->dummy_texture_3d[i]);
             checkGLcall("glGenTextures");
             TRACE("Dummy 3D texture %u given name %u.\n", i, device->dummy_texture_3d[i]);
 
-            glBindTexture(GL_TEXTURE_3D, device->dummy_texture_3d[i]);
+            gl_info->gl_ops.gl.p_glBindTexture(GL_TEXTURE_3D, device->dummy_texture_3d[i]);
             checkGLcall("glBindTexture");
 
             GL_EXTCALL(glTexImage3DEXT(GL_TEXTURE_3D, 0, GL_RGBA8, 1, 1, 1, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, &color));
@@ -1039,16 +1043,17 @@ static void create_dummy_textures(struct wined3d_device *device, struct wined3d_
 
         if (gl_info->supported[ARB_TEXTURE_CUBE_MAP])
         {
-            glGenTextures(1, &device->dummy_texture_cube[i]);
+            gl_info->gl_ops.gl.p_glGenTextures(1, &device->dummy_texture_cube[i]);
             checkGLcall("glGenTextures");
             TRACE("Dummy cube texture %u given name %u.\n", i, device->dummy_texture_cube[i]);
 
-            glBindTexture(GL_TEXTURE_CUBE_MAP, device->dummy_texture_cube[i]);
+            gl_info->gl_ops.gl.p_glBindTexture(GL_TEXTURE_CUBE_MAP, device->dummy_texture_cube[i]);
             checkGLcall("glBindTexture");
 
             for (j = GL_TEXTURE_CUBE_MAP_POSITIVE_X; j <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z; ++j)
             {
-                glTexImage2D(j, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, &color);
+                gl_info->gl_ops.gl.p_glTexImage2D(j, 0, GL_RGBA8, 1, 1, 0,
+                        GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, &color);
                 checkGLcall("glTexImage2D");
             }
         }
@@ -1057,7 +1062,7 @@ static void create_dummy_textures(struct wined3d_device *device, struct wined3d_
     if (gl_info->supported[APPLE_CLIENT_STORAGE])
     {
         /* Re-enable because if supported it is enabled by default */
-        glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE);
+        gl_info->gl_ops.gl.p_glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE);
         checkGLcall("glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE)");
     }
 
@@ -1072,23 +1077,23 @@ static void destroy_dummy_textures(struct wined3d_device *device, const struct w
     ENTER_GL();
     if (gl_info->supported[ARB_TEXTURE_CUBE_MAP])
     {
-        glDeleteTextures(count, device->dummy_texture_cube);
+        gl_info->gl_ops.gl.p_glDeleteTextures(count, device->dummy_texture_cube);
         checkGLcall("glDeleteTextures(count, device->dummy_texture_cube)");
     }
 
     if (gl_info->supported[EXT_TEXTURE3D])
     {
-        glDeleteTextures(count, device->dummy_texture_3d);
+        gl_info->gl_ops.gl.p_glDeleteTextures(count, device->dummy_texture_3d);
         checkGLcall("glDeleteTextures(count, device->dummy_texture_3d)");
     }
 
     if (gl_info->supported[ARB_TEXTURE_RECTANGLE])
     {
-        glDeleteTextures(count, device->dummy_texture_rect);
+        gl_info->gl_ops.gl.p_glDeleteTextures(count, device->dummy_texture_rect);
         checkGLcall("glDeleteTextures(count, device->dummy_texture_rect)");
     }
 
-    glDeleteTextures(count, device->dummy_texture_2d);
+    gl_info->gl_ops.gl.p_glDeleteTextures(count, device->dummy_texture_2d);
     checkGLcall("glDeleteTextures(count, device->dummy_texture_2d)");
     LEAVE_GL();
 
@@ -1452,7 +1457,7 @@ HRESULT CDECL wined3d_device_uninit_3d(struct wined3d_device *device)
     if (device->cursorTexture)
     {
         ENTER_GL();
-        glDeleteTextures(1, &device->cursorTexture);
+        gl_info->gl_ops.gl.p_glDeleteTextures(1, &device->cursorTexture);
         LEAVE_GL();
         device->cursorTexture = 0;
     }
@@ -1463,7 +1468,7 @@ HRESULT CDECL wined3d_device_uninit_3d(struct wined3d_device *device)
     if (device->depth_blt_texture)
     {
         ENTER_GL();
-        glDeleteTextures(1, &device->depth_blt_texture);
+        gl_info->gl_ops.gl.p_glDeleteTextures(1, &device->depth_blt_texture);
         LEAVE_GL();
         device->depth_blt_texture = 0;
     }
@@ -1560,67 +1565,6 @@ void CDECL wined3d_device_set_multithreaded(struct wined3d_device *device)
 
     /* For now just store the flag (needed in case of ddraw). */
     device->create_parms.flags |= WINED3DCREATE_MULTITHREADED;
-}
-
-HRESULT CDECL wined3d_device_set_display_mode(struct wined3d_device *device,
-        UINT swapchain_idx, const struct wined3d_display_mode *mode)
-{
-    struct wined3d_adapter *adapter = device->adapter;
-    const struct wined3d_format *format = wined3d_get_format(&adapter->gl_info, mode->format_id);
-    DEVMODEW devmode;
-    LONG ret;
-    RECT clip_rc;
-
-    TRACE("device %p, swapchain_idx %u, mode %p (%ux%u@%u %s).\n", device, swapchain_idx, mode,
-            mode->width, mode->height, mode->refresh_rate, debug_d3dformat(mode->format_id));
-
-    /* Resize the screen even without a window:
-     * The app could have unset it with SetCooperativeLevel, but not called
-     * RestoreDisplayMode first. Then the release will call RestoreDisplayMode,
-     * but we don't have any hwnd
-     */
-
-    memset(&devmode, 0, sizeof(devmode));
-    devmode.dmSize = sizeof(devmode);
-    devmode.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
-    devmode.dmBitsPerPel = format->byte_count * CHAR_BIT;
-    devmode.dmPelsWidth = mode->width;
-    devmode.dmPelsHeight = mode->height;
-
-    devmode.dmDisplayFrequency = mode->refresh_rate;
-    if (mode->refresh_rate)
-        devmode.dmFields |= DM_DISPLAYFREQUENCY;
-
-    /* Only change the mode if necessary */
-    if (adapter->screen_size.cx == mode->width && adapter->screen_size.cy == mode->height
-            && adapter->screen_format == mode->format_id && !mode->refresh_rate)
-        return WINED3D_OK;
-
-    ret = ChangeDisplaySettingsExW(NULL, &devmode, NULL, CDS_FULLSCREEN, NULL);
-    if (ret != DISP_CHANGE_SUCCESSFUL)
-    {
-        if (devmode.dmDisplayFrequency)
-        {
-            WARN("ChangeDisplaySettingsExW failed, trying without the refresh rate\n");
-            devmode.dmFields &= ~DM_DISPLAYFREQUENCY;
-            devmode.dmDisplayFrequency = 0;
-            ret = ChangeDisplaySettingsExW(NULL, &devmode, NULL, CDS_FULLSCREEN, NULL) != DISP_CHANGE_SUCCESSFUL;
-        }
-        if(ret != DISP_CHANGE_SUCCESSFUL) {
-            return WINED3DERR_NOTAVAILABLE;
-        }
-    }
-
-    /* Store the new values */
-    adapter->screen_size.cx = mode->width;
-    adapter->screen_size.cy = mode->height;
-    adapter->screen_format = mode->format_id;
-
-    /* And finally clip mouse to our screen */
-    SetRect(&clip_rc, 0, 0, mode->width, mode->height);
-    ClipCursor(&clip_rc);
-
-    return WINED3D_OK;
 }
 
 HRESULT CDECL wined3d_device_get_wined3d(const struct wined3d_device *device, struct wined3d **wined3d)
@@ -3398,7 +3342,7 @@ static HRESULT process_vertices_strided(const struct wined3d_device *device, DWO
                     warned = TRUE;
                 }
 
-                *( (DWORD *) dest_ptr) = 0xFF000000;
+                *(DWORD *)dest_ptr = 0xff000000;
                 dest_ptr += sizeof(DWORD);
             }
             else
@@ -3776,39 +3720,19 @@ HRESULT CDECL wined3d_device_get_device_caps(const struct wined3d_device *device
             device->create_parms.device_type, caps);
 }
 
-HRESULT CDECL wined3d_device_get_display_mode(const struct wined3d_device *device,
-        UINT swapchain_idx, struct wined3d_display_mode *mode)
+HRESULT CDECL wined3d_device_get_display_mode(const struct wined3d_device *device, UINT swapchain_idx,
+        struct wined3d_display_mode *mode, enum wined3d_display_rotation *rotation)
 {
     struct wined3d_swapchain *swapchain;
     HRESULT hr;
 
-    TRACE("device %p, swapchain_idx %u, mode %p.\n", device, swapchain_idx, mode);
+    TRACE("device %p, swapchain_idx %u, mode %p, rotation %p.\n",
+            device, swapchain_idx, mode, rotation);
 
-    if (swapchain_idx)
+    if (SUCCEEDED(hr = wined3d_device_get_swapchain(device, swapchain_idx, &swapchain)))
     {
-        hr = wined3d_device_get_swapchain(device, swapchain_idx, &swapchain);
-        if (SUCCEEDED(hr))
-        {
-            hr = wined3d_swapchain_get_display_mode(swapchain, mode);
-            wined3d_swapchain_decref(swapchain);
-        }
-    }
-    else
-    {
-        const struct wined3d_adapter *adapter = device->adapter;
-
-        /* Don't read the real display mode, but return the stored mode
-         * instead. X11 can't change the color depth, and some apps are
-         * pretty angry if they SetDisplayMode from 24 to 16 bpp and find out
-         * that GetDisplayMode still returns 24 bpp.
-         *
-         * Also don't relay to the swapchain because with ddraw it's possible
-         * that there isn't a swapchain at all. */
-        mode->width = adapter->screen_size.cx;
-        mode->height = adapter->screen_size.cy;
-        mode->format_id = adapter->screen_format;
-        mode->refresh_rate = 0;
-        hr = WINED3D_OK;
+        hr = wined3d_swapchain_get_display_mode(swapchain, mode, rotation);
+        wined3d_swapchain_decref(swapchain);
     }
 
     return hr;
@@ -3892,7 +3816,7 @@ HRESULT CDECL wined3d_device_end_scene(struct wined3d_device *device)
 
     context = context_acquire(device, NULL);
     /* We only have to do this if we need to read the, swapbuffers performs a flush for us */
-    wglFlush();
+    context->gl_info->gl_ops.gl.p_glFlush();
     /* No checkGLcall here to avoid locking the lock just for checking a call that hardly ever
      * fails. */
     context_release(context);
@@ -3902,18 +3826,18 @@ HRESULT CDECL wined3d_device_end_scene(struct wined3d_device *device)
 }
 
 HRESULT CDECL wined3d_device_present(const struct wined3d_device *device, const RECT *src_rect,
-        const RECT *dst_rect, HWND dst_window_override, const RGNDATA *dirty_region)
+        const RECT *dst_rect, HWND dst_window_override, const RGNDATA *dirty_region, DWORD flags)
 {
     UINT i;
 
-    TRACE("device %p, src_rect %s, dst_rect %s, dst_window_override %p, dirty_region %p.\n",
+    TRACE("device %p, src_rect %s, dst_rect %s, dst_window_override %p, dirty_region %p, flags %#x.\n",
             device, wine_dbgstr_rect(src_rect), wine_dbgstr_rect(dst_rect),
-            dst_window_override, dirty_region);
+            dst_window_override, dirty_region, flags);
 
     for (i = 0; i < device->swapchain_count; ++i)
     {
         wined3d_swapchain_present(device->swapchains[i], src_rect,
-                dst_rect, dst_window_override, dirty_region, 0);
+                dst_rect, dst_window_override, dirty_region, flags);
     }
 
     return WINED3D_OK;
@@ -4210,10 +4134,9 @@ static HRESULT device_update_volume(struct wined3d_device *device,
 
     /* TODO: Implement direct loading into the gl volume instead of using
      * memcpy and dirtification to improve loading performance. */
-    hr = wined3d_volume_map(src_volume, &src, NULL, WINED3DLOCK_READONLY);
-    if (FAILED(hr)) return hr;
-    hr = wined3d_volume_map(dst_volume, &dst, NULL, WINED3DLOCK_DISCARD);
-    if (FAILED(hr))
+    if (FAILED(hr = wined3d_volume_map(src_volume, &src, NULL, WINED3D_MAP_READONLY)))
+        return hr;
+    if (FAILED(hr = wined3d_volume_map(dst_volume, &dst, NULL, WINED3D_MAP_DISCARD)))
     {
         wined3d_volume_unmap(src_volume);
         return hr;
@@ -4875,7 +4798,7 @@ HRESULT CDECL wined3d_device_set_cursor_properties(struct wined3d_device *device
     {
         struct wined3d_context *context = context_acquire(device, NULL);
         ENTER_GL();
-        glDeleteTextures(1, &device->cursorTexture);
+        context->gl_info->gl_ops.gl.p_glDeleteTextures(1, &device->cursorTexture);
         LEAVE_GL();
         context_release(context);
         device->cursorTexture = 0;
@@ -4883,7 +4806,9 @@ HRESULT CDECL wined3d_device_set_cursor_properties(struct wined3d_device *device
 
     if (cursor_image)
     {
+        struct wined3d_display_mode mode;
         struct wined3d_map_desc map_desc;
+        HRESULT hr;
 
         /* MSDN: Cursor must be A8R8G8B8 */
         if (cursor_image->resource.format->id != WINED3DFMT_B8G8R8A8_UNORM)
@@ -4892,13 +4817,18 @@ HRESULT CDECL wined3d_device_set_cursor_properties(struct wined3d_device *device
             return WINED3DERR_INVALIDCALL;
         }
 
+        if (FAILED(hr = wined3d_get_adapter_display_mode(device->wined3d, device->adapter->ordinal, &mode, NULL)))
+        {
+            ERR("Failed to get display mode, hr %#x.\n", hr);
+            return WINED3DERR_INVALIDCALL;
+        }
+
         /* MSDN: Cursor must be smaller than the display mode */
-        if (cursor_image->resource.width > device->adapter->screen_size.cx
-                || cursor_image->resource.height > device->adapter->screen_size.cy)
+        if (cursor_image->resource.width > mode.width || cursor_image->resource.height > mode.height)
         {
             WARN("Surface %p dimensions are %ux%u, but screen dimensions are %ux%u.\n",
                     cursor_image, cursor_image->resource.width, cursor_image->resource.height,
-                    device->adapter->screen_size.cx, device->adapter->screen_size.cy);
+                    mode.width, mode.height);
             return WINED3DERR_INVALIDCALL;
         }
 
@@ -4911,7 +4841,7 @@ HRESULT CDECL wined3d_device_set_cursor_properties(struct wined3d_device *device
          * instead. */
         device->cursorWidth = cursor_image->resource.width;
         device->cursorHeight = cursor_image->resource.height;
-        if (SUCCEEDED(wined3d_surface_map(cursor_image, &map_desc, NULL, WINED3DLOCK_READONLY)))
+        if (SUCCEEDED(wined3d_surface_map(cursor_image, &map_desc, NULL, WINED3D_MAP_READONLY)))
         {
             const struct wined3d_gl_info *gl_info = &device->adapter->gl_info;
             const struct wined3d_format *format = wined3d_get_format(gl_info, WINED3DFMT_B8G8R8A8_UNORM);
@@ -4938,23 +4868,23 @@ HRESULT CDECL wined3d_device_set_cursor_properties(struct wined3d_device *device
 
             if (gl_info->supported[APPLE_CLIENT_STORAGE])
             {
-                glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_FALSE);
+                gl_info->gl_ops.gl.p_glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_FALSE);
                 checkGLcall("glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_FALSE)");
             }
 
             invalidate_active_texture(device, context);
             /* Create a new cursor texture */
-            glGenTextures(1, &device->cursorTexture);
+            gl_info->gl_ops.gl.p_glGenTextures(1, &device->cursorTexture);
             checkGLcall("glGenTextures");
             context_bind_texture(context, GL_TEXTURE_2D, device->cursorTexture);
             /* Copy the bitmap memory into the cursor texture */
-            glTexImage2D(GL_TEXTURE_2D, 0, intfmt, width, height, 0, gl_format, type, mem);
+            gl_info->gl_ops.gl.p_glTexImage2D(GL_TEXTURE_2D, 0, intfmt, width, height, 0, gl_format, type, mem);
             checkGLcall("glTexImage2D");
             HeapFree(GetProcessHeap(), 0, mem);
 
             if (gl_info->supported[APPLE_CLIENT_STORAGE])
             {
-                glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE);
+                gl_info->gl_ops.gl.p_glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE);
                 checkGLcall("glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE)");
             }
 
@@ -4981,7 +4911,7 @@ HRESULT CDECL wined3d_device_set_cursor_properties(struct wined3d_device *device
             maskBits = HeapAlloc(GetProcessHeap(), 0, mask_size);
             memset(maskBits, 0xff, mask_size);
             wined3d_surface_map(cursor_image, &map_desc, NULL,
-                    WINED3DLOCK_NO_DIRTY_UPDATE | WINED3DLOCK_READONLY);
+                    WINED3D_MAP_NO_DIRTY_UPDATE | WINED3D_MAP_READONLY);
             TRACE("width: %u height: %u.\n", cursor_image->resource.width, cursor_image->resource.height);
 
             cursorInfo.fIcon = FALSE;
@@ -5093,36 +5023,6 @@ void CDECL wined3d_device_evict_managed_resources(struct wined3d_device *device)
     device_invalidate_state(device, STATE_STREAMSRC);
 }
 
-static BOOL is_display_mode_supported(const struct wined3d_device *device,
-        const struct wined3d_swapchain_desc *swapchain_desc)
-{
-    struct wined3d_display_mode m;
-    UINT i, count;
-    HRESULT hr;
-
-    /* All Windowed modes are supported, as is leaving the current mode */
-    if (swapchain_desc->windowed)
-        return TRUE;
-    if (!swapchain_desc->backbuffer_width)
-        return TRUE;
-    if (!swapchain_desc->backbuffer_height)
-        return TRUE;
-
-    count = wined3d_get_adapter_mode_count(device->wined3d, device->adapter->ordinal, WINED3DFMT_UNKNOWN);
-    for (i = 0; i < count; ++i)
-    {
-        memset(&m, 0, sizeof(m));
-        hr = wined3d_enum_adapter_modes(device->wined3d, device->adapter->ordinal, WINED3DFMT_UNKNOWN, i, &m);
-        if (FAILED(hr))
-            ERR("Failed to enumerate adapter mode.\n");
-        if (m.width == swapchain_desc->backbuffer_width && m.height == swapchain_desc->backbuffer_height)
-            /* Mode found, it is supported. */
-            return TRUE;
-    }
-    /* Mode not found -> not supported */
-    return FALSE;
-}
-
 /* Do not call while under the GL lock. */
 static void delete_opengl_contexts(struct wined3d_device *device, struct wined3d_swapchain *swapchain)
 {
@@ -5149,12 +5049,12 @@ static void delete_opengl_contexts(struct wined3d_device *device, struct wined3d
     ENTER_GL();
     if (device->depth_blt_texture)
     {
-        glDeleteTextures(1, &device->depth_blt_texture);
+        gl_info->gl_ops.gl.p_glDeleteTextures(1, &device->depth_blt_texture);
         device->depth_blt_texture = 0;
     }
     if (device->cursorTexture)
     {
-        glDeleteTextures(1, &device->cursorTexture);
+        gl_info->gl_ops.gl.p_glDeleteTextures(1, &device->cursorTexture);
         device->cursorTexture = 0;
     }
     LEAVE_GL();
@@ -5241,19 +5141,35 @@ err:
 
 /* Do not call while under the GL lock. */
 HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
-        const struct wined3d_swapchain_desc *swapchain_desc,
+        const struct wined3d_swapchain_desc *swapchain_desc, const struct wined3d_display_mode *mode,
         wined3d_device_reset_cb callback)
 {
     struct wined3d_resource *resource, *cursor;
     struct wined3d_swapchain *swapchain;
-    struct wined3d_display_mode mode;
+    struct wined3d_display_mode m;
     BOOL DisplayModeChanged = FALSE;
     BOOL update_desc = FALSE;
+    unsigned int i;
     HRESULT hr;
 
-    TRACE("device %p, swapchain_desc %p.\n", device, swapchain_desc);
+    TRACE("device %p, swapchain_desc %p, mode %p, callback %p.\n", device, swapchain_desc, mode, callback);
+
+    if (FAILED(hr = wined3d_device_get_swapchain(device, 0, &swapchain)))
+    {
+        ERR("Failed to get the first implicit swapchain.\n");
+        return hr;
+    }
 
     stateblock_unbind_resources(device->stateBlock);
+    if (swapchain->back_buffers && swapchain->back_buffers[0])
+        wined3d_device_set_render_target(device, 0, swapchain->back_buffers[0], FALSE);
+    else
+        wined3d_device_set_render_target(device, 0, swapchain->front_buffer, FALSE);
+    for (i = 1; i < device->adapter->gl_info.limits.buffers; ++i)
+    {
+        wined3d_device_set_render_target(device, i, NULL, FALSE);
+    }
+    wined3d_device_set_depth_stencil(device, NULL);
 
     if (device->onscreen_depth_stencil)
     {
@@ -5265,24 +5181,10 @@ HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
     {
         TRACE("Enumerating resource %p.\n", resource);
         if (FAILED(hr = callback(resource)))
+        {
+            wined3d_swapchain_decref(swapchain);
             return hr;
-    }
-
-    hr = wined3d_device_get_swapchain(device, 0, &swapchain);
-    if (FAILED(hr))
-    {
-        ERR("Failed to get the first implicit swapchain\n");
-        return hr;
-    }
-
-    if (!is_display_mode_supported(device, swapchain_desc))
-    {
-        WARN("Rejecting reset() call because the requested display mode is not supported.\n");
-        WARN("Requested mode: %ux%u.\n",
-                swapchain_desc->backbuffer_width,
-                swapchain_desc->backbuffer_height);
-        wined3d_swapchain_decref(swapchain);
-        return WINED3DERR_INVALIDCALL;
+        }
     }
 
     /* Is it necessary to recreate the gl context? Actually every setting can be changed
@@ -5333,55 +5235,46 @@ HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
 
     if (swapchain_desc->enable_auto_depth_stencil && !device->auto_depth_stencil)
     {
-        HRESULT hrc;
+        HRESULT hr;
 
         TRACE("Creating the depth stencil buffer\n");
 
-        hrc = device->device_parent->ops->create_depth_stencil(device->device_parent,
-                swapchain_desc->backbuffer_width,
-                swapchain_desc->backbuffer_height,
-                swapchain_desc->auto_depth_stencil_format,
-                swapchain_desc->multisample_type,
-                swapchain_desc->multisample_quality,
-                FALSE,
-                &device->auto_depth_stencil);
-        if (FAILED(hrc))
+        if (FAILED(hr = device->device_parent->ops->create_swapchain_surface(device->device_parent,
+                device->device_parent, swapchain_desc->backbuffer_width, swapchain_desc->backbuffer_height,
+                swapchain_desc->auto_depth_stencil_format, WINED3DUSAGE_DEPTHSTENCIL,
+                swapchain_desc->multisample_type, swapchain_desc->multisample_quality,
+                &device->auto_depth_stencil)))
         {
-            ERR("Failed to create the depth stencil buffer.\n");
+            ERR("Failed to create the depth stencil buffer, hr %#x.\n", hr);
             wined3d_swapchain_decref(swapchain);
             return WINED3DERR_INVALIDCALL;
         }
     }
 
-    if (device->onscreen_depth_stencil)
-    {
-        wined3d_surface_decref(device->onscreen_depth_stencil);
-        device->onscreen_depth_stencil = NULL;
-    }
-
     /* Reset the depth stencil */
     if (swapchain_desc->enable_auto_depth_stencil)
         wined3d_device_set_depth_stencil(device, device->auto_depth_stencil);
-    else
-        wined3d_device_set_depth_stencil(device, NULL);
 
-    TRACE("Resetting stateblock\n");
-    wined3d_stateblock_decref(device->updateStateBlock);
-    wined3d_stateblock_decref(device->stateBlock);
-
-    if (swapchain_desc->windowed)
+    if (mode)
     {
-        mode.width = swapchain->orig_width;
-        mode.height = swapchain->orig_height;
-        mode.refresh_rate = 0;
-        mode.format_id = swapchain->desc.backbuffer_format;
+        DisplayModeChanged = TRUE;
+        m = *mode;
+    }
+    else if (swapchain_desc->windowed)
+    {
+        m.width = swapchain->orig_width;
+        m.height = swapchain->orig_height;
+        m.refresh_rate = 0;
+        m.format_id = swapchain->desc.backbuffer_format;
+        m.scanline_ordering = WINED3D_SCANLINE_ORDERING_UNKNOWN;
     }
     else
     {
-        mode.width = swapchain_desc->backbuffer_width;
-        mode.height = swapchain_desc->backbuffer_height;
-        mode.refresh_rate = swapchain_desc->refresh_rate;
-        mode.format_id = swapchain_desc->backbuffer_format;
+        m.width = swapchain_desc->backbuffer_width;
+        m.height = swapchain_desc->backbuffer_height;
+        m.refresh_rate = swapchain_desc->refresh_rate;
+        m.format_id = swapchain_desc->backbuffer_format;
+        m.scanline_ordering = WINED3D_SCANLINE_ORDERING_UNKNOWN;
     }
 
     /* Should Width == 800 && Height == 0 set 800x600? */
@@ -5449,13 +5342,15 @@ HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
         }
     }
 
-    if (device->d3d_initialized)
-        delete_opengl_contexts(device, swapchain);
-
     if (!swapchain_desc->windowed != !swapchain->desc.windowed
             || DisplayModeChanged)
     {
-        wined3d_device_set_display_mode(device, 0, &mode);
+        if (FAILED(hr = wined3d_set_adapter_display_mode(device->wined3d, device->adapter->ordinal, &m)))
+        {
+            WARN("Failed to set display mode, hr %#x.\n", hr);
+            wined3d_swapchain_decref(swapchain);
+            return WINED3DERR_INVALIDCALL;
+        }
 
         if (!swapchain_desc->windowed)
         {
@@ -5509,6 +5404,13 @@ HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
         device->style = style;
         device->exStyle = exStyle;
     }
+
+    TRACE("Resetting stateblock.\n");
+    wined3d_stateblock_decref(device->updateStateBlock);
+    wined3d_stateblock_decref(device->stateBlock);
+
+    if (device->d3d_initialized)
+        delete_opengl_contexts(device, swapchain);
 
     /* Note: No parent needed for initial internal stateblock */
     hr = wined3d_stateblock_create(device, WINED3D_SBT_INIT, &device->stateBlock);
@@ -5739,7 +5641,6 @@ HRESULT device_init(struct wined3d_device *device, struct wined3d *wined3d,
 {
     struct wined3d_adapter *adapter = &wined3d->adapters[adapter_idx];
     const struct fragment_pipeline *fragment_pipeline;
-    struct wined3d_display_mode mode;
     struct shader_caps shader_caps;
     struct fragment_caps ffp_caps;
     unsigned int i;
@@ -5753,18 +5654,6 @@ HRESULT device_init(struct wined3d_device *device, struct wined3d *wined3d,
     list_init(&device->resources);
     list_init(&device->shaders);
     device->surface_alignment = surface_alignment;
-
-    /* Get the initial screen setup for ddraw. */
-    hr = wined3d_get_adapter_display_mode(wined3d, adapter_idx, &mode);
-    if (FAILED(hr))
-    {
-        ERR("Failed to get the adapter's display mode, hr %#x.\n", hr);
-        wined3d_decref(device->wined3d);
-        return hr;
-    }
-    adapter->screen_size.cx = mode.width;
-    adapter->screen_size.cy = mode.height;
-    adapter->screen_format = mode.format_id;
 
     /* Save the creation parameters. */
     device->create_parms.adapter_idx = adapter_idx;

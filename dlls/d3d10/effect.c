@@ -23,6 +23,8 @@
 
 #include "d3d10_private.h"
 
+#include <float.h>
+
 WINE_DEFAULT_DEBUG_CHANNEL(d3d10);
 
 #define D3D10_FX10_TYPE_COLUMN_SHIFT    11
@@ -114,6 +116,132 @@ static inline struct d3d10_effect_variable *impl_from_ID3D10EffectVariable(ID3D1
 {
     return CONTAINING_RECORD(iface, struct d3d10_effect_variable, ID3D10EffectVariable_iface);
 }
+
+struct d3d10_effect_state_property_info
+{
+    UINT id;
+    const char *name;
+    D3D_SHADER_VARIABLE_TYPE type;
+    UINT size;
+    UINT count;
+    D3D_SHADER_VARIABLE_TYPE container_type;
+    LONG offset;
+};
+
+static const struct d3d10_effect_state_property_info property_info[] =
+{
+    {0x0c, "RasterizerState.FillMode",                    D3D10_SVT_INT,   1, 1, D3D10_SVT_RASTERIZER,   FIELD_OFFSET(D3D10_RASTERIZER_DESC, FillMode)                       },
+    {0x0d, "RasterizerState.CullMode",                    D3D10_SVT_INT,   1, 1, D3D10_SVT_RASTERIZER,   FIELD_OFFSET(D3D10_RASTERIZER_DESC, CullMode)                       },
+    {0x0e, "RasterizerState.FrontCounterClockwise",       D3D10_SVT_BOOL,  1, 1, D3D10_SVT_RASTERIZER,   FIELD_OFFSET(D3D10_RASTERIZER_DESC, FrontCounterClockwise)          },
+    {0x0f, "RasterizerState.DepthBias",                   D3D10_SVT_INT,   1, 1, D3D10_SVT_RASTERIZER,   FIELD_OFFSET(D3D10_RASTERIZER_DESC, DepthBias)                      },
+    {0x10, "RasterizerState.DepthBiasClamp",              D3D10_SVT_FLOAT, 1, 1, D3D10_SVT_RASTERIZER,   FIELD_OFFSET(D3D10_RASTERIZER_DESC, DepthBiasClamp)                 },
+    {0x11, "RasterizerState.SlopeScaledDepthBias",        D3D10_SVT_FLOAT, 1, 1, D3D10_SVT_RASTERIZER,   FIELD_OFFSET(D3D10_RASTERIZER_DESC, SlopeScaledDepthBias)           },
+    {0x12, "RasterizerState.DepthClipEnable",             D3D10_SVT_BOOL,  1, 1, D3D10_SVT_RASTERIZER,   FIELD_OFFSET(D3D10_RASTERIZER_DESC, DepthClipEnable)                },
+    {0x13, "RasterizerState.ScissorEnable",               D3D10_SVT_BOOL,  1, 1, D3D10_SVT_RASTERIZER,   FIELD_OFFSET(D3D10_RASTERIZER_DESC, ScissorEnable)                  },
+    {0x14, "RasterizerState.MultisampleEnable",           D3D10_SVT_BOOL,  1, 1, D3D10_SVT_RASTERIZER,   FIELD_OFFSET(D3D10_RASTERIZER_DESC, MultisampleEnable)              },
+    {0x15, "RasterizerState.AntialiasedLineEnable",       D3D10_SVT_BOOL,  1, 1, D3D10_SVT_RASTERIZER,   FIELD_OFFSET(D3D10_RASTERIZER_DESC, AntialiasedLineEnable)          },
+    {0x16, "DepthStencilState.DepthEnable",               D3D10_SVT_BOOL,  1, 1, D3D10_SVT_DEPTHSTENCIL, FIELD_OFFSET(D3D10_DEPTH_STENCIL_DESC, DepthEnable)                 },
+    {0x17, "DepthStencilState.DepthWriteMask",            D3D10_SVT_INT,   1, 1, D3D10_SVT_DEPTHSTENCIL, FIELD_OFFSET(D3D10_DEPTH_STENCIL_DESC, DepthWriteMask)              },
+    {0x18, "DepthStencilState.DepthFunc",                 D3D10_SVT_INT,   1, 1, D3D10_SVT_DEPTHSTENCIL, FIELD_OFFSET(D3D10_DEPTH_STENCIL_DESC, DepthFunc)                   },
+    {0x19, "DepthStencilState.StencilEnable",             D3D10_SVT_BOOL,  1, 1, D3D10_SVT_DEPTHSTENCIL, FIELD_OFFSET(D3D10_DEPTH_STENCIL_DESC, StencilEnable)               },
+    {0x1a, "DepthStencilState.StencilReadMask",           D3D10_SVT_UINT8, 1, 1, D3D10_SVT_DEPTHSTENCIL, FIELD_OFFSET(D3D10_DEPTH_STENCIL_DESC, StencilReadMask)             },
+    {0x1b, "DepthStencilState.StencilWriteMask",          D3D10_SVT_UINT8, 1, 1, D3D10_SVT_DEPTHSTENCIL, FIELD_OFFSET(D3D10_DEPTH_STENCIL_DESC, StencilWriteMask)            },
+    {0x1c, "DepthStencilState.FrontFaceStencilFail",      D3D10_SVT_INT,   1, 1, D3D10_SVT_DEPTHSTENCIL, FIELD_OFFSET(D3D10_DEPTH_STENCIL_DESC, FrontFace.StencilFailOp)     },
+    {0x1d, "DepthStencilState.FrontFaceStencilDepthFail", D3D10_SVT_INT,   1, 1, D3D10_SVT_DEPTHSTENCIL, FIELD_OFFSET(D3D10_DEPTH_STENCIL_DESC, FrontFace.StencilDepthFailOp)},
+    {0x1e, "DepthStencilState.FrontFaceStencilPass",      D3D10_SVT_INT,   1, 1, D3D10_SVT_DEPTHSTENCIL, FIELD_OFFSET(D3D10_DEPTH_STENCIL_DESC, FrontFace.StencilPassOp)     },
+    {0x1f, "DepthStencilState.FrontFaceStencilFunc",      D3D10_SVT_INT,   1, 1, D3D10_SVT_DEPTHSTENCIL, FIELD_OFFSET(D3D10_DEPTH_STENCIL_DESC, FrontFace.StencilFunc)       },
+    {0x20, "DepthStencilState.BackFaceStencilFail",       D3D10_SVT_INT,   1, 1, D3D10_SVT_DEPTHSTENCIL, FIELD_OFFSET(D3D10_DEPTH_STENCIL_DESC, BackFace.StencilFailOp)      },
+    {0x21, "DepthStencilState.BackFaceStencilDepthFail",  D3D10_SVT_INT,   1, 1, D3D10_SVT_DEPTHSTENCIL, FIELD_OFFSET(D3D10_DEPTH_STENCIL_DESC, BackFace.StencilDepthFailOp) },
+    {0x22, "DepthStencilState.BackFaceStencilPass",       D3D10_SVT_INT,   1, 1, D3D10_SVT_DEPTHSTENCIL, FIELD_OFFSET(D3D10_DEPTH_STENCIL_DESC, BackFace.StencilPassOp)      },
+    {0x23, "DepthStencilState.BackFaceStencilFunc",       D3D10_SVT_INT,   1, 1, D3D10_SVT_DEPTHSTENCIL, FIELD_OFFSET(D3D10_DEPTH_STENCIL_DESC, BackFace.StencilFunc)        },
+    {0x24, "BlendState.AlphaToCoverageEnable",            D3D10_SVT_BOOL,  1, 1, D3D10_SVT_BLEND,        FIELD_OFFSET(D3D10_BLEND_DESC,         AlphaToCoverageEnable)       },
+    {0x25, "BlendState.BlendEnable",                      D3D10_SVT_BOOL,  1, 8, D3D10_SVT_BLEND,        FIELD_OFFSET(D3D10_BLEND_DESC,         BlendEnable)                 },
+    {0x26, "BlendState.SrcBlend",                         D3D10_SVT_INT,   1, 1, D3D10_SVT_BLEND,        FIELD_OFFSET(D3D10_BLEND_DESC,         SrcBlend)                    },
+    {0x27, "BlendState.DestBlend",                        D3D10_SVT_INT,   1, 1, D3D10_SVT_BLEND,        FIELD_OFFSET(D3D10_BLEND_DESC,         DestBlend)                   },
+    {0x28, "BlendState.BlendOp",                          D3D10_SVT_INT,   1, 1, D3D10_SVT_BLEND,        FIELD_OFFSET(D3D10_BLEND_DESC,         BlendOp)                     },
+    {0x29, "BlendState.SrcBlendAlpha",                    D3D10_SVT_INT,   1, 1, D3D10_SVT_BLEND,        FIELD_OFFSET(D3D10_BLEND_DESC,         SrcBlendAlpha)               },
+    {0x2a, "BlendState.DestBlendAlpha",                   D3D10_SVT_INT,   1, 1, D3D10_SVT_BLEND,        FIELD_OFFSET(D3D10_BLEND_DESC,         DestBlendAlpha)              },
+    {0x2b, "BlendState.BlendOpAlpha",                     D3D10_SVT_INT,   1, 1, D3D10_SVT_BLEND,        FIELD_OFFSET(D3D10_BLEND_DESC,         BlendOpAlpha)                },
+    {0x2c, "BlendState.RenderTargetWriteMask",            D3D10_SVT_UINT8, 1, 8, D3D10_SVT_BLEND,        FIELD_OFFSET(D3D10_BLEND_DESC,         RenderTargetWriteMask)       },
+    {0x2d, "SamplerState.Filter",                         D3D10_SVT_INT,   1, 1, D3D10_SVT_SAMPLER,      FIELD_OFFSET(D3D10_SAMPLER_DESC,       Filter)                      },
+    {0x2e, "SamplerState.AddressU",                       D3D10_SVT_INT,   1, 1, D3D10_SVT_SAMPLER,      FIELD_OFFSET(D3D10_SAMPLER_DESC,       AddressU)                    },
+    {0x2f, "SamplerState.AddressV",                       D3D10_SVT_INT,   1, 1, D3D10_SVT_SAMPLER,      FIELD_OFFSET(D3D10_SAMPLER_DESC,       AddressV)                    },
+    {0x30, "SamplerState.AddressW",                       D3D10_SVT_INT,   1, 1, D3D10_SVT_SAMPLER,      FIELD_OFFSET(D3D10_SAMPLER_DESC,       AddressW)                    },
+    {0x31, "SamplerState.MipMapLODBias",                  D3D10_SVT_FLOAT, 1, 1, D3D10_SVT_SAMPLER,      FIELD_OFFSET(D3D10_SAMPLER_DESC,       MipLODBias)                  },
+    {0x32, "SamplerState.MaxAnisotropy",                  D3D10_SVT_UINT,  1, 1, D3D10_SVT_SAMPLER,      FIELD_OFFSET(D3D10_SAMPLER_DESC,       MaxAnisotropy)               },
+    {0x33, "SamplerState.ComparisonFunc",                 D3D10_SVT_INT,   1, 1, D3D10_SVT_SAMPLER,      FIELD_OFFSET(D3D10_SAMPLER_DESC,       ComparisonFunc)              },
+    {0x34, "SamplerState.BorderColor",                    D3D10_SVT_FLOAT, 4, 1, D3D10_SVT_SAMPLER,      FIELD_OFFSET(D3D10_SAMPLER_DESC,       BorderColor)                 },
+    {0x35, "SamplerState.MinLOD",                         D3D10_SVT_FLOAT, 1, 1, D3D10_SVT_SAMPLER,      FIELD_OFFSET(D3D10_SAMPLER_DESC,       MinLOD)                      },
+    {0x36, "SamplerState.MaxLOD",                         D3D10_SVT_FLOAT, 1, 1, D3D10_SVT_SAMPLER,      FIELD_OFFSET(D3D10_SAMPLER_DESC,       MaxLOD)                      },
+};
+
+static const D3D10_RASTERIZER_DESC default_rasterizer_desc =
+{
+    D3D10_FILL_SOLID,
+    D3D10_CULL_BACK,
+    FALSE,
+    0,
+    0.0f,
+    0.0f,
+    TRUE,
+    FALSE,
+    FALSE,
+    FALSE,
+};
+
+static const D3D10_DEPTH_STENCIL_DESC default_depth_stencil_desc =
+{
+    TRUE,
+    D3D10_DEPTH_WRITE_MASK_ALL,
+    D3D10_COMPARISON_LESS,
+    FALSE,
+    D3D10_DEFAULT_STENCIL_READ_MASK,
+    D3D10_DEFAULT_STENCIL_WRITE_MASK,
+    {D3D10_STENCIL_OP_KEEP, D3D10_STENCIL_OP_KEEP, D3D10_STENCIL_OP_KEEP, D3D10_COMPARISON_ALWAYS},
+    {D3D10_STENCIL_OP_KEEP, D3D10_STENCIL_OP_KEEP, D3D10_STENCIL_OP_KEEP, D3D10_COMPARISON_ALWAYS},
+};
+
+static const D3D10_BLEND_DESC default_blend_desc =
+{
+    FALSE,
+    {FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE},
+    D3D10_BLEND_SRC_ALPHA,
+    D3D10_BLEND_INV_SRC_ALPHA,
+    D3D10_BLEND_OP_ADD,
+    D3D10_BLEND_SRC_ALPHA,
+    D3D10_BLEND_INV_SRC_ALPHA,
+    D3D10_BLEND_OP_ADD,
+    {0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf},
+};
+
+static const D3D10_SAMPLER_DESC default_sampler_desc =
+{
+    D3D10_FILTER_MIN_MAG_MIP_POINT,
+    D3D10_TEXTURE_ADDRESS_WRAP,
+    D3D10_TEXTURE_ADDRESS_WRAP,
+    D3D10_TEXTURE_ADDRESS_WRAP,
+    0.0f,
+    16,
+    D3D10_COMPARISON_NEVER,
+    {0.0f, 0.0f, 0.0f, 0.0f},
+    0.0f,
+    FLT_MAX,
+};
+
+struct d3d10_effect_state_storage_info
+{
+    D3D_SHADER_VARIABLE_TYPE id;
+    size_t size;
+    const void *default_state;
+};
+
+static const struct d3d10_effect_state_storage_info d3d10_effect_state_storage_info[] =
+{
+    {D3D10_SVT_RASTERIZER,   sizeof(default_rasterizer_desc),    &default_rasterizer_desc   },
+    {D3D10_SVT_DEPTHSTENCIL, sizeof(default_depth_stencil_desc), &default_depth_stencil_desc},
+    {D3D10_SVT_BLEND,        sizeof(default_blend_desc),         &default_blend_desc        },
+    {D3D10_SVT_SAMPLER,      sizeof(default_sampler_desc),       &default_sampler_desc      },
+};
 
 static BOOL copy_name(const char *ptr, char **name)
 {
@@ -865,6 +993,10 @@ static HRESULT parse_fx10_anonymous_shader(struct d3d10_effect *e, struct d3d10_
             shader = "geometryshader";
             t->basetype = D3D10_SVT_GEOMETRYSHADER;
             break;
+
+        default:
+            FIXME("Unhandled object type %#x.\n", otype);
+            return E_FAIL;
     }
 
     if (!copy_name(shader, &t->name))
@@ -897,6 +1029,185 @@ static HRESULT parse_fx10_anonymous_shader(struct d3d10_effect *e, struct d3d10_
     TRACE("Variable semantic: %s.\n", debugstr_a(v->semantic));
 
     return S_OK;
+}
+
+static const struct d3d10_effect_state_property_info *get_property_info(UINT id)
+{
+    unsigned int i;
+
+    for (i = 0; i < sizeof(property_info) / sizeof(*property_info); ++i)
+    {
+        if (property_info[i].id == id)
+            return &property_info[i];
+    }
+
+    return NULL;
+}
+
+static const struct d3d10_effect_state_storage_info *get_storage_info(D3D_SHADER_VARIABLE_TYPE id)
+{
+    unsigned int i;
+
+    for (i = 0; i < sizeof(d3d10_effect_state_storage_info) / sizeof(*d3d10_effect_state_storage_info); ++i)
+    {
+        if (d3d10_effect_state_storage_info[i].id == id)
+            return &d3d10_effect_state_storage_info[i];
+    }
+
+    return NULL;
+}
+
+static BOOL read_float_value(DWORD value, D3D_SHADER_VARIABLE_TYPE in_type, float *out_data, UINT idx)
+{
+    switch (in_type)
+    {
+        case D3D10_SVT_FLOAT:
+            out_data[idx] = *(float *)&value;
+            return TRUE;
+
+        case D3D10_SVT_INT:
+            out_data[idx] = (INT)value;
+            return TRUE;
+
+        default:
+            FIXME("Unhandled in_type %#x.\n", in_type);
+            return FALSE;
+    }
+}
+
+static BOOL read_int32_value(DWORD value, D3D_SHADER_VARIABLE_TYPE in_type, INT *out_data, UINT idx)
+{
+    switch (in_type)
+    {
+        case D3D10_SVT_FLOAT:
+            out_data[idx] = *(float *)&value;
+            return TRUE;
+
+        case D3D10_SVT_INT:
+        case D3D10_SVT_BOOL:
+            out_data[idx] = value;
+            return TRUE;
+
+        default:
+            FIXME("Unhandled in_type %#x.\n", in_type);
+            return FALSE;
+    }
+}
+
+static BOOL read_int8_value(DWORD value, D3D_SHADER_VARIABLE_TYPE in_type, INT8 *out_data, UINT idx)
+{
+    switch (in_type)
+    {
+        case D3D10_SVT_INT:
+            out_data[idx] = value;
+            return TRUE;
+
+        default:
+            FIXME("Unhandled in_type %#x.\n", in_type);
+            return FALSE;
+    }
+}
+
+static BOOL read_value_list(const char *ptr, D3D_SHADER_VARIABLE_TYPE out_type,
+        UINT out_base, UINT out_size, void *out_data)
+{
+    D3D_SHADER_VARIABLE_TYPE in_type;
+    DWORD t, value;
+    DWORD count, i;
+
+    read_dword(&ptr, &count);
+    if (count != out_size)
+        return FALSE;
+
+    TRACE("%u values:\n", count);
+    for (i = 0; i < count; ++i)
+    {
+        UINT out_idx = out_base * out_size + i;
+
+        read_dword(&ptr, &t);
+        read_dword(&ptr, &value);
+
+        in_type = d3d10_variable_type(t, FALSE);
+        TRACE("\t%s: %#x.\n", debug_d3d10_shader_variable_type(in_type), value);
+
+        switch (out_type)
+        {
+            case D3D10_SVT_FLOAT:
+                if (!read_float_value(value, in_type, out_data, out_idx))
+                    return FALSE;
+                break;
+
+            case D3D10_SVT_INT:
+            case D3D10_SVT_UINT:
+            case D3D10_SVT_BOOL:
+                if (!read_int32_value(value, in_type, out_data, out_idx))
+                    return FALSE;
+                break;
+
+            case D3D10_SVT_UINT8:
+                if (!read_int8_value(value, in_type, out_data, out_idx))
+                    return FALSE;
+                break;
+
+            default:
+                FIXME("Unhandled out_type %#x.\n", out_type);
+                return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+static BOOL parse_fx10_state_group(const char **ptr, const char *data,
+        D3D_SHADER_VARIABLE_TYPE container_type, void *container)
+{
+    const struct d3d10_effect_state_property_info *property_info;
+    UINT value_offset;
+    unsigned int i;
+    DWORD count;
+    UINT idx;
+    UINT id;
+
+    read_dword(ptr, &count);
+    TRACE("Property count: %#x.\n", count);
+
+    for (i = 0; i < count; ++i)
+    {
+        read_dword(ptr, &id);
+        read_dword(ptr, &idx);
+        skip_dword_unknown("read property", ptr, 1);
+        read_dword(ptr, &value_offset);
+
+        if (!(property_info = get_property_info(id)))
+        {
+            FIXME("Failed to find property info for property %#x.\n", id);
+            return FALSE;
+        }
+
+        TRACE("Property %s[%#x] = value list @ offset %#x.\n",
+                property_info->name, idx, value_offset);
+
+        if (property_info->container_type != container_type)
+        {
+            ERR("FAIL1\n");
+            return FALSE;
+        }
+
+        if (idx >= property_info->count)
+        {
+            ERR("FAIL2\n");
+            return FALSE;
+        }
+
+        if (!read_value_list(data + value_offset, property_info->type, idx,
+                property_info->size, (char *)container + property_info->offset))
+        {
+            ERR("FAIL3\n");
+            return FALSE;
+        }
+    }
+
+    return TRUE;
 }
 
 static HRESULT parse_fx10_object(struct d3d10_effect_object *o, const char **ptr, const char *data)
@@ -942,6 +1253,36 @@ static HRESULT parse_fx10_object(struct d3d10_effect_object *o, const char **ptr
                 case D3D10_EOT_GEOMETRYSHADER:
                     TRACE("Geometry shader\n");
                     o->data = &anonymous_gs;
+                    hr = S_OK;
+                    break;
+
+                case D3D10_EOT_STENCIL_REF:
+                    if (!read_value_list(data + offset, D3D10_SVT_UINT, 0, 1, &o->pass->stencil_ref))
+                    {
+                        ERR("Failed to read stencil ref.\n");
+                        return E_FAIL;
+                    }
+
+                    hr = S_OK;
+                    break;
+
+                case D3D10_EOT_SAMPLE_MASK:
+                    if (!read_value_list(data + offset, D3D10_SVT_UINT, 0, 1, &o->pass->sample_mask))
+                    {
+                        FIXME("Failed to read sample mask.\n");
+                        return E_FAIL;
+                    }
+
+                    hr = S_OK;
+                    break;
+
+                case D3D10_EOT_BLEND_FACTOR:
+                    if (!read_value_list(data + offset, D3D10_SVT_FLOAT, 0, 4, &o->pass->blend_factor[0]))
+                    {
+                        FIXME("Failed to read blend factor.\n");
+                        return E_FAIL;
+                    }
+
                     hr = S_OK;
                     break;
 
@@ -1265,19 +1606,37 @@ static HRESULT parse_fx10_local_variable(struct d3d10_effect_variable *v, const 
         case D3D10_SVT_BLEND:
         case D3D10_SVT_RASTERIZER:
         case D3D10_SVT_SAMPLER:
-            TRACE("SVT is a state.\n");
-            for (i = 0; i < max(v->type->element_count, 1); ++i)
             {
-                unsigned int j;
-                DWORD object_count;
+                const struct d3d10_effect_state_storage_info *storage_info;
+                unsigned int count = max(v->type->element_count, 1);
+                unsigned char *desc;
 
-                read_dword(ptr, &object_count);
-                TRACE("Object count: %#x.\n", object_count);
-
-                for (j = 0; j < object_count; ++j)
+                if (!(storage_info = get_storage_info(v->type->basetype)))
                 {
-                    skip_dword_unknown("state object attribute", ptr, 4);
+                    FIXME("Failed to get backing store info for type %s.\n",
+                            debug_d3d10_shader_variable_type(v->type->basetype));
+                    return E_FAIL;
                 }
+
+                if (!(desc = HeapAlloc(GetProcessHeap(), 0, count * storage_info->size)))
+                {
+                    ERR("Failed to allocate backing store memory.\n");
+                    return E_OUTOFMEMORY;
+                }
+
+                for (i = 0; i < count; ++i)
+                {
+                    memcpy(&desc[i * storage_info->size], storage_info->default_state, storage_info->size);
+
+                    if (!parse_fx10_state_group(ptr, data, v->type->basetype, &desc[i * storage_info->size]))
+                    {
+                        ERR("Failed to read property list.\n");
+                        HeapFree(GetProcessHeap(), 0, desc);
+                        return E_FAIL;
+                    }
+                }
+
+                v->data = desc;
             }
             break;
 
@@ -2482,6 +2841,10 @@ static HRESULT STDMETHODCALLTYPE d3d10_effect_pass_GetDesc(ID3D10EffectPass *ifa
             break;
         }
     }
+
+    desc->StencilRef = This->stencil_ref;
+    desc->SampleMask = This->sample_mask;
+    memcpy(desc->BlendFactor, This->blend_factor, 4 * sizeof(float));
 
     return S_OK;
 }
@@ -5561,9 +5924,19 @@ static HRESULT STDMETHODCALLTYPE d3d10_effect_blend_variable_GetBlendState(ID3D1
 static HRESULT STDMETHODCALLTYPE d3d10_effect_blend_variable_GetBackingStore(ID3D10EffectBlendVariable *iface,
         UINT index, D3D10_BLEND_DESC *desc)
 {
-    FIXME("iface %p, index %u, desc %p stub!\n", iface, index, desc);
+    struct d3d10_effect_variable *v = impl_from_ID3D10EffectVariable((ID3D10EffectVariable *)iface);
 
-    return E_NOTIMPL;
+    TRACE("iface %p, index %u, desc %p.\n", iface, index, desc);
+
+    if (index >= max(v->type->element_count, 1))
+    {
+        WARN("Invalid index %u.\n", index);
+        return E_FAIL;
+    }
+
+    *desc = ((D3D10_BLEND_DESC *)v->data)[index];
+
+    return S_OK;
 }
 
 
@@ -5766,9 +6139,19 @@ static HRESULT STDMETHODCALLTYPE d3d10_effect_depth_stencil_variable_GetDepthSte
 static HRESULT STDMETHODCALLTYPE d3d10_effect_depth_stencil_variable_GetBackingStore(ID3D10EffectDepthStencilVariable *iface,
         UINT index, D3D10_DEPTH_STENCIL_DESC *desc)
 {
-    FIXME("iface %p, index %u, desc %p stub!\n", iface, index, desc);
+    struct d3d10_effect_variable *v = impl_from_ID3D10EffectVariable((ID3D10EffectVariable *)iface);
 
-    return E_NOTIMPL;
+    TRACE("iface %p, index %u, desc %p.\n", iface, index, desc);
+
+    if (index >= max(v->type->element_count, 1))
+    {
+        WARN("Invalid index %u.\n", index);
+        return E_FAIL;
+    }
+
+    *desc = ((D3D10_DEPTH_STENCIL_DESC *)v->data)[index];
+
+    return S_OK;
 }
 
 
@@ -5971,9 +6354,19 @@ static HRESULT STDMETHODCALLTYPE d3d10_effect_rasterizer_variable_GetRasterizerS
 static HRESULT STDMETHODCALLTYPE d3d10_effect_rasterizer_variable_GetBackingStore(ID3D10EffectRasterizerVariable *iface,
         UINT index, D3D10_RASTERIZER_DESC *desc)
 {
-    FIXME("iface %p, index %u, desc %p stub!\n", iface, index, desc);
+    struct d3d10_effect_variable *v = impl_from_ID3D10EffectVariable((ID3D10EffectVariable *)iface);
 
-    return E_NOTIMPL;
+    TRACE("iface %p, index %u, desc %p.\n", iface, index, desc);
+
+    if (index >= max(v->type->element_count, 1))
+    {
+        WARN("Invalid index %u.\n", index);
+        return E_FAIL;
+    }
+
+    *desc = ((D3D10_RASTERIZER_DESC *)v->data)[index];
+
+    return S_OK;
 }
 
 
@@ -6176,9 +6569,19 @@ static HRESULT STDMETHODCALLTYPE d3d10_effect_sampler_variable_GetSampler(ID3D10
 static HRESULT STDMETHODCALLTYPE d3d10_effect_sampler_variable_GetBackingStore(ID3D10EffectSamplerVariable *iface,
         UINT index, D3D10_SAMPLER_DESC *desc)
 {
-    FIXME("iface %p, index %u, desc %p stub!\n", iface, index, desc);
+    struct d3d10_effect_variable *v = impl_from_ID3D10EffectVariable((ID3D10EffectVariable *)iface);
 
-    return E_NOTIMPL;
+    TRACE("iface %p, index %u, desc %p.\n", iface, index, desc);
+
+    if (index >= max(v->type->element_count, 1))
+    {
+        WARN("Invalid index %u.\n", index);
+        return E_FAIL;
+    }
+
+    *desc = ((D3D10_SAMPLER_DESC *)v->data)[index];
+
+    return S_OK;
 }
 
 

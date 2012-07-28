@@ -140,7 +140,8 @@ static const WCHAR printersW[] = {'S','y','s','t','e','m','\\',
                                   'C','o','n','t','r','o','l','\\',
                                   'P','r','i','n','t','\\',
                                   'P','r','i','n','t','e','r','s',0};
-static const WCHAR spooldriversW[] = {'\\','s','p','o','o','l','\\','d','r','i','v','e','r','s','\\',0};
+static const WCHAR spoolW[] = {'\\','s','p','o','o','l',0};
+static const WCHAR driversW[] = {'\\','d','r','i','v','e','r','s','\\',0};
 static const WCHAR spoolprtprocsW[] = {'\\','s','p','o','o','l','\\','p','r','t','p','r','o','c','s','\\',0};
 static const WCHAR version0_regpathW[] = {'\\','V','e','r','s','i','o','n','-','0',0};
 static const WCHAR version0_subdirW[] = {'\\','0',0};
@@ -1059,6 +1060,7 @@ static BOOL WINAPI fpGetPrinterDriverDirectory(LPWSTR pName, LPWSTR pEnvironment
 {
     DWORD needed;
     const printenv_t * env;
+    WCHAR * const dir = (WCHAR *)pDriverDirectory;
 
     TRACE("(%s, %s, %d, %p, %d, %p)\n", debugstr_w(pName),
           debugstr_w(pEnvironment), Level, pDriverDirectory, cbBuf, pcbNeeded);
@@ -1076,7 +1078,8 @@ static BOOL WINAPI fpGetPrinterDriverDirectory(LPWSTR pName, LPWSTR pEnvironment
     /* GetSystemDirectoryW returns number of WCHAR including the '\0' */
     needed = GetSystemDirectoryW(NULL, 0);
     /* add the Size for the Subdirectories */
-    needed += lstrlenW(spooldriversW);
+    needed += lstrlenW(spoolW);
+    needed += lstrlenW(driversW);
     needed += lstrlenW(env->subdir);
     needed *= sizeof(WCHAR);  /* return-value is size in Bytes */
 
@@ -1087,18 +1090,22 @@ static BOOL WINAPI fpGetPrinterDriverDirectory(LPWSTR pName, LPWSTR pEnvironment
         return FALSE;
     }
 
-    if (pDriverDirectory == NULL) {
+    if (dir == NULL) {
         /* ERROR_INVALID_USER_BUFFER is NT, ERROR_INVALID_PARAMETER is win9x */
         SetLastError(ERROR_INVALID_USER_BUFFER);
         return FALSE;
     }
 
-    GetSystemDirectoryW((LPWSTR) pDriverDirectory, cbBuf/sizeof(WCHAR));
+    GetSystemDirectoryW( dir, cbBuf / sizeof(WCHAR) );
     /* add the Subdirectories */
-    lstrcatW((LPWSTR) pDriverDirectory, spooldriversW);
-    lstrcatW((LPWSTR) pDriverDirectory, env->subdir);
+    lstrcatW( dir, spoolW );
+    CreateDirectoryW( dir, NULL );
+    lstrcatW( dir, driversW );
+    CreateDirectoryW( dir, NULL );
+    lstrcatW( dir, env->subdir );
+    CreateDirectoryW( dir, NULL );
 
-    TRACE("=> %s\n", debugstr_w((LPWSTR) pDriverDirectory));
+    TRACE( "=> %s\n", debugstr_w( dir ) );
     return TRUE;
 }
 

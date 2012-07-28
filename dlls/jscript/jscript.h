@@ -152,7 +152,7 @@ static inline jsdisp_t *get_jsdisp(vdisp_t *vdisp)
     return is_jsdisp(vdisp) ? vdisp->u.jsdisp : NULL;
 }
 
-typedef HRESULT (*builtin_invoke_t)(script_ctx_t*,vdisp_t*,WORD,DISPPARAMS*,VARIANT*,jsexcept_t*);
+typedef HRESULT (*builtin_invoke_t)(script_ctx_t*,vdisp_t*,WORD,unsigned,VARIANT*,VARIANT*,jsexcept_t*);
 
 typedef struct {
     const WCHAR *name;
@@ -206,25 +206,30 @@ HRESULT create_dispex(script_ctx_t*,const builtin_info_t*,jsdisp_t*,jsdisp_t**) 
 HRESULT init_dispex(jsdisp_t*,script_ctx_t*,const builtin_info_t*,jsdisp_t*) DECLSPEC_HIDDEN;
 HRESULT init_dispex_from_constr(jsdisp_t*,script_ctx_t*,const builtin_info_t*,jsdisp_t*) DECLSPEC_HIDDEN;
 
-HRESULT disp_call(script_ctx_t*,IDispatch*,DISPID,WORD,DISPPARAMS*,VARIANT*,jsexcept_t*) DECLSPEC_HIDDEN;
-HRESULT jsdisp_call_value(jsdisp_t*,WORD,DISPPARAMS*,VARIANT*,jsexcept_t*) DECLSPEC_HIDDEN;
-HRESULT jsdisp_call(jsdisp_t*,DISPID,WORD,DISPPARAMS*,VARIANT*,jsexcept_t*) DECLSPEC_HIDDEN;
-HRESULT jsdisp_call_name(jsdisp_t*,const WCHAR*,WORD,DISPPARAMS*,VARIANT*,jsexcept_t*) DECLSPEC_HIDDEN;
+HRESULT disp_call(script_ctx_t*,IDispatch*,DISPID,WORD,unsigned,VARIANT*,VARIANT*,jsexcept_t*) DECLSPEC_HIDDEN;
+HRESULT disp_call_value(script_ctx_t*,IDispatch*,IDispatch*,WORD,unsigned,VARIANT*,VARIANT*,jsexcept_t*) DECLSPEC_HIDDEN;
+HRESULT jsdisp_call_value(jsdisp_t*,IDispatch*,WORD,unsigned,VARIANT*,VARIANT*,jsexcept_t*) DECLSPEC_HIDDEN;
+HRESULT jsdisp_call(jsdisp_t*,DISPID,WORD,unsigned,VARIANT*,VARIANT*,jsexcept_t*) DECLSPEC_HIDDEN;
+HRESULT jsdisp_call_name(jsdisp_t*,const WCHAR*,WORD,unsigned,VARIANT*,VARIANT*,jsexcept_t*) DECLSPEC_HIDDEN;
 HRESULT disp_propget(script_ctx_t*,IDispatch*,DISPID,VARIANT*,jsexcept_t*) DECLSPEC_HIDDEN;
 HRESULT disp_propput(script_ctx_t*,IDispatch*,DISPID,VARIANT*,jsexcept_t*) DECLSPEC_HIDDEN;
 HRESULT jsdisp_propget(jsdisp_t*,DISPID,VARIANT*,jsexcept_t*) DECLSPEC_HIDDEN;
 HRESULT jsdisp_propput_name(jsdisp_t*,const WCHAR*,VARIANT*,jsexcept_t*) DECLSPEC_HIDDEN;
 HRESULT jsdisp_propput_const(jsdisp_t*,const WCHAR*,VARIANT*) DECLSPEC_HIDDEN;
+HRESULT jsdisp_propput_dontenum(jsdisp_t*,const WCHAR*,VARIANT*) DECLSPEC_HIDDEN;
 HRESULT jsdisp_propput_idx(jsdisp_t*,DWORD,VARIANT*,jsexcept_t*) DECLSPEC_HIDDEN;
 HRESULT jsdisp_propget_name(jsdisp_t*,LPCWSTR,VARIANT*,jsexcept_t*) DECLSPEC_HIDDEN;
 HRESULT jsdisp_get_idx(jsdisp_t*,DWORD,VARIANT*,jsexcept_t*) DECLSPEC_HIDDEN;
 HRESULT jsdisp_get_id(jsdisp_t*,const WCHAR*,DWORD,DISPID*) DECLSPEC_HIDDEN;
 HRESULT jsdisp_delete_idx(jsdisp_t*,DWORD) DECLSPEC_HIDDEN;
-VARIANT_BOOL jsdisp_is_own_prop(jsdisp_t *obj, BSTR name) DECLSPEC_HIDDEN;
+HRESULT jsdisp_is_own_prop(jsdisp_t*,BSTR,VARIANT_BOOL*) DECLSPEC_HIDDEN;
 
 HRESULT create_builtin_function(script_ctx_t*,builtin_invoke_t,const WCHAR*,const builtin_info_t*,DWORD,
         jsdisp_t*,jsdisp_t**) DECLSPEC_HIDDEN;
-HRESULT Function_value(script_ctx_t*,vdisp_t*,WORD,DISPPARAMS*,VARIANT*,jsexcept_t*) DECLSPEC_HIDDEN;
+HRESULT create_builtin_constructor(script_ctx_t*,builtin_invoke_t,const WCHAR*,const builtin_info_t*,DWORD,
+        jsdisp_t*,jsdisp_t**) DECLSPEC_HIDDEN;
+HRESULT Function_value(script_ctx_t*,vdisp_t*,WORD,unsigned,VARIANT*,VARIANT*,jsexcept_t*) DECLSPEC_HIDDEN;
+HRESULT Function_invoke(jsdisp_t*,IDispatch*,WORD,unsigned,VARIANT*,VARIANT*,jsexcept_t*);
 
 HRESULT throw_eval_error(script_ctx_t*,jsexcept_t*,HRESULT,const WCHAR*) DECLSPEC_HIDDEN;
 HRESULT throw_generic_error(script_ctx_t*,jsexcept_t*,HRESULT,const WCHAR*) DECLSPEC_HIDDEN;
@@ -264,7 +269,6 @@ HRESULT variant_change_type(script_ctx_t*,VARIANT*,VARIANT*,VARTYPE) DECLSPEC_HI
 
 HRESULT decode_source(WCHAR*) DECLSPEC_HIDDEN;
 
-BSTR int_to_bstr(int) DECLSPEC_HIDDEN;
 HRESULT double_to_bstr(double,BSTR*) DECLSPEC_HIDDEN;
 
 typedef struct named_item_t {
@@ -375,16 +379,6 @@ HRESULT regexp_match(script_ctx_t*,jsdisp_t*,const WCHAR*,DWORD,BOOL,match_resul
 HRESULT parse_regexp_flags(const WCHAR*,DWORD,DWORD*) DECLSPEC_HIDDEN;
 HRESULT regexp_string_match(script_ctx_t*,jsdisp_t*,BSTR,VARIANT*,jsexcept_t*) DECLSPEC_HIDDEN;
 
-static inline VARIANT *get_arg(const DISPPARAMS *dp, DWORD i)
-{
-    return dp->rgvarg + dp->cArgs-i-1;
-}
-
-static inline DWORD arg_cnt(const DISPPARAMS *dp)
-{
-    return dp->cArgs - dp->cNamedArgs;
-}
-
 static inline BOOL is_class(jsdisp_t *jsdisp, jsclass_t class)
 {
     return jsdisp->builtin_info->class == class;
@@ -433,25 +427,6 @@ static inline void num_set_val(VARIANT *v, DOUBLE d)
         V_VT(v) = VT_R8;
         V_R8(v) = d;
     }
-}
-
-static inline void num_set_inf(VARIANT *v, BOOL positive)
-{
-    V_VT(v) = VT_R8;
-#ifdef INFINITY
-    V_R8(v) = positive ? INFINITY : -INFINITY;
-#else
-    V_UI8(v) = (ULONGLONG)0x7ff00000<<32;
-    if(!positive)
-        V_R8(v) = -V_R8(v);
-#endif
-}
-
-static inline DOUBLE ret_inf(void)
-{
-    VARIANT v;
-    num_set_inf(&v, TRUE);
-    return V_R8(&v);
 }
 
 static inline void var_set_jsdisp(VARIANT *v, jsdisp_t *jsdisp)

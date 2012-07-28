@@ -32,15 +32,32 @@
 #include "wine/debug.h"
 
 #include "mshtml_private.h"
+#include "binding.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(mshtml);
 
 #ifdef _WIN64
+
 #define CTXARG_T DWORDLONG
 #define IActiveScriptSiteDebugVtbl IActiveScriptSiteDebug64Vtbl
+
+#define IActiveScriptParse_Release IActiveScriptParse64_Release
+#define IActiveScriptParse_InitNew IActiveScriptParse64_InitNew
+#define IActiveScriptParse_ParseScriptText IActiveScriptParse64_ParseScriptText
+#define IActiveScriptParseProcedure_Release IActiveScriptParseProcedure64_Release
+#define IActiveScriptParseProcedure_ParseProcedureText IActiveScriptParseProcedure64_ParseProcedureText
+
 #else
+
 #define CTXARG_T DWORD
 #define IActiveScriptSiteDebugVtbl IActiveScriptSiteDebug32Vtbl
+
+#define IActiveScriptParse_Release IActiveScriptParse32_Release
+#define IActiveScriptParse_InitNew IActiveScriptParse32_InitNew
+#define IActiveScriptParse_ParseScriptText IActiveScriptParse32_ParseScriptText
+#define IActiveScriptParseProcedure_Release IActiveScriptParseProcedure32_Release
+#define IActiveScriptParseProcedure_ParseProcedureText IActiveScriptParseProcedure32_ParseProcedureText
+
 #endif
 
 static const WCHAR windowW[] = {'w','i','n','d','o','w',0};
@@ -66,7 +83,7 @@ struct ScriptHost {
 
     SCRIPTSTATE script_state;
 
-    HTMLWindow *window;
+    HTMLInnerWindow *window;
 
     GUID guid;
     struct list entry;
@@ -135,7 +152,7 @@ static BOOL init_script_engine(ScriptHost *script_host)
     V_BOOL(&var) = VARIANT_TRUE;
     set_script_prop(script_host, SCRIPTPROP_HACK_TRIDENTEVENTSINK, &var);
 
-    hres = IActiveScriptParse64_InitNew(script_host->parse);
+    hres = IActiveScriptParse_InitNew(script_host->parse);
     if(FAILED(hres)) {
         WARN("InitNew failed: %08x\n", hres);
         return FALSE;
@@ -196,12 +213,12 @@ static void release_script_engine(ScriptHost *This)
 
     default:
         if(This->parse_proc) {
-            IUnknown_Release(This->parse_proc);
+            IActiveScriptParseProcedure_Release(This->parse_proc);
             This->parse_proc = NULL;
         }
 
         if(This->parse) {
-            IUnknown_Release(This->parse);
+            IActiveScriptParse_Release(This->parse);
             This->parse = NULL;
         }
     }
@@ -211,7 +228,7 @@ static void release_script_engine(ScriptHost *This)
     This->script_state = SCRIPTSTATE_UNINITIALIZED;
 }
 
-void connect_scripts(HTMLWindow *window)
+void connect_scripts(HTMLInnerWindow *window)
 {
     ScriptHost *iter;
 
@@ -320,7 +337,7 @@ static HRESULT WINAPI ActiveScriptSite_GetItemInfo(IActiveScriptSite *iface, LPC
         return E_FAIL;
 
     /* FIXME: Return proxy object */
-    *ppiunkItem = (IUnknown*)&This->window->IHTMLWindow2_iface;
+    *ppiunkItem = (IUnknown*)&This->window->base.IHTMLWindow2_iface;
     IUnknown_AddRef(*ppiunkItem);
 
     return S_OK;
@@ -591,7 +608,7 @@ static const IServiceProviderVtbl ASServiceProviderVtbl = {
     ASServiceProvider_QueryService
 };
 
-static ScriptHost *create_script_host(HTMLWindow *window, const GUID *guid)
+static ScriptHost *create_script_host(HTMLInnerWindow *window, const GUID *guid)
 {
     ScriptHost *ret;
     HRESULT hres;
@@ -632,7 +649,7 @@ static void parse_text(ScriptHost *script_host, LPCWSTR text)
     VariantInit(&var);
     memset(&excepinfo, 0, sizeof(excepinfo));
     TRACE(">>>\n");
-    hres = IActiveScriptParse64_ParseScriptText(script_host->parse, text, windowW, NULL, script_endW,
+    hres = IActiveScriptParse_ParseScriptText(script_host->parse, text, windowW, NULL, script_endW,
                                               0, 0, SCRIPTTEXT_ISVISIBLE|SCRIPTTEXT_HOSTMANAGESSOURCE,
                                               &var, &excepinfo);
     if(SUCCEEDED(hres))
@@ -645,9 +662,7 @@ static void parse_text(ScriptHost *script_host, LPCWSTR text)
 static void parse_extern_script(ScriptHost *script_host, LPCWSTR src)
 {
     IMoniker *mon;
-    char *buf;
     WCHAR *text;
-    DWORD len, size=0;
     HRESULT hres;
 
     static const WCHAR wine_schemaW[] = {'w','i','n','e',':'};
@@ -659,16 +674,10 @@ static void parse_extern_script(ScriptHost *script_host, LPCWSTR src)
     if(FAILED(hres))
         return;
 
-    hres = bind_mon_to_buffer(script_host->window->doc, mon, (void**)&buf, &size);
+    hres = bind_mon_to_wstr(script_host->window, mon, &text);
     IMoniker_Release(mon);
     if(FAILED(hres))
         return;
-
-    len = MultiByteToWideChar(CP_ACP, 0, buf, size, NULL, 0);
-    text = heap_alloc((len+1)*sizeof(WCHAR));
-    MultiByteToWideChar(CP_ACP, 0, buf, size, text, len);
-    heap_free(buf);
-    text[len] = 0;
 
     parse_text(script_host, text);
 
@@ -796,7 +805,7 @@ static BOOL get_script_guid(nsIDOMHTMLScriptElement *nsscript, GUID *guid)
     return ret;
 }
 
-static ScriptHost *get_script_host(HTMLWindow *window, const GUID *guid)
+static ScriptHost *get_script_host(HTMLInnerWindow *window, const GUID *guid)
 {
     ScriptHost *iter;
 
@@ -808,7 +817,7 @@ static ScriptHost *get_script_host(HTMLWindow *window, const GUID *guid)
     return create_script_host(window, guid);
 }
 
-void doc_insert_script(HTMLWindow *window, nsIDOMHTMLScriptElement *nsscript)
+void doc_insert_script(HTMLInnerWindow *window, nsIDOMHTMLScriptElement *nsscript)
 {
     ScriptHost *script_host;
     GUID guid;
@@ -818,7 +827,8 @@ void doc_insert_script(HTMLWindow *window, nsIDOMHTMLScriptElement *nsscript)
         return;
     }
 
-    if(IsEqualGUID(&CLSID_JScript, &guid) && window->scriptmode != SCRIPTMODE_ACTIVESCRIPT) {
+    if(IsEqualGUID(&CLSID_JScript, &guid)
+       && (!window->base.outer_window || window->base.outer_window->scriptmode != SCRIPTMODE_ACTIVESCRIPT)) {
         TRACE("Ignoring JScript\n");
         return;
     }
@@ -831,7 +841,7 @@ void doc_insert_script(HTMLWindow *window, nsIDOMHTMLScriptElement *nsscript)
         parse_script_elem(script_host, nsscript);
 }
 
-IDispatch *script_parse_event(HTMLWindow *window, LPCWSTR text)
+IDispatch *script_parse_event(HTMLInnerWindow *window, LPCWSTR text)
 {
     ScriptHost *script_host;
     GUID guid = CLSID_JScript;
@@ -864,7 +874,8 @@ IDispatch *script_parse_event(HTMLWindow *window, LPCWSTR text)
         ptr = text;
     }
 
-    if(IsEqualGUID(&CLSID_JScript, &guid) && window->scriptmode != SCRIPTMODE_ACTIVESCRIPT) {
+    if(IsEqualGUID(&CLSID_JScript, &guid)
+       && (!window->base.outer_window || window->base.outer_window->scriptmode != SCRIPTMODE_ACTIVESCRIPT)) {
         TRACE("Ignoring JScript\n");
         return NULL;
     }
@@ -873,7 +884,7 @@ IDispatch *script_parse_event(HTMLWindow *window, LPCWSTR text)
     if(!script_host || !script_host->parse_proc)
         return NULL;
 
-    hres = IActiveScriptParseProcedure64_ParseProcedureText(script_host->parse_proc, ptr, NULL, emptyW,
+    hres = IActiveScriptParseProcedure_ParseProcedureText(script_host->parse_proc, ptr, NULL, emptyW,
             NULL, NULL, delimiterW, 0 /* FIXME */, 0,
             SCRIPTPROC_HOSTMANAGESSOURCE|SCRIPTPROC_IMPLICIT_THIS|SCRIPTPROC_IMPLICIT_PARENTS, &disp);
     if(FAILED(hres)) {
@@ -885,7 +896,7 @@ IDispatch *script_parse_event(HTMLWindow *window, LPCWSTR text)
     return disp;
 }
 
-HRESULT exec_script(HTMLWindow *window, const WCHAR *code, const WCHAR *lang, VARIANT *ret)
+HRESULT exec_script(HTMLInnerWindow *window, const WCHAR *code, const WCHAR *lang, VARIANT *ret)
 {
     ScriptHost *script_host;
     EXCEPINFO ei;
@@ -912,7 +923,7 @@ HRESULT exec_script(HTMLWindow *window, const WCHAR *code, const WCHAR *lang, VA
 
     memset(&ei, 0, sizeof(ei));
     TRACE(">>>\n");
-    hres = IActiveScriptParse64_ParseScriptText(script_host->parse, code, NULL, NULL, delimW, 0, 0, SCRIPTTEXT_ISVISIBLE, ret, &ei);
+    hres = IActiveScriptParse_ParseScriptText(script_host->parse, code, NULL, NULL, delimW, 0, 0, SCRIPTTEXT_ISVISIBLE, ret, &ei);
     if(SUCCEEDED(hres))
         TRACE("<<<\n");
     else
@@ -936,7 +947,7 @@ IDispatch *get_script_disp(ScriptHost *script_host)
     return disp;
 }
 
-BOOL find_global_prop(HTMLWindow *window, BSTR name, DWORD flags, ScriptHost **ret_host, DISPID *ret_id)
+BOOL find_global_prop(HTMLInnerWindow *window, BSTR name, DWORD flags, ScriptHost **ret_host, DISPID *ret_id)
 {
     IDispatchEx *dispex;
     IDispatch *disp;
@@ -987,7 +998,7 @@ static BOOL is_jscript_available(void)
     return available;
 }
 
-void set_script_mode(HTMLWindow *window, SCRIPTMODE mode)
+void set_script_mode(HTMLOuterWindow *window, SCRIPTMODE mode)
 {
     nsIWebBrowserSetup *setup;
     nsresult nsres;
@@ -1015,7 +1026,7 @@ void set_script_mode(HTMLWindow *window, SCRIPTMODE mode)
         ERR("JavaScript setup failed: %08x\n", nsres);
 }
 
-void release_script_hosts(HTMLWindow *window)
+void release_script_hosts(HTMLInnerWindow *window)
 {
     ScriptHost *iter;
 
@@ -1025,6 +1036,6 @@ void release_script_hosts(HTMLWindow *window)
         release_script_engine(iter);
         list_remove(&iter->entry);
         iter->window = NULL;
-        IActiveScript_Release(&iter->IActiveScriptSite_iface);
+        IActiveScriptSite_Release(&iter->IActiveScriptSite_iface);
     }
 }

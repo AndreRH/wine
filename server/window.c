@@ -1645,6 +1645,13 @@ static void set_window_pos( struct window *win, struct window *previous,
             if (tmp)
             {
                 set_region_rect( tmp, &valid_rects[0] );
+                /* subtract update region since invalid parts of the valid rect won't be copied */
+                if (win->update_region)
+                {
+                    offset_region( tmp, -window_rect->left, -window_rect->top );
+                    subtract_region( tmp, tmp, win->update_region );
+                    offset_region( tmp, window_rect->left, window_rect->top );
+                }
                 if (subtract_region( tmp, win_rgn, tmp )) win_rgn = tmp;
                 else free_region( tmp );
             }
@@ -2457,7 +2464,12 @@ DECL_HANDLER(update_window_zorder)
         if (!(ptr->style & WS_VISIBLE)) continue;
         if (ptr->ex_style & WS_EX_TRANSPARENT) continue;
         if (!intersect_rect( &tmp, &ptr->visible_rect, &rect )) continue;
-        if (ptr->win_region && !rect_in_region( ptr->win_region, &rect )) continue;
+        if (ptr->win_region)
+        {
+            tmp = rect;
+            offset_rect( &tmp, -ptr->window_rect.left, -ptr->window_rect.top );
+            if (!rect_in_region( ptr->win_region, &tmp )) continue;
+        }
         /* found a window obscuring the rectangle, now move win above this one */
         /* making sure to not violate the topmost rule */
         if (!(ptr->ex_style & WS_EX_TOPMOST) || (win->ex_style & WS_EX_TOPMOST))

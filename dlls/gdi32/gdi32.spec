@@ -169,7 +169,7 @@
 @ stub GdiDeleteLocalDC
 @ stub GdiDeleteLocalObject
 # @ stub GdiDeleteSpoolFileHandle
-# @ stub GdiDescribePixelFormat
+@ stdcall GdiDescribePixelFormat(long long long ptr)
 @ stub GdiDllInitialize
 @ stdcall GdiDrawStream(long long ptr)
 # @ stub GdiEndDocEMF
@@ -214,11 +214,11 @@
 @ stub GdiSetAttrs
 @ stdcall GdiSetBatchLimit(long)
 # @ stub GdiSetLastError
-# @ stub GdiSetPixelFormat
+@ stdcall GdiSetPixelFormat(long long ptr)
 @ stub GdiSetServerAttr
 # @ stub GdiStartDocEMF
 # @ stub GdiStartPageEMF
-# @ stub GdiSwapBuffers
+@ stdcall GdiSwapBuffers(long)
 @ stdcall GdiTransparentBlt(long long long long long long long long long long long)
 # @ stub GdiValidateHandle
 @ stub GdiWinWatchClose
@@ -497,20 +497,6 @@
 @ stub pstackConnect
 
 ################################################################
-# Wine extensions: OpenGL support
-#
-@ stdcall wglCopyContext(long long long)
-@ stdcall wglCreateContext(long)
-@ stdcall wglDeleteContext(long)
-@ stdcall wglGetCurrentContext()
-@ stdcall wglGetCurrentDC()
-@ stdcall -private wglGetProcAddress(str)
-@ stdcall wglMakeCurrent(long long)
-@ stdcall wglShareLists(long long)
-@ stdcall wglUseFontBitmapsA(long long long long)
-@ stdcall wglUseFontBitmapsW(long long long long)
-
-################################################################
 # Wine extensions: Win16 functions that are needed by other dlls
 #
 @ stdcall GetDCHook(long ptr)
@@ -526,3 +512,6 @@
 # GDI objects
 @ cdecl __wine_make_gdi_object_system(long long)
 @ cdecl __wine_set_visible_region(long long ptr)
+
+# OpenGL
+@ cdecl __wine_get_wgl_driver(long long)

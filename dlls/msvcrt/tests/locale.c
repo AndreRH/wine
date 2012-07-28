@@ -472,10 +472,11 @@ static void test_setlocale(void)
     if(ret)
         ok(!strcmp(ret, "Polish_Poland.1250"), "ret = %s\n", ret);
 
-    ret = setlocale(LC_ALL, "portugese");
+    ret = setlocale(LC_ALL, "portuguese");
     ok(ret != NULL || broken (ret == NULL), "ret == NULL\n");
     if(ret)
-        ok(!strcmp(ret, "Portuguese_Brazil.1252"), "ret = %s\n", ret);
+        ok(!strcmp(ret, "Portuguese_Brazil.1252")
+        || broken(!strcmp(ret, "Portuguese_Portugal.1252")) /* NT4 */, "ret = %s\n", ret);
 
     ret = setlocale(LC_ALL, "portuguese-brazil");
     ok(ret != NULL || broken (ret == NULL), "ret == NULL\n");

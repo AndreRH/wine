@@ -45,6 +45,37 @@ WINE_DEFAULT_DEBUG_CHANNEL(secur32);
 
 #ifdef HAVE_SECURITY_SECURITY_H
 
+#if MAC_OS_X_VERSION_MAX_ALLOWED < 1060
+/* Defined in <Security/CipherSuite.h> in the 10.6 SDK or later. */
+enum {
+    TLS_ECDH_ECDSA_WITH_NULL_SHA           =	0xC001,
+    TLS_ECDH_ECDSA_WITH_RC4_128_SHA        =	0xC002,
+    TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA   =	0xC003,
+    TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA    =	0xC004,
+    TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA    =	0xC005,
+    TLS_ECDHE_ECDSA_WITH_NULL_SHA          =	0xC006,
+    TLS_ECDHE_ECDSA_WITH_RC4_128_SHA       =	0xC007,
+    TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA  =	0xC008,
+    TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA   =	0xC009,
+    TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA   =	0xC00A,
+    TLS_ECDH_RSA_WITH_NULL_SHA             =	0xC00B,
+    TLS_ECDH_RSA_WITH_RC4_128_SHA          =	0xC00C,
+    TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA     =	0xC00D,
+    TLS_ECDH_RSA_WITH_AES_128_CBC_SHA      =	0xC00E,
+    TLS_ECDH_RSA_WITH_AES_256_CBC_SHA      =	0xC00F,
+    TLS_ECDHE_RSA_WITH_NULL_SHA            =	0xC010,
+    TLS_ECDHE_RSA_WITH_RC4_128_SHA         =	0xC011,
+    TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA    =	0xC012,
+    TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA     =	0xC013,
+    TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA     =	0xC014,
+    TLS_ECDH_anon_WITH_NULL_SHA            =	0xC015,
+    TLS_ECDH_anon_WITH_RC4_128_SHA         =	0xC016,
+    TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA    =	0xC017,
+    TLS_ECDH_anon_WITH_AES_128_CBC_SHA     =	0xC018,
+    TLS_ECDH_anon_WITH_AES_256_CBC_SHA     =	0xC019,
+};
+#endif
+
 struct mac_session {
     SSLContextRef context;
     struct schan_transport *transport;
@@ -156,7 +187,6 @@ static const struct cipher_suite cipher_suites[] = {
     CIPHER_SUITE(TLS, DHE_RSA, AES_256_CBC, SHA),
     CIPHER_SUITE(TLS, DH_anon, AES_256_CBC, SHA),
 
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1060
     CIPHER_SUITE(TLS, ECDH_ECDSA, NULL, SHA),
     CIPHER_SUITE(TLS, ECDH_ECDSA, RC4_128, SHA),
     CIPHER_SUITE(TLS, ECDH_ECDSA, 3DES_EDE_CBC, SHA),
@@ -182,7 +212,6 @@ static const struct cipher_suite cipher_suites[] = {
     CIPHER_SUITE(TLS, ECDH_anon, 3DES_EDE_CBC, SHA),
     CIPHER_SUITE(TLS, ECDH_anon, AES_128_CBC, SHA),
     CIPHER_SUITE(TLS, ECDH_anon, AES_256_CBC, SHA),
-#endif
 
     CIPHER_SUITE(SSL, RSA, RC2_CBC, MD5),
     CIPHER_SUITE(SSL, RSA, IDEA_CBC, MD5),
@@ -330,6 +359,11 @@ static ALG_ID schan_get_kx_algid(const struct cipher_suite* c)
     case schan_kx_DHE_DSS:
     case schan_kx_DHE_RSA_EXPORT:
     case schan_kx_DHE_RSA:          return CALG_DH_EPHEM;
+    case schan_kx_ECDH_anon:
+    case schan_kx_ECDH_ECDSA:
+    case schan_kx_ECDH_RSA:
+    case schan_kx_ECDHE_ECDSA:
+    case schan_kx_ECDHE_RSA:        return CALG_ECDH;
     case schan_kx_NULL:             return 0;
     case schan_kx_RSA:              return CALG_RSA_KEYX;
 
@@ -339,11 +373,6 @@ static ALG_ID schan_get_kx_algid(const struct cipher_suite* c)
     case schan_kx_DH_DSS:
     case schan_kx_DH_RSA_EXPORT:
     case schan_kx_DH_RSA:
-    case schan_kx_ECDH_anon:
-    case schan_kx_ECDH_ECDSA:
-    case schan_kx_ECDH_RSA:
-    case schan_kx_ECDHE_ECDSA:
-    case schan_kx_ECDHE_RSA:
     case schan_kx_FORTEZZA_DMS:
     case schan_kx_RSA_EXPORT:
         FIXME("Don't know CALG for key exchange algorithm %d for cipher suite %#x, returning 0\n", c->kx_alg, (unsigned)c->suite);

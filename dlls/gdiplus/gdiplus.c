@@ -35,6 +35,9 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(gdiplus);
 
+static const REAL mm_per_inch = 25.4;
+static const REAL inch_per_point = 1.0/72.0;
+
 static Status WINAPI NotificationHook(ULONG_PTR *token)
 {
     TRACE("%p\n", token);
@@ -317,7 +320,7 @@ GpStatus hresult_to_status(HRESULT res)
     }
 }
 
-/* converts a given unit to its value in pixels */
+/* converts a given unit to its value in inches */
 REAL convert_unit(REAL logpixels, GpUnit unit)
 {
     switch(unit)
@@ -337,6 +340,53 @@ REAL convert_unit(REAL logpixels, GpUnit unit)
         case UnitDisplay:
         default:
             return 1.0;
+    }
+}
+
+/* converts a given unit to its value in pixels */
+REAL units_to_pixels(REAL units, GpUnit unit, REAL dpi)
+{
+    switch (unit)
+    {
+    case UnitPixel:
+    case UnitWorld:
+    case UnitDisplay:
+        return units;
+    case UnitPoint:
+        return units * dpi * inch_per_point;
+    case UnitInch:
+        return units * dpi;
+    case UnitDocument:
+        return units * dpi / 300.0; /* Per MSDN */
+    case UnitMillimeter:
+        return units * dpi / mm_per_inch;
+    default:
+        FIXME("Unhandled unit type: %d\n", unit);
+        return 0;
+    }
+}
+
+/* converts value in pixels to a given unit */
+REAL pixels_to_units(REAL pixels, GpUnit unit, REAL dpi)
+{
+    switch (unit)
+    {
+    case UnitPixel:
+    case UnitWorld:
+    case UnitDisplay:
+        return pixels;
+    case UnitPoint:
+        return pixels / dpi / inch_per_point;
+    case UnitInch:
+        return pixels / dpi;
+        break;
+    case UnitDocument:
+        return pixels * 300.0 / dpi;
+    case UnitMillimeter:
+        return pixels * mm_per_inch / dpi;
+    default:
+        FIXME("Unhandled unit type: %d\n", unit);
+        return 0;
     }
 }
 

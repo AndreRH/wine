@@ -47,6 +47,8 @@
 #define ioctlsocket ioctl
 #endif /* __MINGW32__ */
 
+#include "winineti.h"
+
 extern HMODULE WININET_hModule DECLSPEC_HIDDEN;
 
 #ifndef INET6_ADDRSTRLEN
@@ -63,6 +65,7 @@ typedef struct {
     LONG ref;
 
     DWORD security_flags;
+    const CERT_CHAIN_CONTEXT *cert_chain;
 
     struct list entry;
     struct list conn_pool;
@@ -546,6 +549,8 @@ int NETCON_GetCipherStrength(netconn_t*) DECLSPEC_HIDDEN;
 DWORD NETCON_set_timeout(netconn_t *connection, BOOL send, DWORD value) DECLSPEC_HIDDEN;
 int sock_get_error(int) DECLSPEC_HIDDEN;
 
+server_t *get_server(const WCHAR*,INTERNET_PORT,BOOL);
+
 extern void URLCacheContainers_CreateDefaults(void) DECLSPEC_HIDDEN;
 extern void URLCacheContainers_DeleteAll(void) DECLSPEC_HIDDEN;
 
@@ -560,11 +565,13 @@ typedef struct
 
 /* Undocumented security flags */
 #define _SECURITY_FLAG_CERT_REV_FAILED    0x00800000
+#define _SECURITY_FLAG_CERT_INVALID_CA    0x01000000
 #define _SECURITY_FLAG_CERT_INVALID_CN    0x02000000
 #define _SECURITY_FLAG_CERT_INVALID_DATE  0x04000000
 
 #define _SECURITY_ERROR_FLAGS_MASK              \
     (_SECURITY_FLAG_CERT_REV_FAILED             \
+    |_SECURITY_FLAG_CERT_INVALID_CA             \
     |_SECURITY_FLAG_CERT_INVALID_CN             \
     |_SECURITY_FLAG_CERT_INVALID_DATE)
 

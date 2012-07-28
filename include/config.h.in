@@ -239,6 +239,9 @@
 /* Define to 1 if you have the <GL/gl.h> header file. */
 #undef HAVE_GL_GL_H
 
+/* Define to 1 if you have the <GL/osmesa.h> header file. */
+#undef HAVE_GL_OSMESA_H
+
 /* Define if we have libgphoto2 development environment */
 #undef HAVE_GPHOTO2
 
@@ -785,14 +788,26 @@
 /* Define to 1 if you have the `strtoull' function. */
 #undef HAVE_STRTOULL
 
+/* Define to 1 if `d_reclen' is a member of `struct dirent'. */
+#undef HAVE_STRUCT_DIRENT_D_RECLEN
+
 /* Define to 1 if `direction' is a member of `struct ff_effect'. */
 #undef HAVE_STRUCT_FF_EFFECT_DIRECTION
+
+/* Define to 1 if `icps_inhist' is a member of `struct icmpstat'. */
+#undef HAVE_STRUCT_ICMPSTAT_ICPS_INHIST
 
 /* Define to 1 if `icps_outhist' is a member of `struct icmpstat'. */
 #undef HAVE_STRUCT_ICMPSTAT_ICPS_OUTHIST
 
 /* Define to 1 if `ifr_hwaddr' is a member of `struct ifreq'. */
 #undef HAVE_STRUCT_IFREQ_IFR_HWADDR
+
+/* Define to 1 if `ips_total' is a member of `struct ipstat'. */
+#undef HAVE_STRUCT_IPSTAT_IPS_TOTAL
+
+/* Define to 1 if `ips_total' is a member of `struct ip_stats'. */
+#undef HAVE_STRUCT_IP_STATS_IPS_TOTAL
 
 /* Define to 1 if `msg_accrights' is a member of `struct msghdr'. */
 #undef HAVE_STRUCT_MSGHDR_MSG_ACCRIGHTS
@@ -850,6 +865,15 @@
 
 /* Define to 1 if `st_mtim' is a member of `struct stat'. */
 #undef HAVE_STRUCT_STAT_ST_MTIM
+
+/* Define to 1 if `tcps_connattempt' is a member of `struct tcpstat'. */
+#undef HAVE_STRUCT_TCPSTAT_TCPS_CONNATTEMPT
+
+/* Define to 1 if `tcps_connattempt' is a member of `struct tcp_stats'. */
+#undef HAVE_STRUCT_TCP_STATS_TCPS_CONNATTEMPT
+
+/* Define to 1 if `udps_ipackets' is a member of `struct udpstat'. */
+#undef HAVE_STRUCT_UDPSTAT_UDPS_IPACKETS
 
 /* Define to 1 if the system has the type `struct xinpgen'. */
 #undef HAVE_STRUCT_XINPGEN
@@ -1124,6 +1148,9 @@
 /* Define if Xrender has the XRenderSetPictureTransform function */
 #undef HAVE_XRENDERSETPICTURETRANSFORM
 
+/* Define if Xrandr has the XRRGetScreenResources function */
+#undef HAVE_XRRGETSCREENRESOURCES
+
 /* Define to 1 if you have the `z' library (-lz). */
 #undef HAVE_ZLIB
 
@@ -1232,6 +1259,9 @@
 /* Define to the soname of the libopenal library. */
 #undef SONAME_LIBOPENAL
 
+/* Define to the soname of the libOSMesa library. */
+#undef SONAME_LIBOSMESA
+
 /* Define to the soname of the libpng library. */
 #undef SONAME_LIBPNG
 
@@ -1285,6 +1315,11 @@
 
 /* Define to 1 if the X Window System is missing or not being used. */
 #undef X_DISPLAY_MISSING
+
+/* Enable large inode numbers on Mac OS X 10.5.  */
+#ifndef _DARWIN_USE_64_BIT_INODE
+# define _DARWIN_USE_64_BIT_INODE 1
+#endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS

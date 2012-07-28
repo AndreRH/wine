@@ -124,6 +124,33 @@ void* CDECL _lsearch(const void* match, void* start,
 }
 
 /*********************************************************************
+ *                  bsearch_s (msvcrt.@)
+ */
+void* CDECL MSVCRT_bsearch_s(const void *key, const void *base,
+                             MSVCRT_size_t nmemb, MSVCRT_size_t size,
+                             int (__cdecl *compare)(void *, const void *, const void *), void *ctx)
+{
+    ssize_t min = 0;
+    ssize_t max = nmemb - 1;
+
+    if (!MSVCRT_CHECK_PMT(size != 0)) return NULL;
+    if (!MSVCRT_CHECK_PMT(compare != NULL)) return NULL;
+
+    while (min <= max)
+    {
+        ssize_t cursor = (min + max) / 2;
+        int ret = compare(ctx, key,(const char *)base+(cursor*size));
+        if (!ret)
+            return (char*)base+(cursor*size);
+        if (ret < 0)
+            max = cursor - 1;
+        else
+            min = cursor + 1;
+    }
+    return NULL;
+}
+
+/*********************************************************************
  *		_chkesp (MSVCRT.@)
  *
  * Trap to a debugger if the value of the stack pointer has changed.
@@ -237,13 +264,10 @@ void CDECL MSVCRT_qsort_s(void *base, MSVCRT_size_t nmemb, MSVCRT_size_t size,
     void *secondarr;
     const size_t total_size = nmemb*size;
 
-    if (!MSVCRT_CHECK_PMT(base != NULL || (base == NULL && nmemb == 0)) ||
-            !MSVCRT_CHECK_PMT(size > 0) || !MSVCRT_CHECK_PMT(compar != NULL) ||
-            total_size / size != nmemb)
-    {
-        *MSVCRT__errno() = MSVCRT_EINVAL;
-        return;
-    }
+    if (!MSVCRT_CHECK_PMT(base != NULL || (base == NULL && nmemb == 0))) return;
+    if (!MSVCRT_CHECK_PMT(size > 0)) return;
+    if (!MSVCRT_CHECK_PMT(compar != NULL)) return;
+    if (total_size / size != nmemb) return;
 
     if (nmemb < 2) return;
 

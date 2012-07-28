@@ -20,6 +20,7 @@ typedef enum {
     EXPR_ADD,
     EXPR_AND,
     EXPR_BOOL,
+    EXPR_BRACKETS,
     EXPR_CONCAT,
     EXPR_DIV,
     EXPR_DOUBLE,
@@ -112,6 +113,7 @@ typedef enum {
     STAT_FUNC,
     STAT_IF,
     STAT_ONERROR,
+    STAT_SELECT,
     STAT_SET,
     STAT_STOP,
     STAT_UNTIL,
@@ -127,6 +129,7 @@ typedef struct _statement_t {
 typedef struct {
     statement_t stat;
     member_expression_t *expr;
+    BOOL is_strict;
 } call_statement_t;
 
 typedef struct {
@@ -230,6 +233,18 @@ typedef struct {
     statement_t stat;
     const_decl_t *decls;
 } const_statement_t;
+
+typedef struct _case_clausule_t {
+    expression_t *expr;
+    statement_t *stat;
+    struct _case_clausule_t *next;
+} case_clausule_t;
+
+typedef struct {
+    statement_t stat;
+    expression_t *expr;
+    case_clausule_t *case_clausules;
+} select_statement_t;
 
 typedef struct {
     const WCHAR *code;

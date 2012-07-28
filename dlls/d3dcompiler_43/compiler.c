@@ -41,6 +41,7 @@ struct mem_file_desc
 
 static struct mem_file_desc current_shader;
 static ID3DInclude *current_include;
+static const char *initial_filename;
 
 #define INCLUDES_INITIAL_CAPACITY 4
 
@@ -143,7 +144,7 @@ static void wpp_warning(const char *file, int line, int col, const char *near,
     wpp_write_message_var("\n");
 }
 
-static char *wpp_lookup_mem(const char *filename, const char *parent_name,
+static char *wpp_lookup_mem(const char *filename, int type, const char *parent_name,
                             char **include_path, int include_path_count)
 {
     /* Here we return always ok. We will maybe fail on the next wpp_open_mem */
@@ -179,7 +180,7 @@ static void *wpp_open_mem(const char *filename, int type)
     struct mem_file_desc *desc;
     HRESULT hr;
 
-    if(filename[0] == '\0') /* "" means to load the initial shader */
+    if(!strcmp(filename, initial_filename))
     {
         current_shader.pos = 0;
         return &current_shader;
@@ -193,7 +194,7 @@ static void *wpp_open_mem(const char *filename, int type)
         return NULL;
     }
     hr = ID3DInclude_Open(current_include,
-                          type ? D3D_INCLUDE_SYSTEM : D3D_INCLUDE_LOCAL,
+                          type ? D3D_INCLUDE_LOCAL : D3D_INCLUDE_SYSTEM,
                           filename, parent_include, (LPCVOID *)&desc->buffer,
                           &desc->size);
     if(FAILED(hr))
@@ -310,7 +311,7 @@ static int wpp_close_output(void)
     return 1;
 }
 
-static HRESULT preprocess_shader(const void *data, SIZE_T data_size,
+static HRESULT preprocess_shader(const void *data, SIZE_T data_size, const char *filename,
         const D3D_SHADER_MACRO *defines, ID3DInclude *include, ID3DBlob **error_messages)
 {
     int ret;
@@ -347,8 +348,9 @@ static HRESULT preprocess_shader(const void *data, SIZE_T data_size,
     wpp_messages = NULL;
     current_shader.buffer = data;
     current_shader.size = data_size;
+    initial_filename = filename ? filename : "";
 
-    ret = wpp_parse("", NULL);
+    ret = wpp_parse(initial_filename, NULL);
     if (!wpp_close_output())
         ret = 1;
     if (ret)
@@ -359,7 +361,7 @@ static HRESULT preprocess_shader(const void *data, SIZE_T data_size,
             int size;
             ID3DBlob *buffer;
 
-            TRACE("Preprocessor messages:\n%s", debugstr_a(wpp_messages));
+            TRACE("Preprocessor messages:\n%s\n", debugstr_a(wpp_messages));
 
             if (error_messages)
             {
@@ -405,7 +407,7 @@ static HRESULT assemble_shader(const char *preproc_shader,
     if (messages)
     {
         TRACE("Assembler messages:\n");
-        TRACE("%s", messages);
+        TRACE("%s\n", debugstr_a(messages));
 
         TRACE("Shader source:\n");
         TRACE("%s\n", debugstr_a(preproc_shader));
@@ -481,7 +483,7 @@ HRESULT WINAPI D3DAssemble(const void *data, SIZE_T datasize, const char *filena
     if (shader) *shader = NULL;
     if (error_messages) *error_messages = NULL;
 
-    hr = preprocess_shader(data, datasize, defines, include, error_messages);
+    hr = preprocess_shader(data, datasize, filename, defines, include, error_messages);
     if (SUCCEEDED(hr))
         hr = assemble_shader(wpp_output, shader, error_messages);
 
@@ -496,17 +498,48 @@ static HRESULT compile_shader(const char *preproc_shader, const char *target, co
     struct bwriter_shader *shader;
     char *messages = NULL;
     HRESULT hr;
-    DWORD *res, size;
+    DWORD *res, size, major, minor;
     ID3DBlob *buffer;
     char *pos;
+    enum shader_type shader_type;
 
-    FIXME("Parse compilation target.\n");
-    shader = parse_hlsl_shader(preproc_shader, ST_VERTEX, 2, entrypoint, &messages);
+    TRACE("Preprocessed shader source: %s\n", debugstr_a(preproc_shader));
+
+    TRACE("Parsing compilation target %s.\n", debugstr_a(target));
+    if (strlen(target) != 6 || target[1] != 's' || target[2] != '_' || target[4] != '_')
+    {
+        FIXME("Unknown compilation target %s.\n", debugstr_a(target));
+        return D3DERR_INVALIDCALL;
+    }
+
+    if (target[0] == 'v')
+        shader_type = ST_VERTEX;
+    else if (target[0] == 'p')
+        shader_type = ST_PIXEL;
+    else
+    {
+        FIXME("Unsupported shader target type %s.\n", debugstr_a(target));
+        return D3DERR_INVALIDCALL;
+    }
+
+    major = target[3] - '0';
+    if (major == 0 || major > 5)
+    {
+        FIXME("Unsupported shader target major version %d.\n", major);
+        return D3DERR_INVALIDCALL;
+    }
+    minor = target[5] - '0';
+    if (minor > 1 || (minor == 1 && (shader_type != ST_VERTEX || major > 1)))
+    {
+        FIXME("Unsupported shader target minor version %d.\n", minor);
+        return D3DERR_INVALIDCALL;
+    }
+    shader = parse_hlsl_shader(preproc_shader, shader_type, major, minor, entrypoint, &messages);
 
     if (messages)
     {
         TRACE("Compiler messages:\n");
-        TRACE("%s", messages);
+        TRACE("%s\n", debugstr_a(messages));
 
         TRACE("Shader source:\n");
         TRACE("%s\n", debugstr_a(preproc_shader));
@@ -584,7 +617,7 @@ HRESULT WINAPI D3DCompile(const void *data, SIZE_T data_size, const char *filena
 
     EnterCriticalSection(&wpp_mutex);
 
-    hr = preprocess_shader(data, data_size, defines, include, error_messages);
+    hr = preprocess_shader(data, data_size, filename, defines, include, error_messages);
     if (SUCCEEDED(hr))
         hr = compile_shader(wpp_output, target, entrypoint, shader, error_messages);
 
@@ -608,7 +641,7 @@ HRESULT WINAPI D3DPreprocess(const void *data, SIZE_T size, const char *filename
     if (shader) *shader = NULL;
     if (error_messages) *error_messages = NULL;
 
-    hr = preprocess_shader(data, size, defines, include, error_messages);
+    hr = preprocess_shader(data, size, filename, defines, include, error_messages);
 
     if (SUCCEEDED(hr))
     {

@@ -80,6 +80,7 @@ dlls/msi/sql.tab.c
 dlls/msi/sql.tab.h
 dlls/mstask/mstask_local.h
 dlls/mstask/mstask_local_i.c
+dlls/msxml3/tests/xmlparser.h
 dlls/msxml3/xmlparser.h
 dlls/msxml3/xslpattern.tab.c
 dlls/msxml3/xslpattern.tab.h
@@ -134,6 +135,8 @@ dlls/vbscript/parser.tab.c
 dlls/vbscript/parser.tab.h
 dlls/vbscript/vbscript_classes.h
 dlls/vbscript/vbsglobal.h
+dlls/wbemprox/wql.tab.c
+dlls/wbemprox/wql.tab.h
 dlls/windowscodecs/windowscodecs_wincodec.h
 dlls/windowscodecs/windowscodecs_wincodec_p.c
 dlls/wshom.ocx/tests/wshom.h

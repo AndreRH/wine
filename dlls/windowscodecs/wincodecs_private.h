@@ -44,6 +44,7 @@ extern HRESULT IcnsEncoder_CreateInstance(IUnknown *pUnkOuter, REFIID iid, void*
 
 extern HRESULT TgaDecoder_CreateInstance(IUnknown *pUnkOuter, REFIID iid, void** ppv) DECLSPEC_HIDDEN;
 
+extern HRESULT BitmapScaler_Create(IWICBitmapScaler **scaler) DECLSPEC_HIDDEN;
 extern HRESULT FlipRotator_Create(IWICBitmapFlipRotator **fliprotator) DECLSPEC_HIDDEN;
 extern HRESULT PaletteImpl_Create(IWICPalette **palette) DECLSPEC_HIDDEN;
 extern HRESULT StreamImpl_Create(IWICStream **stream) DECLSPEC_HIDDEN;
@@ -53,6 +54,8 @@ extern HRESULT copy_pixels(UINT bpp, const BYTE *srcbuffer,
     const WICRect *rc, UINT dststride, UINT dstbuffersize, BYTE *dstbuffer) DECLSPEC_HIDDEN;
 
 extern void reverse_bgr8(UINT bytesperpixel, LPBYTE bits, UINT width, UINT height, INT stride) DECLSPEC_HIDDEN;
+
+extern HRESULT get_pixelformat_bpp(const GUID *pixelformat, UINT *bpp) DECLSPEC_HIDDEN;
 
 extern HRESULT CreatePropertyBag2(IPropertyBag2 **ppPropertyBag2) DECLSPEC_HIDDEN;
 
@@ -84,8 +87,7 @@ typedef struct _MetadataHandlerVtbl
         ULARGE_INTEGER *size);
 } MetadataHandlerVtbl;
 
-extern HRESULT MetadataReader_Create(const MetadataHandlerVtbl *vtable, IUnknown *pUnkOuter, REFIID iid, void** ppv) DECLSPEC_HIDDEN;
-
 extern HRESULT UnknownMetadataReader_CreateInstance(IUnknown *pUnkOuter, REFIID iid, void** ppv) DECLSPEC_HIDDEN;
+extern HRESULT IfdMetadataReader_CreateInstance(IUnknown *pUnkOuter, REFIID iid, void **ppv) DECLSPEC_HIDDEN;
 
 #endif /* WINCODECS_PRIVATE_H */

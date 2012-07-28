@@ -23,7 +23,6 @@
 
 #include "windef.h"
 #include "winbase.h"
-#include "initguid.h"
 #include "objbase.h"
 #include "wbemcli.h"
 
@@ -59,7 +58,7 @@ static ULONG WINAPI wbem_locator_Release(
     if (!refs)
     {
         TRACE("destroying %p\n", wl);
-        HeapFree( GetProcessHeap(), 0, wl );
+        heap_free( wl );
     }
     return refs;
 }
@@ -87,6 +86,77 @@ static HRESULT WINAPI wbem_locator_QueryInterface(
     return S_OK;
 }
 
+static BOOL is_local_machine( const WCHAR *server )
+{
+    static const WCHAR dotW[] = {'.',0};
+    WCHAR buffer[MAX_COMPUTERNAME_LENGTH + 1];
+    DWORD len = sizeof(buffer) / sizeof(buffer[0]);
+
+    if (!server || !strcmpW( server, dotW )) return TRUE;
+    if (GetComputerNameW( buffer, &len ) && !strcmpiW( server, buffer )) return TRUE;
+    return FALSE;
+}
+
+static HRESULT parse_resource( const WCHAR *resource, WCHAR **server, WCHAR **namespace )
+{
+    static const WCHAR rootW[] = {'R','O','O','T'};
+    static const WCHAR cimv2W[] = {'C','I','M','V','2'};
+    HRESULT hr = WBEM_E_INVALID_NAMESPACE;
+    const WCHAR *p, *q;
+    unsigned int len;
+
+    *server = NULL;
+    *namespace = NULL;
+    p = q = resource;
+    if (*p == '\\' || *p == '/')
+    {
+        p++;
+        if (*p == '\\' || *p == '/') p++;
+        if (!*p) return WBEM_E_INVALID_NAMESPACE;
+        if (*p == '\\' || *p == '/') return WBEM_E_INVALID_PARAMETER;
+        q = p + 1;
+        while (*q && *q != '\\' && *q != '/') q++;
+        if (!*q) return WBEM_E_INVALID_NAMESPACE;
+        len = q - p;
+        if (!(*server = heap_alloc( (len + 1) * sizeof(WCHAR) )))
+        {
+            hr = E_OUTOFMEMORY;
+            goto done;
+        }
+        memcpy( *server, p, len * sizeof(WCHAR) );
+        (*server)[len] = 0;
+        q++;
+    }
+    if (!*q) goto done;
+    p = q;
+    while (*q && *q != '\\' && *q != '/') q++;
+    len = q - p;
+    if (len >= sizeof(rootW) / sizeof(rootW[0]) && memicmpW( rootW, p, len )) goto done;
+    if (!*q)
+    {
+        hr = S_OK;
+        goto done;
+    }
+    q++;
+    if ((len = strlenW( q )) != sizeof(cimv2W) / sizeof(cimv2W[0]) || memicmpW( q, cimv2W, len ))
+        goto done;
+    if (!(*namespace = heap_alloc( (len + 1) * sizeof(WCHAR) ))) hr = E_OUTOFMEMORY;
+    else
+    {
+        memcpy( *namespace, p, len * sizeof(WCHAR) );
+        (*namespace)[len] = 0;
+        hr = S_OK;
+    }
+
+done:
+    if (hr != S_OK)
+    {
+        heap_free( *server );
+        heap_free( *namespace );
+    }
+    return hr;
+}
+
 static HRESULT WINAPI wbem_locator_ConnectServer(
     IWbemLocator *iface,
     const BSTR NetworkResource,
@@ -98,8 +168,34 @@ static HRESULT WINAPI wbem_locator_ConnectServer(
     IWbemContext *pCtx,
     IWbemServices **ppNamespace)
 {
-    FIXME("%p, %s, %s, %s, %s, 0x%08x, %s, %p, %p)\n", iface, debugstr_w(NetworkResource), debugstr_w(User),
+    HRESULT hr;
+    WCHAR *server, *namespace;
+
+    TRACE("%p, %s, %s, %s, %s, 0x%08x, %s, %p, %p)\n", iface, debugstr_w(NetworkResource), debugstr_w(User),
           debugstr_w(Password), debugstr_w(Locale), SecurityFlags, debugstr_w(Authority), pCtx, ppNamespace);
+
+    hr = parse_resource( NetworkResource, &server, &namespace );
+    if (hr != S_OK) return hr;
+
+    if (!is_local_machine( server ))
+    {
+        FIXME("remote computer not supported\n");
+        heap_free( server );
+        heap_free( namespace );
+        return WBEM_E_TRANSPORT_FAILURE;
+    }
+    if (User || Password || Authority)
+        FIXME("authentication not supported\n");
+    if (Locale)
+        FIXME("specific locale not supported\n");
+    if (SecurityFlags)
+        FIXME("unsupported flags\n");
+
+    hr = WbemServices_create( NULL, namespace, (void **)ppNamespace );
+    heap_free( namespace );
+    if (SUCCEEDED( hr ))
+        return WBEM_NO_ERROR;
+
     return WBEM_E_FAILED;
 }
 
@@ -117,7 +213,7 @@ HRESULT WbemLocator_create( IUnknown *pUnkOuter, LPVOID *ppObj )
 
     TRACE("(%p,%p)\n", pUnkOuter, ppObj);
 
-    wl = HeapAlloc( GetProcessHeap(), 0, sizeof(*wl) );
+    wl = heap_alloc( sizeof(*wl) );
     if (!wl) return E_OUTOFMEMORY;
 
     wl->IWbemLocator_iface.lpVtbl = &wbem_locator_vtbl;

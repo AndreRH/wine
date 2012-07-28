@@ -38,7 +38,7 @@ static inline BoolInstance *bool_this(vdisp_t *jsthis)
 }
 
 /* ECMA-262 3rd Edition    15.6.4.2 */
-static HRESULT Bool_toString(script_ctx_t *ctx, vdisp_t *jsthis, WORD flags, DISPPARAMS *dp,
+static HRESULT Bool_toString(script_ctx_t *ctx, vdisp_t *jsthis, WORD flags, unsigned argc, VARIANT *argv,
         VARIANT *retv, jsexcept_t *ei)
 {
     BoolInstance *bool;
@@ -68,7 +68,7 @@ static HRESULT Bool_toString(script_ctx_t *ctx, vdisp_t *jsthis, WORD flags, DIS
 }
 
 /* ECMA-262 3rd Edition    15.6.4.3 */
-static HRESULT Bool_valueOf(script_ctx_t *ctx, vdisp_t *jsthis, WORD flags, DISPPARAMS *dp,
+static HRESULT Bool_valueOf(script_ctx_t *ctx, vdisp_t *jsthis, WORD flags, unsigned argc, VARIANT *argv,
         VARIANT *retv, jsexcept_t *ei)
 {
     BoolInstance *bool;
@@ -86,7 +86,7 @@ static HRESULT Bool_valueOf(script_ctx_t *ctx, vdisp_t *jsthis, WORD flags, DISP
     return S_OK;
 }
 
-static HRESULT Bool_value(script_ctx_t *ctx, vdisp_t *jsthis, WORD flags, DISPPARAMS *dp,
+static HRESULT Bool_value(script_ctx_t *ctx, vdisp_t *jsthis, WORD flags, unsigned argc, VARIANT *argv,
         VARIANT *retv, jsexcept_t *ei)
 {
     TRACE("\n");
@@ -117,14 +117,22 @@ static const builtin_info_t Bool_info = {
     NULL
 };
 
-static HRESULT BoolConstr_value(script_ctx_t *ctx, vdisp_t *jsthis, WORD flags, DISPPARAMS *dp,
+static const builtin_info_t BoolInst_info = {
+    JSCLASS_BOOLEAN,
+    {NULL, Bool_value, 0},
+    0, NULL,
+    NULL,
+    NULL
+};
+
+static HRESULT BoolConstr_value(script_ctx_t *ctx, vdisp_t *jsthis, WORD flags, unsigned argc, VARIANT *argv,
         VARIANT *retv, jsexcept_t *ei)
 {
     HRESULT hres;
     VARIANT_BOOL value = VARIANT_FALSE;
 
-    if(arg_cnt(dp)) {
-        hres = to_boolean(get_arg(dp,0), &value);
+    if(argc) {
+        hres = to_boolean(argv, &value);
         if(FAILED(hres))
             return hres;
     }
@@ -168,7 +176,7 @@ static HRESULT alloc_bool(script_ctx_t *ctx, jsdisp_t *object_prototype, BoolIns
     if(object_prototype)
         hres = init_dispex(&bool->dispex, ctx, &Bool_info, object_prototype);
     else
-        hres = init_dispex_from_constr(&bool->dispex, ctx, &Bool_info, ctx->bool_constr);
+        hres = init_dispex_from_constr(&bool->dispex, ctx, &BoolInst_info, ctx->bool_constr);
 
     if(FAILED(hres)) {
         heap_free(bool);
@@ -190,7 +198,7 @@ HRESULT create_bool_constr(script_ctx_t *ctx, jsdisp_t *object_prototype, jsdisp
     if(FAILED(hres))
         return hres;
 
-    hres = create_builtin_function(ctx, BoolConstr_value, BooleanW, NULL,
+    hres = create_builtin_constructor(ctx, BoolConstr_value, BooleanW, NULL,
             PROPF_CONSTR|1, &bool->dispex, ret);
 
     jsdisp_release(&bool->dispex);

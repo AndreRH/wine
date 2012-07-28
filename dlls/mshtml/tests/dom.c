@@ -1296,6 +1296,37 @@ static void _test_anchor_put_target(unsigned line, IUnknown *unk, const char *ta
     SysFreeString(str);
 }
 
+#define test_anchor_name(a,h) _test_anchor_name(__LINE__,a,h)
+static void _test_anchor_name(unsigned line, IUnknown *unk, const char *name)
+{
+    IHTMLAnchorElement *anchor = _get_anchor_iface(line, unk);
+    BSTR str;
+    HRESULT hres;
+
+    hres = IHTMLAnchorElement_get_name(anchor, &str);
+    ok_(__FILE__,line)(hres == S_OK, "get_name failed: %08x\n", hres);
+    if(name)
+        ok_(__FILE__,line)(!strcmp_wa(str, name), "name = %s, expected %s\n", wine_dbgstr_w(str), name);
+    else
+        ok_(__FILE__,line)(str == NULL, "name = %s, expected NULL\n", wine_dbgstr_w(str));
+    SysFreeString(str);
+}
+
+#define test_anchor_put_name(a,h) _test_anchor_put_name(__LINE__,a,h)
+static void _test_anchor_put_name(unsigned line, IUnknown *unk, const char *name)
+{
+    IHTMLAnchorElement *anchor = _get_anchor_iface(line, unk);
+    BSTR str;
+    HRESULT hres;
+
+    str = name ? a2bstr(name) : NULL;
+    hres = IHTMLAnchorElement_put_name(anchor, str);
+    ok_(__FILE__,line)(hres == S_OK, "put_name failed: %08x\n", hres);
+    SysFreeString(str);
+
+    _test_anchor_name(line, unk, name);
+}
+
 
 #define test_option_text(o,t) _test_option_text(__LINE__,o,t)
 static void _test_option_text(unsigned line, IHTMLOptionElement *option, const char *text)
@@ -2601,6 +2632,17 @@ static void test_attr_collection(IHTMLElement *elem)
     IHTMLAttributeCollection_Release(attr_col);
 }
 
+#define test_attr_specified(a,b) _test_attr_specified(__LINE__,a,b)
+static void _test_attr_specified(unsigned line, IHTMLDOMAttribute *attr, VARIANT_BOOL expected)
+{
+    VARIANT_BOOL specified;
+    HRESULT hres;
+
+    hres = IHTMLDOMAttribute_get_specified(attr, &specified);
+    ok_(__FILE__,line)(hres == S_OK, "get_specified failed: %08x\n", hres);
+    ok_(__FILE__,line)(specified == expected, "specified = %x, expected %x\n", specified, expected);
+}
+
 #define test_input_type(i,t) _test_input_type(__LINE__,i,t)
 static void _test_input_type(unsigned line, IHTMLInputElement *input, const char *extype)
 {
@@ -2704,9 +2746,31 @@ static void _test_input_set_checked(unsigned line, IHTMLInputElement *input, VAR
     HRESULT hres;
 
     hres = IHTMLInputElement_put_checked(input, b);
-    ok_(__FILE__,line) (hres == S_OK, "get_checked failed: %08x\n", hres);
+    ok_(__FILE__,line) (hres == S_OK, "put_checked failed: %08x\n", hres);
 
     _test_input_get_checked(line, input, b);
+}
+
+#define test_input_maxlength(i,b) _test_input_maxlength(__LINE__,i,b)
+static void _test_input_maxlength(unsigned line, IHTMLInputElement *input, LONG exl)
+{
+    LONG maxlength = 0xdeadbeef;
+    HRESULT hres;
+
+    hres = IHTMLInputElement_get_maxLength(input, &maxlength);
+    ok_(__FILE__,line) (hres == S_OK, "get_maxLength failed: %08x\n", hres);
+    ok_(__FILE__,line) (maxlength == exl, "maxLength=%x, expected %d\n", maxlength, exl);
+}
+
+#define test_input_set_maxlength(i,b) _test_input_set_maxlength(__LINE__,i,b)
+static void _test_input_set_maxlength(unsigned line, IHTMLInputElement *input, LONG l)
+{
+    HRESULT hres;
+
+    hres = IHTMLInputElement_put_maxLength(input, l);
+    ok_(__FILE__,line) (hres == S_OK, "put_maxLength failed: %08x\n", hres);
+
+    _test_input_maxlength(line, input, l);
 }
 
 #define test_input_value(o,t) _test_input_value(__LINE__,o,t)
@@ -4129,6 +4193,79 @@ static void test_mime_types_col(IOmNavigator *nav)
     ok(!ref, "ref=%d\n", ref);
 }
 
+#define test_framebase_name(a,b) _test_framebase_name(__LINE__,a,b)
+static void _test_framebase_name(unsigned line, IHTMLElement *elem, const char *name)
+{
+    BSTR str = (void*)0xdeadbeef;
+    IHTMLFrameBase *fbase;
+    HRESULT hres;
+
+    hres = IHTMLElement_QueryInterface(elem, &IID_IHTMLFrameBase, (void**)&fbase);
+    ok(hres == S_OK, "Could not get IHTMLFrameBase interface: 0x%08x\n", hres);
+
+    hres = IHTMLFrameBase_get_name(fbase, &str);
+    ok_(__FILE__,line)(hres == S_OK, "IHTMLFrameBase_get_name failed: 0x%08x\n", hres);
+    if(name)
+        ok_(__FILE__,line)(!strcmp_wa(str, name), "name = %s, expected %s\n", wine_dbgstr_w(str), name);
+    else
+        ok_(__FILE__,line)(!str, "name = %s, expected NULL\n", wine_dbgstr_w(str));
+    SysFreeString(str);
+
+    IHTMLFrameBase_Release(fbase);
+}
+
+static void test_framebase(IUnknown *unk)
+{
+    IHTMLFrameBase *fbase;
+    BSTR str;
+    HRESULT hres;
+
+    /* get/put scrolling */
+    hres = IUnknown_QueryInterface(unk, &IID_IHTMLFrameBase, (void**)&fbase);
+    ok(hres == S_OK, "Could not get IHTMLFrameBase interface: 0x%08x\n", hres);
+
+    hres = IHTMLFrameBase_get_scrolling(fbase, &str);
+    ok(hres == S_OK, "IHTMLFrameBase_get_scrolling failed: 0x%08x\n", hres);
+    ok(!strcmp_wa(str, "auto"), "get_scrolling should have given 'auto', gave: %s\n", wine_dbgstr_w(str));
+    SysFreeString(str);
+
+    str = a2bstr("no");
+    hres = IHTMLFrameBase_put_scrolling(fbase, str);
+    ok(hres == S_OK, "IHTMLFrameBase_put_scrolling failed: 0x%08x\n", hres);
+    SysFreeString(str);
+
+    hres = IHTMLFrameBase_get_scrolling(fbase, &str);
+    ok(hres == S_OK, "IHTMLFrameBase_get_scrolling failed: 0x%08x\n", hres);
+    ok(!strcmp_wa(str, "no"), "get_scrolling should have given 'no', gave: %s\n", wine_dbgstr_w(str));
+    SysFreeString(str);
+
+    str = a2bstr("junk");
+    hres = IHTMLFrameBase_put_scrolling(fbase, str);
+    ok(hres == E_INVALIDARG, "IHTMLFrameBase_put_scrolling should have failed "
+            "with E_INVALIDARG, instead: 0x%08x\n", hres);
+    SysFreeString(str);
+
+    hres = IHTMLFrameBase_get_scrolling(fbase, &str);
+    ok(hres == S_OK, "IHTMLFrameBase_get_scrolling failed: 0x%08x\n", hres);
+    ok(!strcmp_wa(str, "no"), "get_scrolling should have given 'no', gave: %s\n", wine_dbgstr_w(str));
+    SysFreeString(str);
+
+    hres = IHTMLFrameBase_get_frameBorder(fbase, &str);
+    ok(hres == S_OK, "get_frameBorder failed: %08x\n", hres);
+    ok(!str, "frameBorder = %s\n", wine_dbgstr_w(str));
+
+    str = a2bstr("1");
+    hres = IHTMLFrameBase_put_frameBorder(fbase, str);
+    ok(hres == S_OK, "put_frameBorder failed: %08x\n", hres);
+    SysFreeString(str);
+
+    hres = IHTMLFrameBase_get_frameBorder(fbase, &str);
+    ok(hres == S_OK, "get_frameBorder failed: %08x\n", hres);
+    ok(!strcmp_wa(str, "1"), "frameBorder = %s, expected \"1\"\n", wine_dbgstr_w(str));
+
+    IHTMLFrameBase_Release(fbase);
+}
+
 #define test_language_string(a,b) _test_language_string(__LINE__,a,b)
 static void _test_language_string(unsigned line, const WCHAR *lang, LCID lcid)
 {
@@ -4885,6 +5022,7 @@ static void test_iframe_elem(IHTMLElement *elem)
     };
 
     test_frame_doc((IUnknown*)elem, TRUE);
+    test_framebase((IUnknown*)elem);
 
     content_window = get_frame_content_window((IUnknown*)elem);
     test_window_length(content_window, 0);
@@ -5295,6 +5433,9 @@ static void test_elems(IHTMLDocument2 *doc)
         test_input_set_checked(input, VARIANT_TRUE);
         test_input_set_checked(input, VARIANT_FALSE);
 
+        test_input_maxlength(input, 0x7fffffff);
+        test_input_set_maxlength(input, 30);
+
         test_input_name(input, NULL);
         test_input_set_name(input, "test");
 
@@ -5382,6 +5523,11 @@ static void test_elems(IHTMLDocument2 *doc)
         /* Restore the target */
         test_anchor_put_target((IUnknown*)elem, NULL);
         test_anchor_get_target((IUnknown*)elem, NULL);
+
+        test_anchor_name((IUnknown*)elem, "x");
+        test_anchor_put_name((IUnknown*)elem, "anchor name");
+        test_anchor_put_name((IUnknown*)elem, NULL);
+        test_anchor_put_name((IUnknown*)elem, "x");
 
         IHTMLElement_Release(elem);
     }
@@ -5586,6 +5732,7 @@ static void test_attr(IHTMLElement *elem)
     test_disp((IUnknown*)attr, &DIID_DispHTMLDOMAttribute, "[object]");
     test_ifaces((IUnknown*)attr, attr_iids);
     test_no_iface((IUnknown*)attr, &IID_IHTMLDOMNode);
+    test_attr_specified(attr, VARIANT_TRUE);
 
     attr2 = get_elem_attr_node((IUnknown*)elem, "id", TRUE);
     ok(iface_cmp((IUnknown*)attr, (IUnknown*)attr2), "attr != attr2\n");
@@ -5601,6 +5748,7 @@ static void test_attr(IHTMLElement *elem)
     get_attr_node_value(attr, &v, VT_BSTR);
     ok(!V_BSTR(&v), "V_BSTR(v) = %s\n", wine_dbgstr_w(V_BSTR(&v)));
     VariantClear(&v);
+    test_attr_specified(attr, VARIANT_TRUE);
     IHTMLDOMAttribute_Release(attr);
 
     V_VT(&v) = VT_I4;
@@ -5609,6 +5757,11 @@ static void test_attr(IHTMLElement *elem)
     attr = get_elem_attr_node((IUnknown*)elem, "dispprop", TRUE);
     get_attr_node_value(attr, &v, VT_I4);
     ok(V_I4(&v) == 100, "V_I4(v) = %d\n", V_I4(&v));
+    test_attr_specified(attr, VARIANT_TRUE);
+    IHTMLDOMAttribute_Release(attr);
+
+    attr = get_elem_attr_node((IUnknown*)elem, "tabIndex", TRUE);
+    test_attr_specified(attr, VARIANT_FALSE);
     IHTMLDOMAttribute_Release(attr);
 }
 
@@ -5766,6 +5919,13 @@ static void test_create_elems(IHTMLDocument2 *doc)
 
     test_elem_innertext(body, "insert test");
     test_elem_innerhtml((IUnknown*)body, "insert test");
+
+    node = test_create_text(doc, " Test");
+    V_VT(&var) = VT_DISPATCH;
+    V_DISPATCH(&var) = NULL;
+    test_node_insertbefore((IUnknown*)body, node, &var);
+    test_elem_innertext(body, "insert test Test");
+    IHTMLDOMNode_Release(node);
 
     hres = IHTMLDocument2_QueryInterface(doc, &IID_IHTMLDocument5, (void**)&doc5);
     if(hres == S_OK)
@@ -6050,8 +6210,6 @@ static void test_frameset(IHTMLDocument2 *doc)
     IHTMLWindow2 *window;
     IHTMLFramesCollection2 *frames;
     IHTMLElement *elem;
-    IHTMLFrameBase *fbase;
-    BSTR str;
     HRESULT hres;
 
     window = get_doc_window(doc);
@@ -6081,57 +6239,16 @@ static void test_frameset(IHTMLDocument2 *doc)
     elem = get_doc_elem_by_id(doc, "nm1");
     test_elem_id((IUnknown*)elem, "fr1");
 
-    /* get/put scrolling */
-    hres = IHTMLElement_QueryInterface(elem, &IID_IHTMLFrameBase, (void**)&fbase);
-    ok(hres == S_OK, "Could not get IHTMLFrameBase interface: 0x%08x\n", hres);
+    test_framebase((IUnknown*)elem);
+    test_framebase_name(elem, "nm1");
 
-    hres = IHTMLFrameBase_get_scrolling(fbase, &str);
-    ok(hres == S_OK, "IHTMLFrameBase_get_scrolling failed: 0x%08x\n", hres);
-    ok(!strcmp_wa(str, "auto"), "get_scrolling should have given 'auto', gave: %s\n", wine_dbgstr_w(str));
-    SysFreeString(str);
-
-    str = a2bstr("no");
-    hres = IHTMLFrameBase_put_scrolling(fbase, str);
-    ok(hres == S_OK, "IHTMLFrameBase_put_scrolling failed: 0x%08x\n", hres);
-    SysFreeString(str);
-
-    hres = IHTMLFrameBase_get_scrolling(fbase, &str);
-    ok(hres == S_OK, "IHTMLFrameBase_get_scrolling failed: 0x%08x\n", hres);
-    ok(!strcmp_wa(str, "no"), "get_scrolling should have given 'no', gave: %s\n", wine_dbgstr_w(str));
-    SysFreeString(str);
-
-    str = a2bstr("junk");
-    hres = IHTMLFrameBase_put_scrolling(fbase, str);
-    ok(hres == E_INVALIDARG, "IHTMLFrameBase_put_scrolling should have failed "
-            "with E_INVALIDARG, instead: 0x%08x\n", hres);
-    SysFreeString(str);
-
-    hres = IHTMLFrameBase_get_scrolling(fbase, &str);
-    ok(hres == S_OK, "IHTMLFrameBase_get_scrolling failed: 0x%08x\n", hres);
-    ok(!strcmp_wa(str, "no"), "get_scrolling should have given 'no', gave: %s\n", wine_dbgstr_w(str));
-    SysFreeString(str);
-
-    /* get_name */
-    hres = IHTMLFrameBase_get_name(fbase, &str);
-    ok(hres == S_OK, "IHTMLFrameBase_get_name failed: 0x%08x\n", hres);
-    ok(!strcmp_wa(str, "nm1"), "get_name should have given 'nm1', gave: %s\n", wine_dbgstr_w(str));
-    SysFreeString(str);
-
-    IHTMLFrameBase_Release(fbase);
     IHTMLElement_Release(elem);
 
     /* get_name with no name attr */
     elem = get_doc_elem_by_id(doc, "fr3");
-    hres = IHTMLElement_QueryInterface(elem, &IID_IHTMLFrameBase, (void**)&fbase);
-    ok(hres == S_OK, "Could not get IHTMLFrameBase interface: 0x%08x\n", hres);
-
-    hres = IHTMLFrameBase_get_name(fbase, &str);
-    ok(hres == S_OK, "IHTMLFrameBase_get_name failed: 0x%08x\n", hres);
-    ok(str == NULL, "get_name should have given 'null', gave: %s\n", wine_dbgstr_w(str));
-    SysFreeString(str);
-
-    IHTMLFrameBase_Release(fbase);
+    test_framebase_name(elem, NULL);
     IHTMLElement_Release(elem);
+
     IHTMLWindow2_Release(window);
 }
 
@@ -6154,10 +6271,10 @@ static IHTMLDocument2 *create_docfrag(IHTMLDocument2 *doc)
 
 static void test_docfrag(IHTMLDocument2 *doc)
 {
+    IHTMLDocument2 *frag, *owner_doc, *doc_node;
     IHTMLElement *div, *body, *br;
     IHTMLElementCollection *col;
     IHTMLLocation *location;
-    IHTMLDocument2 *frag;
     HRESULT hres;
 
     static const elem_type_t all_types[] = {
@@ -6195,6 +6312,14 @@ static void test_docfrag(IHTMLDocument2 *doc)
     ok(hres == S_OK, "get_all failed: %08x\n", hres);
     test_elem_collection((IUnknown*)col, all_types, sizeof(all_types)/sizeof(all_types[0]));
     IHTMLElementCollection_Release(col);
+
+    div = test_create_elem(frag, "div");
+    owner_doc = get_owner_doc((IUnknown*)div);
+    doc_node = get_doc_node(doc);
+    ok(iface_cmp((IUnknown*)owner_doc, (IUnknown*)doc_node), "owner_doc != doc_node\n");
+    IHTMLDocument2_Release(doc_node);
+    IHTMLDocument2_Release(owner_doc);
+    IHTMLElement_Release(div);
 
     IHTMLDocument2_Release(frag);
 }

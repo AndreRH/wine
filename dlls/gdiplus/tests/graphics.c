@@ -24,9 +24,9 @@
 #include "wine/test.h"
 #include <math.h>
 
-#define expect(expected, got) ok(got == expected, "Expected %.8x, got %.8x\n", expected, got)
-#define expectf_(expected, got, precision) ok(fabs(expected - got) < precision, "Expected %.2f, got %.2f\n", expected, got)
-#define expectf(expected, got) expectf_(expected, got, 0.0001)
+#define expect(expected, got) ok((got) == (expected), "Expected %d, got %d\n", (INT)(expected), (INT)(got))
+#define expectf_(expected, got, precision) ok(fabs((expected) - (got)) < (precision), "Expected %f, got %f\n", (expected), (got))
+#define expectf(expected, got) expectf_((expected), (got), 0.001)
 #define TABLE_LEN (23)
 
 static HWND hwnd;
@@ -1970,7 +1970,7 @@ static void test_GdipDrawString(void)
     expect(Ok, status);
 
     status = GdipCreateFontFromLogfontA(hdc, &logfont, &fnt);
-    if (status == FileNotFound)
+    if (status == NotTrueTypeFont || status == FileNotFound)
     {
         skip("Arial not installed.\n");
         return;
@@ -3304,6 +3304,198 @@ static void test_getdc_scaled(void)
     GdipDisposeImage((GpImage*)bitmap);
 }
 
+static void test_GdipMeasureString(void)
+{
+    static const WCHAR fontname[] = { 'T','a','h','o','m','a',0 };
+    static const WCHAR string[] = { '1','2','3','4','5','6','7',0 };
+    GpStatus status;
+    GpGraphics *graphics;
+    GpFontFamily *family;
+    GpFont *font;
+    HDC hdc;
+    GpStringFormat *format;
+    RectF bounds, rc = { 0.0, 0.0, 0.0, 0.0 };
+    REAL rval, dpi;
+
+    hdc = CreateCompatibleDC(0);
+    ok(hdc != 0, "CreateCompatibleDC failed\n");
+    status = GdipCreateFromHDC(hdc, &graphics);
+    expect(Ok, status);
+    status = GdipGetDpiY(graphics, &dpi);
+    expect(Ok, status);
+    status = GdipCreateFontFamilyFromName(fontname, NULL, &family);
+    expect(Ok, status);
+    status = GdipCreateFont(family, 18.0, FontStyleRegular, UnitPoint, &font);
+    expect(Ok, status);
+    status = GdipCreateStringFormat(0, LANG_NEUTRAL, &format);
+    expect(Ok, status);
+
+    if (dpi == 96.0)
+    {
+        status = GdipSetPageUnit(graphics, UnitDisplay);
+        expect(Ok, status);
+
+        status = GdipGetFontHeightGivenDPI(font, dpi, &rval);
+        expect(Ok, status);
+        expectf(28.968750, rval);
+
+        status = GdipGetFontHeight(font, graphics, &rval);
+        expect(Ok, status);
+        expectf(28.968750, rval);
+        status = GdipGetFontSize(font, &rval);
+        expect(Ok, status);
+        expectf(18.0, rval);
+
+        status = GdipMeasureString(graphics, string, -1, font, &rc, format, &bounds, NULL, NULL);
+        expect(Ok, status);
+        expectf(0.0, bounds.X);
+        expectf(0.0, bounds.Y);
+        expectf_(102.499985, bounds.Width, 11.5);
+        expectf_(31.968744, bounds.Height, 3.1);
+    }
+    else
+        skip("screen resolution %f dpi, test runs at 96 dpi\n", dpi);
+
+    status = GdipSetPageUnit(graphics, UnitPoint);
+    expect(Ok, status);
+
+    status = GdipGetFontHeight(font, graphics, &rval);
+    expect(Ok, status);
+    expectf(21.726563, rval);
+    status = GdipGetFontSize(font, &rval);
+    expect(Ok, status);
+    expectf(18.0, rval);
+
+    status = GdipMeasureString(graphics, string, -1, font, &rc, format, &bounds, NULL, NULL);
+    expect(Ok, status);
+    expectf(0.0, bounds.X);
+    expectf(0.0, bounds.Y);
+    expectf_(76.875000, bounds.Width, 10.0);
+    expectf_(23.976563, bounds.Height, 2.1);
+
+    status = GdipSetPageUnit(graphics, UnitMillimeter);
+    expect(Ok, status);
+
+    status = GdipGetFontHeight(font, graphics, &rval);
+    expect(Ok, status);
+    expectf(7.664648, rval);
+    status = GdipGetFontSize(font, &rval);
+    expect(Ok, status);
+    expectf(18.0, rval);
+
+    status = GdipMeasureString(graphics, string, -1, font, &rc, format, &bounds, NULL, NULL);
+    expect(Ok, status);
+    expectf(0.0, bounds.X);
+    expectf(0.0, bounds.Y);
+    expectf_(27.119789, bounds.Width, 2.7);
+    expectf_(8.458398, bounds.Height, 0.8);
+
+    GdipDeleteStringFormat(format);
+    GdipDeleteFont(font);
+    GdipDeleteFontFamily(family);
+    GdipDeleteGraphics(graphics);
+
+    DeleteDC(hdc);
+}
+
+static GpGraphics *create_graphics(REAL res_x, REAL res_y, GpUnit unit, REAL scale)
+{
+    GpStatus status;
+    union
+    {
+        GpBitmap *bitmap;
+        GpImage *image;
+    } u;
+    GpGraphics *graphics = NULL;
+    REAL res;
+
+    status = GdipCreateBitmapFromScan0(1, 1, 4, PixelFormat24bppRGB, NULL, &u.bitmap);
+    expect(Ok, status);
+
+    status = GdipBitmapSetResolution(u.bitmap, res_x, res_y);
+    expect(Ok, status);
+    status = GdipGetImageHorizontalResolution(u.image, &res);
+    expect(Ok, status);
+    expectf(res_x, res);
+    status = GdipGetImageVerticalResolution(u.image, &res);
+    expect(Ok, status);
+    expectf(res_y, res);
+
+    status = GdipGetImageGraphicsContext(u.image, &graphics);
+    expect(Ok, status);
+    status = GdipDisposeImage(u.image);
+    expect(Ok, status);
+
+    status = GdipGetDpiX(graphics, &res);
+    expect(Ok, status);
+    expectf(res_x, res);
+    status = GdipGetDpiY(graphics, &res);
+    expect(Ok, status);
+    expectf(res_y, res);
+
+    status = GdipSetPageUnit(graphics, unit);
+    expect(Ok, status);
+    status = GdipSetPageScale(graphics, scale);
+    expect(Ok, status);
+
+    return graphics;
+}
+
+static void test_transform(void)
+{
+    static const struct test_data
+    {
+        REAL res_x, res_y, scale;
+        GpUnit unit;
+        GpPointF in[2], out[2];
+    } td[] =
+    {
+        { 96.0, 96.0, 1.0, UnitPixel,
+          { { 100.0, 0.0 }, { 0.0, 100.0 } }, { { 100.0, 0.0 }, { 0.0, 100.0 } } },
+        { 96.0, 96.0, 1.0, UnitDisplay,
+          { { 100.0, 0.0 }, { 0.0, 100.0 } }, { { 100.0, 0.0 }, { 0.0, 100.0 } } },
+        { 96.0, 96.0, 1.0, UnitInch,
+          { { 100.0, 0.0 }, { 0.0, 100.0 } }, { { 9600.0, 0.0 }, { 0.0, 9600.0 } } },
+        { 123.0, 456.0, 1.0, UnitPoint,
+          { { 100.0, 0.0 }, { 0.0, 100.0 } }, { { 170.833313, 0.0 }, { 0.0, 633.333252 } } },
+        { 123.0, 456.0, 1.0, UnitDocument,
+          { { 100.0, 0.0 }, { 0.0, 100.0 } }, { { 40.999996, 0.0 }, { 0.0, 151.999985 } } },
+        { 123.0, 456.0, 2.0, UnitMillimeter,
+          { { 100.0, 0.0 }, { 0.0, 100.0 } }, { { 968.503845, 0.0 }, { 0.0, 3590.550781 } } },
+        { 196.0, 296.0, 1.0, UnitDisplay,
+          { { 100.0, 0.0 }, { 0.0, 100.0 } }, { { 100.0, 0.0 }, { 0.0, 100.0 } } },
+        { 196.0, 296.0, 1.0, UnitPixel,
+          { { 100.0, 0.0 }, { 0.0, 100.0 } }, { { 100.0, 0.0 }, { 0.0, 100.0 } } },
+    };
+    GpStatus status;
+    GpGraphics *graphics;
+    GpPointF ptf[2];
+    UINT i;
+
+    for (i = 0; i < sizeof(td)/sizeof(td[0]); i++)
+    {
+        graphics = create_graphics(td[i].res_x, td[i].res_y, td[i].unit, td[i].scale);
+        ptf[0].X = td[i].in[0].X;
+        ptf[0].Y = td[i].in[0].Y;
+        ptf[1].X = td[i].in[1].X;
+        ptf[1].Y = td[i].in[1].Y;
+        status = GdipTransformPoints(graphics, CoordinateSpaceDevice, CoordinateSpaceWorld, ptf, 2);
+        expect(Ok, status);
+        expectf(td[i].out[0].X, ptf[0].X);
+        expectf(td[i].out[0].Y, ptf[0].Y);
+        expectf(td[i].out[1].X, ptf[1].X);
+        expectf(td[i].out[1].Y, ptf[1].Y);
+        status = GdipTransformPoints(graphics, CoordinateSpaceWorld, CoordinateSpaceDevice, ptf, 2);
+        expect(Ok, status);
+        expectf(td[i].in[0].X, ptf[0].X);
+        expectf(td[i].in[0].Y, ptf[0].Y);
+        expectf(td[i].in[1].X, ptf[1].X);
+        expectf(td[i].in[1].Y, ptf[1].Y);
+        status = GdipDeleteGraphics(graphics);
+        expect(Ok, status);
+    }
+}
+
 START_TEST(graphics)
 {
     struct GdiplusStartupInput gdiplusStartupInput;
@@ -3330,6 +3522,8 @@ START_TEST(graphics)
 
     GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
 
+    test_transform();
+    test_GdipMeasureString();
     test_constructor_destructor();
     test_save_restore();
     test_GdipFillClosedCurve2();

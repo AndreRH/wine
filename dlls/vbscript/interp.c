@@ -24,6 +24,8 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(vbscript);
 
+static DISPID propput_dispid = DISPID_PROPERTYPUT;
+
 typedef struct {
     vbscode_t *code;
     instr_t *instr;
@@ -439,8 +441,6 @@ static inline void instr_jmp(exec_ctx_t *ctx, unsigned addr)
 
 static void vbstack_to_dp(exec_ctx_t *ctx, unsigned arg_cnt, BOOL is_propput, DISPPARAMS *dp)
 {
-    static DISPID propput_dispid = DISPID_PROPERTYPUT;
-
     dp->cNamedArgs = is_propput ? 1 : 0;
     dp->cArgs = arg_cnt + dp->cNamedArgs;
     dp->rgdispidNamedArgs = is_propput ? &propput_dispid : NULL;
@@ -894,10 +894,92 @@ static HRESULT interp_step(exec_ctx_t *ctx)
     if(FAILED(hres))
         return hres;
 
-    if(hres == VARCMP_EQ || hres == (gteq_zero ? VARCMP_LT : VARCMP_GT))
+    if(hres == VARCMP_EQ || hres == (gteq_zero ? VARCMP_LT : VARCMP_GT)) {
         ctx->instr++;
-    else
+    }else {
+        stack_popn(ctx, 2);
         instr_jmp(ctx, ctx->instr->arg1.uint);
+    }
+    return S_OK;
+}
+
+static HRESULT interp_newenum(exec_ctx_t *ctx)
+{
+    VARIANT *v, r;
+    HRESULT hres;
+
+    TRACE("\n");
+
+    v = stack_pop(ctx);
+    switch(V_VT(v)) {
+    case VT_DISPATCH: {
+        IEnumVARIANT *iter;
+        DISPPARAMS dp = {0};
+        VARIANT iterv;
+
+        hres = disp_call(ctx->script, V_DISPATCH(v), DISPID_NEWENUM, &dp, &iterv);
+        VariantClear(v);
+        if(FAILED(hres))
+            return hres;
+
+        if(V_VT(&iterv) != VT_UNKNOWN && V_VT(&iterv) != VT_DISPATCH) {
+            FIXME("Unsupported iterv %s\n", debugstr_variant(&iterv));
+            VariantClear(&iterv);
+            return hres;
+        }
+
+        hres = IUnknown_QueryInterface(V_UNKNOWN(&iterv), &IID_IEnumVARIANT, (void**)&iter);
+        IUnknown_Release(V_UNKNOWN(&iterv));
+        if(FAILED(hres)) {
+            FIXME("Could not get IEnumVARIANT iface: %08x\n", hres);
+            return hres;
+        }
+
+        V_VT(&r) = VT_UNKNOWN;
+        V_UNKNOWN(&r) = (IUnknown*)iter;
+        break;
+    }
+    default:
+        FIXME("Unsupported for %s\n", debugstr_variant(v));
+        VariantClear(v);
+        return E_NOTIMPL;
+    }
+
+    return stack_push(ctx, &r);
+}
+
+static HRESULT interp_enumnext(exec_ctx_t *ctx)
+{
+    const unsigned loop_end = ctx->instr->arg1.uint;
+    const BSTR ident = ctx->instr->arg2.bstr;
+    VARIANT v;
+    DISPPARAMS dp = {&v, &propput_dispid, 1, 1};
+    IEnumVARIANT *iter;
+    BOOL do_continue;
+    HRESULT hres;
+
+    TRACE("\n");
+
+    assert(V_VT(stack_top(ctx, 0)) == VT_UNKNOWN);
+    iter = (IEnumVARIANT*)V_UNKNOWN(stack_top(ctx, 0));
+
+    V_VT(&v) = VT_EMPTY;
+    hres = IEnumVARIANT_Next(iter, 1, &v, NULL);
+    if(FAILED(hres))
+        return hres;
+
+    do_continue = hres == S_OK;
+    hres = assign_ident(ctx, ident, &dp);
+    VariantClear(&v);
+    if(FAILED(hres))
+        return hres;
+
+    if(do_continue) {
+        ctx->instr++;
+    }else {
+        stack_pop(ctx);
+        instr_jmp(ctx, loop_end);
+    }
     return S_OK;
 }
 
@@ -1220,6 +1302,20 @@ static HRESULT interp_imp(exec_ctx_t *ctx)
     return stack_push(ctx, &v);
 }
 
+static HRESULT var_cmp(exec_ctx_t *ctx, VARIANT *l, VARIANT *r)
+{
+    TRACE("%s %s\n", debugstr_variant(l), debugstr_variant(r));
+
+    if(V_VT(l) == VT_NULL || V_VT(r) == VT_NULL) {
+        FIXME("comparing nulls is not implemented\n");
+        return E_NOTIMPL;
+    }
+
+    /* FIXME: Fix comparing string to number */
+
+    return VarCmp(l, r, ctx->script->lcid, 0);
+ }
+
 static HRESULT cmp_oper(exec_ctx_t *ctx)
 {
     variant_val_t l, r;
@@ -1231,16 +1327,11 @@ static HRESULT cmp_oper(exec_ctx_t *ctx)
 
     hres = stack_pop_val(ctx, &l);
     if(SUCCEEDED(hres)) {
-        if(V_VT(l.v) == VT_NULL || V_VT(r.v) == VT_NULL) {
-            FIXME("comparing nulls is not implemented\n");
-            hres = E_NOTIMPL;
-        }else {
-            hres = VarCmp(l.v, r.v, ctx->script->lcid, 0);
-        }
+        hres = var_cmp(ctx, l.v, r.v);
+        release_val(&l);
     }
 
     release_val(&r);
-    release_val(&l);
     return hres;
 }
 
@@ -1338,6 +1429,33 @@ static HRESULT interp_lteq(exec_ctx_t *ctx)
     V_VT(&v) = VT_BOOL;
     V_BOOL(&v) = hres == VARCMP_LT || hres == VARCMP_EQ ? VARIANT_TRUE : VARIANT_FALSE;
     return stack_push(ctx, &v);
+}
+
+static HRESULT interp_case(exec_ctx_t *ctx)
+{
+    const unsigned arg = ctx->instr->arg1.uint;
+    variant_val_t v;
+    HRESULT hres;
+
+    TRACE("%d\n", arg);
+
+    hres = stack_pop_val(ctx, &v);
+    if(FAILED(hres))
+        return hres;
+
+    hres = var_cmp(ctx, stack_top(ctx, 0), v.v);
+    release_val(&v);
+    if(FAILED(hres))
+        return hres;
+
+    if(hres == VARCMP_EQ) {
+        stack_popn(ctx, 1);
+        instr_jmp(ctx, arg);
+    }else {
+        ctx->instr++;
+    }
+
+    return S_OK;
 }
 
 static HRESULT disp_cmp(IDispatch *disp1, IDispatch *disp2, VARIANT_BOOL *ret)

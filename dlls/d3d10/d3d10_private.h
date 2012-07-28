@@ -49,9 +49,12 @@ void d3d10_rb_free(void *ptr) DECLSPEC_HIDDEN;
 
 enum d3d10_effect_object_type
 {
-    D3D10_EOT_VERTEXSHADER = 6,
-    D3D10_EOT_PIXELSHADER = 7,
-    D3D10_EOT_GEOMETRYSHADER = 8,
+    D3D10_EOT_VERTEXSHADER = 0x6,
+    D3D10_EOT_PIXELSHADER = 0x7,
+    D3D10_EOT_GEOMETRYSHADER = 0x8,
+    D3D10_EOT_STENCIL_REF = 0x9,
+    D3D10_EOT_BLEND_FACTOR = 0xa,
+    D3D10_EOT_SAMPLE_MASK = 0xb,
 };
 
 enum d3d10_effect_object_operation
@@ -156,6 +159,10 @@ struct d3d10_effect_pass
     DWORD annotation_count;
     struct d3d10_effect_object *objects;
     struct d3d10_effect_variable *annotations;
+
+    UINT stencil_ref;
+    UINT sample_mask;
+    float blend_factor[4];
 };
 
 /* ID3D10EffectTechnique */

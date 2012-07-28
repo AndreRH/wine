@@ -92,7 +92,7 @@ static nsresult NSAPI nsDOMEventListener_QueryInterface(nsIDOMEventListener *ifa
     }
 
     if(*result) {
-        nsIWebBrowserChrome_AddRef(&This->nsIDOMEventListener_iface);
+        nsIDOMEventListener_AddRef(&This->nsIDOMEventListener_iface);
         return NS_OK;
     }
 
@@ -241,7 +241,7 @@ static nsresult NSAPI handle_load(nsIDOMEventListener *iface, nsIDOMEvent *event
     if(doc->basedoc.doc_obj && doc->basedoc.doc_obj->basedoc.doc_node == doc)
         doc_obj = doc->basedoc.doc_obj;
 
-    connect_scripts(doc->basedoc.window);
+    connect_scripts(doc->basedoc.window->base.inner_window);
 
     if(doc_obj)
         handle_docobj_load(doc_obj);
@@ -259,7 +259,7 @@ static nsresult NSAPI handle_load(nsIDOMEventListener *iface, nsIDOMEvent *event
 
     if(doc_obj && doc_obj->usermode!=EDITMODE && doc_obj->doc_object_service)
         IDocObjectService_FireDocumentComplete(doc_obj->doc_object_service,
-                &doc->basedoc.window->IHTMLWindow2_iface, 0);
+                &doc->basedoc.window->base.IHTMLWindow2_iface, 0);
 
     if(!doc->nsdoc) {
         ERR("NULL nsdoc\n");

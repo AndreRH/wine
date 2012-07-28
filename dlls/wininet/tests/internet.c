@@ -1256,7 +1256,7 @@ static void test_InternetErrorDlg(void)
         { ERROR_INTERNET_HTTPS_HTTP_SUBMIT_REDIR, ERROR_CANCELLED, FLAG_TODO },
         { ERROR_INTERNET_INSERT_CDROM           , ERROR_CANCELLED, FLAG_TODO|FLAG_NEEDREQ|FLAG_UNIMPL },
         { ERROR_INTERNET_SEC_CERT_ERRORS        , ERROR_CANCELLED, 0 },
-        { ERROR_INTERNET_SEC_CERT_REV_FAILED    , ERROR_CANCELLED, FLAG_TODO },
+        { ERROR_INTERNET_SEC_CERT_REV_FAILED    , ERROR_CANCELLED, 0 },
         { ERROR_HTTP_COOKIE_NEEDS_CONFIRMATION  , ERROR_HTTP_COOKIE_DECLINED, FLAG_TODO },
         { ERROR_INTERNET_BAD_AUTO_PROXY_SCRIPT  , ERROR_CANCELLED, FLAG_TODO },
         { ERROR_INTERNET_UNABLE_TO_DOWNLOAD_SCRIPT, ERROR_CANCELLED, FLAG_TODO },
@@ -1303,11 +1303,11 @@ static void test_InternetErrorDlg(void)
         res = InternetErrorDlg(hwnd, (HANDLE)0xdeadbeef, i, flags, NULL);
         if(res == ERROR_CALL_NOT_IMPLEMENTED)
         {
-            todo_wine ok(test_flags & FLAG_UNIMPL, "%i is unexpectedly unimplemented.\n", i);
+            ok(test_flags & FLAG_UNIMPL, "%i is unexpectedly unimplemented.\n", i);
             continue;
         }
         else
-            todo_wine ok(res == ERROR_INVALID_HANDLE, "Got %d (%d)\n", res, i);
+            ok(res == ERROR_INVALID_HANDLE, "Got %d (%d)\n", res, i);
 
         /* With a valid req */
         if(i == ERROR_INTERNET_NEED_UI)

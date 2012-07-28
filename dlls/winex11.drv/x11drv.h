@@ -56,7 +56,6 @@ typedef int Status;
 #include "winbase.h"
 #include "wingdi.h"
 #include "winuser.h"
-#include "ddrawi.h"
 #include "wine/gdi_driver.h"
 #include "wine/list.h"
 
@@ -108,7 +107,6 @@ enum dc_gl_type
     DC_GL_WINDOW,     /* normal top-level window */
     DC_GL_CHILD_WIN,  /* child window using XComposite */
     DC_GL_PIXMAP_WIN, /* child window using intermediate pixmap */
-    DC_GL_BITMAP,     /* memory DC with a standard bitmap */
     DC_GL_PBUFFER     /* pseudo memory DC using a PBuffer */
 };
 
@@ -119,7 +117,6 @@ typedef struct
     GC            gc;          /* X Window GC */
     Drawable      drawable;
     RECT          dc_rect;       /* DC rectangle relative to drawable */
-    RECT          drawable_rect; /* Drawable rectangle relative to screen */
     RECT         *bounds;        /* Graphics bounds */
     HRGN          region;        /* Device region (visible region & clip region) */
     X_PHYSPEN     pen;
@@ -220,8 +217,6 @@ extern INT X11DRV_YWStoDS( HDC hdc, INT height ) DECLSPEC_HIDDEN;
 
 extern const int X11DRV_XROPfunction[];
 
-extern void _XInitImageFuncPtrs(XImage *) DECLSPEC_HIDDEN;
-
 extern int client_side_with_render DECLSPEC_HIDDEN;
 extern int client_side_antialias_with_core DECLSPEC_HIDDEN;
 extern int client_side_antialias_with_render DECLSPEC_HIDDEN;
@@ -289,6 +284,7 @@ extern void X11DRV_PALETTE_ComputeColorShifts(ColorShifts *shifts, unsigned long
 enum x11drv_escape_codes
 {
     X11DRV_SET_DRAWABLE,     /* set current drawable for a DC */
+    X11DRV_GET_DRAWABLE,     /* get current drawable for a DC */
     X11DRV_START_EXPOSURES,  /* start graphics exposures */
     X11DRV_END_EXPOSURES,    /* end graphics exposures */
     X11DRV_FLUSH_GL_DRAWABLE /* flush changes made to the gl drawable */
@@ -300,10 +296,19 @@ struct x11drv_escape_set_drawable
     Drawable                 drawable;     /* X drawable */
     int                      mode;         /* ClipByChildren or IncludeInferiors */
     RECT                     dc_rect;      /* DC rectangle relative to drawable */
-    RECT                     drawable_rect;/* Drawable rectangle relative to screen */
     XID                      fbconfig_id;  /* fbconfig id used by the GL drawable */
     Drawable                 gl_drawable;  /* GL drawable */
     Pixmap                   pixmap;       /* Pixmap for a GLXPixmap gl_drawable */
+    enum dc_gl_type          gl_type;      /* type of GL device context */
+};
+
+struct x11drv_escape_get_drawable
+{
+    enum x11drv_escape_codes code;         /* escape code (X11DRV_GET_DRAWABLE) */
+    Drawable                 drawable;     /* X drawable */
+    Drawable                 gl_drawable;  /* GL drawable */
+    Pixmap                   pixmap;       /* Pixmap for a GLXPixmap gl_drawable */
+    int                      pixel_format; /* internal GL pixel format */
     enum dc_gl_type          gl_type;      /* type of GL device context */
 };
 
@@ -634,19 +639,29 @@ extern int X11DRV_check_error(void) DECLSPEC_HIDDEN;
 extern void X11DRV_X_to_window_rect( struct x11drv_win_data *data, RECT *rect ) DECLSPEC_HIDDEN;
 extern void xinerama_init( unsigned int width, unsigned int height ) DECLSPEC_HIDDEN;
 
+struct x11drv_mode_info
+{
+    unsigned int width;
+    unsigned int height;
+    unsigned int bpp;
+    unsigned int refresh_rate;
+};
+
 extern void X11DRV_init_desktop( Window win, unsigned int width, unsigned int height ) DECLSPEC_HIDDEN;
 extern void X11DRV_resize_desktop(unsigned int width, unsigned int height) DECLSPEC_HIDDEN;
 extern void X11DRV_Settings_AddDepthModes(void) DECLSPEC_HIDDEN;
 extern void X11DRV_Settings_AddOneMode(unsigned int width, unsigned int height, unsigned int bpp, unsigned int freq) DECLSPEC_HIDDEN;
-extern int X11DRV_Settings_CreateDriver(LPDDHALINFO info) DECLSPEC_HIDDEN;
-extern LPDDHALMODEINFO X11DRV_Settings_CreateModes(unsigned int max_modes, int reserve_depths) DECLSPEC_HIDDEN;
 unsigned int X11DRV_Settings_GetModeCount(void) DECLSPEC_HIDDEN;
 void X11DRV_Settings_Init(void) DECLSPEC_HIDDEN;
-LPDDHALMODEINFO X11DRV_Settings_SetHandlers(const char *name,
-                                            int (*pNewGCM)(void),
-                                            LONG (*pNewSCM)(int),
-                                            unsigned int nmodes,
-                                            int reserve_depths) DECLSPEC_HIDDEN;
+struct x11drv_mode_info *X11DRV_Settings_SetHandlers(const char *name,
+                                                     int (*pNewGCM)(void),
+                                                     LONG (*pNewSCM)(int),
+                                                     unsigned int nmodes,
+                                                     int reserve_depths) DECLSPEC_HIDDEN;
+
+void X11DRV_XF86VM_Init(void) DECLSPEC_HIDDEN;
+void X11DRV_XF86VM_Cleanup(void) DECLSPEC_HIDDEN;
+void X11DRV_XRandR_Init(void) DECLSPEC_HIDDEN;
 
 /* XIM support */
 extern BOOL X11DRV_InitXIM( const char *input_style ) DECLSPEC_HIDDEN;

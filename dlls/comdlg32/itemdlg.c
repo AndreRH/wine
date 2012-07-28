@@ -3041,6 +3041,7 @@ static HRESULT WINAPI IFileDialogCustomize_fnAddMenu(IFileDialogCustomize *iface
                           This->cctrl_def_height, &ctrl);
     if(SUCCEEDED(hr))
     {
+        SendMessageW(ctrl->hwnd, TB_BUTTONSTRUCTSIZE, sizeof(tbb), 0);
         ctrl->type = IDLG_CCTRL_MENU;
 
         /* Add the actual button with a popup menu. */
@@ -3380,7 +3381,7 @@ static HRESULT WINAPI IFileDialogCustomize_fnRemoveControlItem(IFileDialogCustom
             return E_FAIL;
 
         for(i = 0; i < count; i++)
-            if(SendMessageW(ctrl->hwnd, CB_GETITEMDATA, 0, 0) == dwIDItem)
+            if(SendMessageW(ctrl->hwnd, CB_GETITEMDATA, i, 0) == dwIDItem)
             {
                 if(SendMessageW(ctrl->hwnd, CB_DELETESTRING, i, 0) == CB_ERR)
                     return E_FAIL;

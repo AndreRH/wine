@@ -79,6 +79,20 @@ static ATOM nscontainer_class;
 static WCHAR gecko_path[MAX_PATH];
 static unsigned gecko_path_len;
 
+nsresult create_nsfile(const PRUnichar *path, nsIFile **ret)
+{
+    nsAString str;
+    nsresult nsres;
+
+    nsAString_InitDepend(&str, path);
+    nsres = NS_NewLocalFile(&str, FALSE, ret);
+    nsAString_Finish(&str);
+
+    if(NS_FAILED(nsres))
+        WARN("NS_NewLocalFile failed: %08x\n", nsres);
+    return nsres;
+}
+
 static nsresult NSAPI nsDirectoryServiceProvider_QueryInterface(nsIDirectoryServiceProvider *iface,
         nsIIDRef riid, void **result)
 {
@@ -113,7 +127,6 @@ static nsresult create_profile_directory(void)
     static const WCHAR wine_geckoW[] = {'\\','w','i','n','e','_','g','e','c','k','o',0};
 
     WCHAR path[MAX_PATH + sizeof(wine_geckoW)/sizeof(WCHAR)];
-    nsAString str;
     cpp_bool exists;
     nsresult nsres;
     HRESULT hres;
@@ -125,13 +138,9 @@ static nsresult create_profile_directory(void)
     }
 
     strcatW(path, wine_geckoW);
-    nsAString_InitDepend(&str, path);
-    nsres = NS_NewLocalFile(&str, FALSE, &profile_directory);
-    nsAString_Finish(&str);
-    if(NS_FAILED(nsres)) {
-        ERR("NS_NewLocalFile failed: %08x\n", nsres);
+    nsres = create_nsfile(path, &profile_directory);
+    if(NS_FAILED(nsres))
         return nsres;
-    }
 
     nsres = nsIFile_Exists(profile_directory, &exists);
     if(NS_FAILED(nsres)) {
@@ -347,6 +356,21 @@ static BOOL load_xul(const PRUnichar *gre_path)
 
 #undef NS_DLSYM
 
+#define NS_DLSYM(func) \
+    func = (void *)GetProcAddress(xul_handle, #func); \
+    if(!func) \
+        ERR("Could not GetProcAddress(" #func ") failed\n")
+
+    NS_DLSYM(ccref_incr);
+    NS_DLSYM(ccref_decr);
+    NS_DLSYM(ccref_init);
+    NS_DLSYM(ccref_unmark_if_purple);
+    NS_DLSYM(ccp_init);
+    NS_DLSYM(describe_cc_node);
+    NS_DLSYM(note_cc_edge);
+
+#undef NS_DLSYM
+
     return TRUE;
 }
 
@@ -510,16 +534,12 @@ static void set_preferences(void)
 static BOOL init_xpcom(const PRUnichar *gre_path)
 {
     nsIComponentRegistrar *registrar = NULL;
-    nsAString path;
     nsIFile *gre_dir;
     WCHAR *ptr;
     nsresult nsres;
 
-    nsAString_InitDepend(&path, gre_path);
-    nsres = NS_NewLocalFile(&path, FALSE, &gre_dir);
-    nsAString_Finish(&path);
+    nsres = create_nsfile(gre_path, &gre_dir);
     if(NS_FAILED(nsres)) {
-        ERR("NS_NewLocalFile failed: %08x\n", nsres);
         FreeLibrary(xul_handle);
         return FALSE;
     }
@@ -560,6 +580,8 @@ static BOOL init_xpcom(const PRUnichar *gre_path)
         register_nsservice(registrar, pServMgr);
         nsIComponentRegistrar_Release(registrar);
     }
+
+    init_node_cc();
 
     return TRUE;
 }
@@ -1287,6 +1309,7 @@ static nsresult NSAPI nsContextMenuListener_OnShowContextMenu(nsIContextMenuList
         return NS_ERROR_FAILURE;
 
     show_context_menu(This->doc, dwID, &pt, (IDispatch*)&node->IHTMLDOMNode_iface);
+    node_release(node);
     return NS_OK;
 }
 
@@ -1780,7 +1803,7 @@ static HRESULT init_nscontainer(NSContainer *nscontainer)
         return E_FAIL;
     }
 
-    nsres = nsIWebBrowserFocus_QueryInterface(nscontainer->webbrowser, &IID_nsIWebBrowserFocus,
+    nsres = nsIWebBrowser_QueryInterface(nscontainer->webbrowser, &IID_nsIWebBrowserFocus,
             (void**)&nscontainer->focus);
     if(NS_FAILED(nsres)) {
         ERR("Could not get nsIWebBrowserFocus interface: %08x\n", nsres);

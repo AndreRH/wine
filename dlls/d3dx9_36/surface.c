@@ -190,6 +190,8 @@ static D3DFORMAT dds_rgb_to_d3dformat(const struct dds_pixel_format *pixel_forma
         { 32, 0x3ff00000, 0x000ffc00, 0x000003ff, 0xc0000000, D3DFMT_A2B10G10R10 },
         { 32, 0x000003ff, 0x000ffc00, 0x3ff00000, 0xc0000000, D3DFMT_A2R10G10B10 },
         { 32, 0x0000ffff, 0xffff0000, 0x00000000, 0x00000000, D3DFMT_G16R16 },
+        { 32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000, D3DFMT_A8B8G8R8 },
+        { 32, 0x000000ff, 0x0000ff00, 0x00ff0000, 0x00000000, D3DFMT_X8B8G8R8 },
     };
 
     for (i = 0; i < sizeof(rgb_pixel_formats) / sizeof(rgb_pixel_formats[0]); i++)
@@ -315,8 +317,8 @@ static HRESULT calculate_dds_surface_size(const D3DXIMAGE_INFO *img_info,
 static HRESULT get_image_info_from_dds(const void *buffer, UINT length, D3DXIMAGE_INFO *info)
 {
    UINT i;
-   UINT faces = 0;
-   UINT width, height;
+   UINT faces = 1;
+   UINT width, height, depth;
    const struct dds_header *header = buffer;
    UINT expected_length = 0;
 
@@ -345,6 +347,7 @@ static HRESULT get_image_info_from_dds(const void *buffer, UINT length, D3DXIMAG
    else if (header->caps2 & DDS_CAPS2_CUBEMAP)
    {
        DWORD face;
+       faces = 0;
        for (face = DDS_CAPS2_CUBEMAP_POSITIVEX; face <= DDS_CAPS2_CUBEMAP_NEGATIVEZ; face <<= 1)
        {
            if (header->caps2 & face)
@@ -354,20 +357,22 @@ static HRESULT get_image_info_from_dds(const void *buffer, UINT length, D3DXIMAG
    }
    else
    {
-       faces = 1;
        info->ResourceType = D3DRTYPE_TEXTURE;
    }
 
    /* calculate the expected length */
    width = info->Width;
    height = info->Height;
+   depth = info->Depth;
    for (i = 0; i < info->MipLevels; i++)
    {
        UINT pitch, size = 0;
        calculate_dds_surface_size(info, width, height, &pitch, &size);
+       size *= depth;
        expected_length += size;
        width = max(1, width / 2);
        height = max(1, height / 2);
+       depth = max(1, depth / 2);
    }
 
    expected_length *= faces;
@@ -400,6 +405,24 @@ static HRESULT load_surface_from_dds(IDirect3DSurface9 *dst_surface, const PALET
 
     return D3DXLoadSurfaceFromMemory(dst_surface, dst_palette, dst_rect, pixels, src_info->Format,
         src_pitch, NULL, src_rect, filter, color_key);
+}
+
+HRESULT load_volume_from_dds(IDirect3DVolume9 *dst_volume, const PALETTEENTRY *dst_palette,
+    const D3DBOX *dst_box, const void *src_data, const D3DBOX *src_box, DWORD filter, D3DCOLOR color_key,
+    const D3DXIMAGE_INFO *src_info)
+{
+    UINT row_pitch, slice_pitch;
+    const struct dds_header *header = src_data;
+    const BYTE *pixels = (BYTE *)(header + 1);
+
+    if (src_info->ResourceType != D3DRTYPE_VOLUMETEXTURE)
+        return D3DXERR_INVALIDDATA;
+
+    if (FAILED(calculate_dds_surface_size(src_info, src_info->Width, src_info->Height, &row_pitch, &slice_pitch)))
+        return E_NOTIMPL;
+
+    return D3DXLoadVolumeFromMemory(dst_volume, dst_palette, dst_box, pixels, src_info->Format,
+        row_pitch, slice_pitch, NULL, src_box, filter, color_key);
 }
 
 HRESULT load_texture_from_dds(IDirect3DTexture9 *texture, const void *src_data, const PALETTEENTRY *palette,
@@ -492,6 +515,58 @@ HRESULT load_cube_texture_from_dds(IDirect3DCubeTexture9 *cube_texture, const vo
             pixels += mip_level_size;
             size = max(1, size / 2);
         }
+    }
+
+    return D3D_OK;
+}
+
+HRESULT load_volume_texture_from_dds(IDirect3DVolumeTexture9 *volume_texture, const void *src_data,
+    const PALETTEENTRY *palette, DWORD filter, DWORD color_key, const D3DXIMAGE_INFO *src_info)
+{
+    HRESULT hr;
+    UINT mip_level;
+    UINT mip_levels;
+    UINT src_slice_pitch;
+    UINT src_row_pitch;
+    D3DBOX src_box;
+    UINT width, height, depth;
+    IDirect3DVolume9 *volume;
+    const struct dds_header *header = src_data;
+    const BYTE *pixels = (BYTE *)(header + 1);
+
+    if (src_info->ResourceType != D3DRTYPE_VOLUMETEXTURE)
+        return D3DXERR_INVALIDDATA;
+
+    width = src_info->Width;
+    height = src_info->Height;
+    depth = src_info->Depth;
+    mip_levels = min(src_info->MipLevels, IDirect3DVolumeTexture9_GetLevelCount(volume_texture));
+
+    for (mip_level = 0; mip_level < mip_levels; mip_level++)
+    {
+        hr = calculate_dds_surface_size(src_info, width, height, &src_row_pitch, &src_slice_pitch);
+        if (FAILED(hr)) return hr;
+
+        hr = IDirect3DVolumeTexture9_GetVolumeLevel(volume_texture, mip_level, &volume);
+        if (FAILED(hr)) return hr;
+
+        src_box.Left = 0;
+        src_box.Top = 0;
+        src_box.Right = width;
+        src_box.Bottom = height;
+        src_box.Front = 0;
+        src_box.Back = depth;
+
+        hr = D3DXLoadVolumeFromMemory(volume, palette, NULL, pixels, src_info->Format,
+            src_row_pitch, src_slice_pitch, NULL, &src_box, filter, color_key);
+
+        IDirect3DVolume9_Release(volume);
+        if (FAILED(hr)) return hr;
+
+        pixels += depth * src_slice_pitch;
+        width = max(1, width / 2);
+        height = max(1, height / 2);
+        depth = max(1, depth / 2);
     }
 
     return D3D_OK;
@@ -1180,85 +1255,94 @@ static void format_from_vec4(const PixelFormatDesc *format, const struct vec4 *s
  * Pixels outsize the source rect are blacked out.
  * Works only for ARGB formats with 1 - 4 bytes per pixel.
  */
-static void copy_simple_data(const BYTE *src, UINT srcpitch, SIZE src_size, const PixelFormatDesc *srcformat,
-        BYTE *dest, UINT destpitch, SIZE dst_size, const PixelFormatDesc *destformat, D3DCOLOR colorkey)
+void copy_simple_data(const BYTE *src, UINT src_row_pitch, UINT src_slice_pitch, struct volume *src_size, const PixelFormatDesc *src_format,
+        BYTE *dst, UINT dst_row_pitch, UINT dst_slice_pitch, struct volume *dst_size, const PixelFormatDesc *dst_format, D3DCOLOR color_key)
 {
     struct argb_conversion_info conv_info, ck_conv_info;
     const PixelFormatDesc *ck_format = NULL;
     DWORD channels[4], pixel;
-    UINT minwidth, minheight;
-    UINT x, y;
+    UINT min_width, min_height, min_depth;
+    UINT x, y, z;
 
     ZeroMemory(channels, sizeof(channels));
-    init_argb_conversion_info(srcformat, destformat, &conv_info);
+    init_argb_conversion_info(src_format, dst_format, &conv_info);
 
-    minwidth = (src_size.cx < dst_size.cx) ? src_size.cx : dst_size.cx;
-    minheight = (src_size.cy < dst_size.cy) ? src_size.cy : dst_size.cy;
+    min_width = min(src_size->width, dst_size->width);
+    min_height = min(src_size->height, dst_size->height);
+    min_depth = min(src_size->depth, dst_size->depth);
 
-    if (colorkey)
+    if (color_key)
     {
         /* Color keys are always represented in D3DFMT_A8R8G8B8 format. */
         ck_format = get_format_info(D3DFMT_A8R8G8B8);
-        init_argb_conversion_info(srcformat, ck_format, &ck_conv_info);
+        init_argb_conversion_info(src_format, ck_format, &ck_conv_info);
     }
 
-    for(y = 0;y < minheight;y++) {
-        const BYTE *srcptr = src + y * srcpitch;
-        BYTE *destptr = dest + y * destpitch;
-        DWORD val;
+    for (z = 0; z < min_depth; z++) {
+        const BYTE *src_slice_ptr = src + z * src_slice_pitch;
+        BYTE *dst_slice_ptr = dst + z * dst_slice_pitch;
 
-        for(x = 0;x < minwidth;x++) {
-            /* extract source color components */
-            pixel = dword_from_bytes(srcptr, srcformat->bytes_per_pixel);
+        for (y = 0; y < min_height; y++) {
+            const BYTE *src_ptr = src_slice_ptr + y * src_row_pitch;
+            BYTE *dst_ptr = dst_slice_ptr + y * dst_row_pitch;
+            DWORD val;
 
-            if (!srcformat->to_rgba && !destformat->from_rgba)
-            {
-                get_relevant_argb_components(&conv_info, pixel, channels);
-                val = make_argb_color(&conv_info, channels);
+            for (x = 0; x < min_width; x++) {
+                /* extract source color components */
+                pixel = dword_from_bytes(src_ptr, src_format->bytes_per_pixel);
 
-                if (colorkey)
+                if (!src_format->to_rgba && !dst_format->from_rgba)
                 {
-                    get_relevant_argb_components(&ck_conv_info, pixel, channels);
-                    pixel = make_argb_color(&ck_conv_info, channels);
-                    if (pixel == colorkey)
-                        val &= ~conv_info.destmask[0];
+                    get_relevant_argb_components(&conv_info, pixel, channels);
+                    val = make_argb_color(&conv_info, channels);
+
+                    if (color_key)
+                    {
+                        get_relevant_argb_components(&ck_conv_info, pixel, channels);
+                        pixel = make_argb_color(&ck_conv_info, channels);
+                        if (pixel == color_key)
+                            val &= ~conv_info.destmask[0];
+                    }
                 }
-            }
-            else
-            {
-                struct vec4 color, tmp;
-
-                format_to_vec4(srcformat, &pixel, &color);
-                if (srcformat->to_rgba)
-                    srcformat->to_rgba(&color, &tmp);
                 else
-                    tmp = color;
-
-                if (ck_format)
                 {
-                    format_from_vec4(ck_format, &tmp, &pixel);
-                    if (pixel == colorkey)
-                        tmp.w = 0.0f;
+                    struct vec4 color, tmp;
+
+                    format_to_vec4(src_format, &pixel, &color);
+                    if (src_format->to_rgba)
+                        src_format->to_rgba(&color, &tmp);
+                    else
+                        tmp = color;
+
+                    if (ck_format)
+                    {
+                        format_from_vec4(ck_format, &tmp, &pixel);
+                        if (pixel == color_key)
+                            tmp.w = 0.0f;
+                    }
+
+                    if (dst_format->from_rgba)
+                        dst_format->from_rgba(&tmp, &color);
+                    else
+                        color = tmp;
+
+                    format_from_vec4(dst_format, &color, &val);
                 }
 
-                if (destformat->from_rgba)
-                    destformat->from_rgba(&tmp, &color);
-                else
-                    color = tmp;
-
-                format_from_vec4(destformat, &color, &val);
+                dword_to_bytes(dst_ptr, val, dst_format->bytes_per_pixel);
+                src_ptr  +=  src_format->bytes_per_pixel;
+                dst_ptr += dst_format->bytes_per_pixel;
             }
 
-            dword_to_bytes(destptr, val, destformat->bytes_per_pixel);
-            srcptr  +=  srcformat->bytes_per_pixel;
-            destptr += destformat->bytes_per_pixel;
+            if (src_size->width < dst_size->width) /* black out remaining pixels */
+                memset(dst_ptr, 0, dst_format->bytes_per_pixel * (dst_size->width - src_size->width));
         }
 
-        if (src_size.cx < dst_size.cx) /* black out remaining pixels */
-            memset(destptr, 0, destformat->bytes_per_pixel * (dst_size.cx - src_size.cx));
+        if (src_size->height < dst_size->height) /* black out remaining pixels */
+            memset(dst + src_size->height * dst_row_pitch, 0, dst_row_pitch * (dst_size->height - src_size->height));
     }
-    if (src_size.cy < dst_size.cy) /* black out remaining pixels */
-        memset(dest + src_size.cy * destpitch, 0, destpitch * (dst_size.cy - src_size.cy));
+    if (src_size->depth < dst_size->depth) /* black out remaining pixels */
+        memset(dst + src_size->depth * dst_slice_pitch, 0, dst_slice_pitch * (dst_size->depth - src_size->depth));
 }
 
 /************************************************************
@@ -1269,78 +1353,83 @@ static void copy_simple_data(const BYTE *src, UINT srcpitch, SIZE src_size, cons
  * using a point filter.
  * Works only for ARGB formats with 1 - 4 bytes per pixel.
  */
-static void point_filter_simple_data(const BYTE *src, UINT srcpitch, SIZE src_size, const PixelFormatDesc *srcformat,
-        BYTE *dest, UINT destpitch, SIZE dst_size, const PixelFormatDesc *destformat, D3DCOLOR colorkey)
+void point_filter_simple_data(const BYTE *src, UINT src_row_pitch, UINT src_slice_pitch, struct volume *src_size, const PixelFormatDesc *src_format,
+        BYTE *dst, UINT dst_row_pitch, UINT dst_slice_pitch, struct volume *dst_size, const PixelFormatDesc *dst_format, D3DCOLOR color_key)
 {
     struct argb_conversion_info conv_info, ck_conv_info;
     const PixelFormatDesc *ck_format = NULL;
     DWORD channels[4], pixel;
-
-    UINT x, y;
+    UINT x, y, z;
 
     ZeroMemory(channels, sizeof(channels));
-    init_argb_conversion_info(srcformat, destformat, &conv_info);
+    init_argb_conversion_info(src_format, dst_format, &conv_info);
 
-    if (colorkey)
+    if (color_key)
     {
         /* Color keys are always represented in D3DFMT_A8R8G8B8 format. */
         ck_format = get_format_info(D3DFMT_A8R8G8B8);
-        init_argb_conversion_info(srcformat, ck_format, &ck_conv_info);
+        init_argb_conversion_info(src_format, ck_format, &ck_conv_info);
     }
 
-    for (y = 0; y < dst_size.cy; ++y)
+    for (z = 0; z < dst_size->depth; z++)
     {
-        BYTE *destptr = dest + y * destpitch;
-        const BYTE *bufptr = src + srcpitch * (y * src_size.cy / dst_size.cy);
+        BYTE *dst_slice_ptr = dst + z * dst_slice_pitch;
+        const BYTE *src_slice_ptr = src + src_slice_pitch * (z * src_size->depth / dst_size->depth);
 
-        for (x = 0; x < dst_size.cx; ++x)
+        for (y = 0; y < dst_size->height; y++)
         {
-            const BYTE *srcptr = bufptr + (x * src_size.cx / dst_size.cx) * srcformat->bytes_per_pixel;
-            DWORD val;
+            BYTE *dst_ptr = dst_slice_ptr + y * dst_row_pitch;
+            const BYTE *src_row_ptr = src_slice_ptr + src_row_pitch * (y * src_size->height / dst_size->height);
 
-            /* extract source color components */
-            pixel = dword_from_bytes(srcptr, srcformat->bytes_per_pixel);
-
-            if (!srcformat->to_rgba && !destformat->from_rgba)
+            for (x = 0; x < dst_size->width; x++)
             {
-                get_relevant_argb_components(&conv_info, pixel, channels);
-                val = make_argb_color(&conv_info, channels);
+                const BYTE *src_ptr = src_row_ptr + (x * src_size->width / dst_size->width) * src_format->bytes_per_pixel;
+                DWORD val;
 
-                if (colorkey)
+                /* extract source color components */
+                pixel = dword_from_bytes(src_ptr, src_format->bytes_per_pixel);
+
+                if (!src_format->to_rgba && !dst_format->from_rgba)
                 {
-                    get_relevant_argb_components(&ck_conv_info, pixel, channels);
-                    pixel = make_argb_color(&ck_conv_info, channels);
-                    if (pixel == colorkey)
-                        val &= ~conv_info.destmask[0];
+                    get_relevant_argb_components(&conv_info, pixel, channels);
+                    val = make_argb_color(&conv_info, channels);
+
+                    if (color_key)
+                    {
+                        get_relevant_argb_components(&ck_conv_info, pixel, channels);
+                        pixel = make_argb_color(&ck_conv_info, channels);
+                        if (pixel == color_key)
+                            val &= ~conv_info.destmask[0];
+                    }
                 }
-            }
-            else
-            {
-                struct vec4 color, tmp;
-
-                format_to_vec4(srcformat, &pixel, &color);
-                if (srcformat->to_rgba)
-                    srcformat->to_rgba(&color, &tmp);
                 else
-                    tmp = color;
-
-                if (ck_format)
                 {
-                    format_from_vec4(ck_format, &tmp, &pixel);
-                    if (pixel == colorkey)
-                        tmp.w = 0.0f;
+                    struct vec4 color, tmp;
+
+                    format_to_vec4(src_format, &pixel, &color);
+                    if (src_format->to_rgba)
+                        src_format->to_rgba(&color, &tmp);
+                    else
+                        tmp = color;
+
+                    if (ck_format)
+                    {
+                        format_from_vec4(ck_format, &tmp, &pixel);
+                        if (pixel == color_key)
+                            tmp.w = 0.0f;
+                    }
+
+                    if (dst_format->from_rgba)
+                        dst_format->from_rgba(&tmp, &color);
+                    else
+                        color = tmp;
+
+                    format_from_vec4(dst_format, &color, &val);
                 }
 
-                if (destformat->from_rgba)
-                    destformat->from_rgba(&tmp, &color);
-                else
-                    color = tmp;
-
-                format_from_vec4(destformat, &color, &val);
+                dword_to_bytes(dst_ptr, val, dst_format->bytes_per_pixel);
+                dst_ptr += dst_format->bytes_per_pixel;
             }
-
-            dword_to_bytes(destptr, val, destformat->bytes_per_pixel);
-            destptr += destformat->bytes_per_pixel;
         }
     }
 }
@@ -1385,7 +1474,7 @@ HRESULT WINAPI D3DXLoadSurfaceFromMemory(IDirect3DSurface9 *dst_surface,
     CONST PixelFormatDesc *srcformatdesc, *destformatdesc;
     D3DSURFACE_DESC surfdesc;
     D3DLOCKED_RECT lockrect;
-    SIZE src_size, dst_size;
+    struct volume src_size, dst_size;
     HRESULT hr;
 
     TRACE("(%p, %p, %s, %p, %#x, %u, %p, %s %#x, 0x%08x)\n",
@@ -1404,12 +1493,13 @@ HRESULT WINAPI D3DXLoadSurfaceFromMemory(IDirect3DSurface9 *dst_surface,
 
     IDirect3DSurface9_GetDesc(dst_surface, &surfdesc);
 
-    src_size.cx = src_rect->right - src_rect->left;
-    src_size.cy = src_rect->bottom - src_rect->top;
+    src_size.width = src_rect->right - src_rect->left;
+    src_size.height = src_rect->bottom - src_rect->top;
+    src_size.depth = 1;
     if (!dst_rect)
     {
-        dst_size.cx = surfdesc.Width;
-        dst_size.cy = surfdesc.Height;
+        dst_size.width = surfdesc.Width;
+        dst_size.height = surfdesc.Height;
     }
     else
     {
@@ -1419,11 +1509,12 @@ HRESULT WINAPI D3DXLoadSurfaceFromMemory(IDirect3DSurface9 *dst_surface,
             return D3DERR_INVALIDCALL;
         if (dst_rect->left < 0 || dst_rect->top < 0)
             return D3DERR_INVALIDCALL;
-        dst_size.cx = dst_rect->right - dst_rect->left;
-        dst_size.cy = dst_rect->bottom - dst_rect->top;
-        if (!dst_size.cx || !dst_size.cy)
+        dst_size.width = dst_rect->right - dst_rect->left;
+        dst_size.height = dst_rect->bottom - dst_rect->top;
+        if (!dst_size.width || !dst_size.height)
             return D3D_OK;
     }
+    dst_size.depth = 1;
 
     srcformatdesc = get_format_info(src_format);
     if (srcformatdesc->type == FORMAT_UNKNOWN)
@@ -1434,11 +1525,11 @@ HRESULT WINAPI D3DXLoadSurfaceFromMemory(IDirect3DSurface9 *dst_surface,
         return E_NOTIMPL;
 
     if (src_format == surfdesc.Format
-            && dst_size.cx == src_size.cx
-            && dst_size.cy == src_size.cy) /* Simple copy. */
+            && dst_size.width == src_size.width
+            && dst_size.height == src_size.height) /* Simple copy. */
     {
-        UINT row_block_count = ((src_size.cx + srcformatdesc->block_width - 1) / srcformatdesc->block_width);
-        UINT row_count = (src_size.cy + srcformatdesc->block_height - 1) / srcformatdesc->block_height;
+        UINT row_block_count = ((src_size.width + srcformatdesc->block_width - 1) / srcformatdesc->block_width);
+        UINT row_count = (src_size.height + srcformatdesc->block_height - 1) / srcformatdesc->block_height;
         const BYTE *src_addr;
         BYTE *dst_addr;
         UINT row;
@@ -1446,9 +1537,9 @@ HRESULT WINAPI D3DXLoadSurfaceFromMemory(IDirect3DSurface9 *dst_surface,
         if (src_rect->left & (srcformatdesc->block_width - 1)
                 || src_rect->top & (srcformatdesc->block_height - 1)
                 || (src_rect->right & (srcformatdesc->block_width - 1)
-                    && src_size.cx != surfdesc.Width)
+                    && src_size.width != surfdesc.Width)
                 || (src_rect->bottom & (srcformatdesc->block_height - 1)
-                    && src_size.cy != surfdesc.Height))
+                    && src_size.height != surfdesc.Height))
         {
             WARN("Source rect %s is misaligned.\n", wine_dbgstr_rect(src_rect));
             return D3DXERR_INVALIDDATA;
@@ -1487,8 +1578,8 @@ HRESULT WINAPI D3DXLoadSurfaceFromMemory(IDirect3DSurface9 *dst_surface,
 
         if ((filter & 0xf) == D3DX_FILTER_NONE)
         {
-            copy_simple_data(src_memory, src_pitch, src_size, srcformatdesc,
-                    lockrect.pBits, lockrect.Pitch, dst_size, destformatdesc, color_key);
+            copy_simple_data(src_memory, src_pitch, 0, &src_size, srcformatdesc,
+                    lockrect.pBits, lockrect.Pitch, 0, &dst_size, destformatdesc, color_key);
         }
         else /* if ((filter & 0xf) == D3DX_FILTER_POINT) */
         {
@@ -1497,8 +1588,8 @@ HRESULT WINAPI D3DXLoadSurfaceFromMemory(IDirect3DSurface9 *dst_surface,
 
             /* Always apply a point filter until D3DX_FILTER_LINEAR,
              * D3DX_FILTER_TRIANGLE and D3DX_FILTER_BOX are implemented. */
-            point_filter_simple_data(src_memory, src_pitch, src_size, srcformatdesc,
-                    lockrect.pBits, lockrect.Pitch, dst_size, destformatdesc, color_key);
+            point_filter_simple_data(src_memory, src_pitch, 0, &src_size, srcformatdesc,
+                    lockrect.pBits, lockrect.Pitch, 0, &dst_size, destformatdesc, color_key);
         }
 
         IDirect3DSurface9_UnlockRect(dst_surface);
@@ -1743,7 +1834,7 @@ HRESULT WINAPI D3DXSaveSurfaceToFileInMemory(ID3DXBuffer **dst_buffer, D3DXIMAGE
         else /* Pixel format conversion */
         {
             const PixelFormatDesc *src_format_desc, *dst_format_desc;
-            SIZE size;
+            struct volume size;
             DWORD dst_pitch;
             void *dst_data;
 
@@ -1766,8 +1857,9 @@ HRESULT WINAPI D3DXSaveSurfaceToFileInMemory(ID3DXBuffer **dst_buffer, D3DXIMAGE
                 goto cleanup;
             }
 
-            size.cx = width;
-            size.cy = height;
+            size.width = width;
+            size.height = height;
+            size.depth = 1;
             dst_pitch = width * dst_format_desc->bytes_per_pixel;
             dst_data = HeapAlloc(GetProcessHeap(), 0, dst_pitch * height);
             if (!dst_data)
@@ -1779,8 +1871,8 @@ HRESULT WINAPI D3DXSaveSurfaceToFileInMemory(ID3DXBuffer **dst_buffer, D3DXIMAGE
             hr = IDirect3DSurface9_LockRect(src_surface, &locked_rect, src_rect, D3DLOCK_READONLY);
             if (SUCCEEDED(hr))
             {
-                copy_simple_data(locked_rect.pBits, locked_rect.Pitch, size, src_format_desc,
-                    dst_data, dst_pitch, size, dst_format_desc, 0);
+                copy_simple_data(locked_rect.pBits, locked_rect.Pitch, 0, &size, src_format_desc,
+                    dst_data, dst_pitch, 0, &size, dst_format_desc, 0);
                 IDirect3DSurface9_UnlockRect(src_surface);
             }
 

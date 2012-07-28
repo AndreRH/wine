@@ -53,6 +53,12 @@ static void fatal_error( const char *err, ... )  __attribute__((noreturn,format(
 static void fatal_perror( const char *err, ... )  __attribute__((noreturn,format(printf,1,2)));
 #endif
 
+#if defined(__linux__) || defined(__FreeBSD_kernel__ )
+#define EXE_LINK "/proc/self/exe"
+#elif defined (__FreeBSD__) || defined(__DragonFly__)
+#define EXE_LINK "/proc/curproc/file"
+#endif
+
 /* die on a fatal error */
 static void fatal_error( const char *err, ... )
 {
@@ -151,15 +157,16 @@ static char *get_runtime_bindir( const char *argv0 )
     char *p, *bindir, *cwd;
     int len, size;
 
-#ifdef linux
+#ifdef EXE_LINK
     for (size = 256; ; size *= 2)
     {
         int ret;
         if (!(bindir = malloc( size ))) break;
-        if ((ret = readlink( "/proc/self/exe", bindir, size )) == -1) break;
+        if ((ret = readlink( EXE_LINK, bindir, size )) == -1) break;
         if (ret != size)
         {
-            if (!(p = memrchr( bindir, '/', ret ))) break;
+            bindir[ret] = 0;
+            if (!(p = strrchr( bindir, '/' ))) break;
             if (p == bindir) p++;
             *p = 0;
             return bindir;

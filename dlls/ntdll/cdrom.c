@@ -225,26 +225,19 @@ static const char *iocodex(DWORD code)
  */
 typedef struct
 {
-    UCHAR DataLength[2];
-    UCHAR Reserved0[2];
-    UCHAR BookVersion : 4;
-    UCHAR BookType : 4;
-    UCHAR MinimumRate : 4;
-    UCHAR DiskSize : 4;
-    UCHAR LayerType : 4;
-    UCHAR TrackPath : 1;
-    UCHAR NumberOfLayers : 2;
-    UCHAR Reserved1 : 1;
-    UCHAR TrackDensity : 4;
-    UCHAR LinearDensity : 4;
-    ULONG StartingDataSector;
-    ULONG EndDataSector;
-    ULONG EndLayerZeroSector;
-    UCHAR Reserved5 : 7;
-    UCHAR BCAFlag : 1;
-    UCHAR Reserved6;
+    DVD_DESCRIPTOR_HEADER Header;
+    DVD_LAYER_DESCRIPTOR Descriptor;
+    UCHAR Padding;
 } internal_dvd_layer_descriptor;
+C_ASSERT(sizeof(internal_dvd_layer_descriptor) == 22);
 
+typedef struct
+{
+    DVD_DESCRIPTOR_HEADER Header;
+    DVD_MANUFACTURER_DESCRIPTOR Descriptor;
+    UCHAR Padding;
+} internal_dvd_manufacturer_descriptor;
+C_ASSERT(sizeof(internal_dvd_manufacturer_descriptor) == 2053);
 
 static NTSTATUS CDROM_ReadTOC(int, int, CDROM_TOC*);
 static NTSTATUS CDROM_GetStatusCode(int);
@@ -480,7 +473,7 @@ static NTSTATUS CDROM_SyncCache(int dev, int fd)
    cdrom_cache[dev].toc_good = 1;
    return STATUS_SUCCESS;
 
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__) || defined(__DragonFly__)
 
    int i, tsz;
    struct ioc_toc_header hdr;
@@ -791,7 +784,7 @@ static NTSTATUS CDROM_ResetAudio(int fd)
 {
 #if defined(linux)
     return CDROM_GetStatusCode(ioctl(fd, CDROMRESET));
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__) || defined(__DragonFly__)
     return CDROM_GetStatusCode(ioctl(fd, CDIOCRESET, NULL));
 #else
     FIXME("not supported on this O/S\n");
@@ -808,7 +801,7 @@ static NTSTATUS CDROM_SetTray(int fd, BOOL doEject)
 {
 #if defined(linux)
     return CDROM_GetStatusCode(ioctl(fd, doEject ? CDROMEJECT : CDROMCLOSETRAY));
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__) || defined(__DragonFly__)
     return CDROM_GetStatusCode((ioctl(fd, CDIOCALLOW, NULL)) ||
                                (ioctl(fd, doEject ? CDIOCEJECT : CDIOCCLOSE, NULL)) ||
                                (ioctl(fd, CDIOCPREVENT, NULL)));
@@ -830,7 +823,7 @@ static NTSTATUS CDROM_ControlEjection(int fd, const PREVENT_MEDIA_REMOVAL* rmv)
 {
 #if defined(linux)
     return CDROM_GetStatusCode(ioctl(fd, CDROM_LOCKDOOR, rmv->PreventMediaRemoval));
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__) || defined(__DragonFly__)
     return CDROM_GetStatusCode(ioctl(fd, (rmv->PreventMediaRemoval) ? CDIOCPREVENT : CDIOCALLOW, NULL));
 #else
     FIXME("not supported on this O/S\n");
@@ -985,7 +978,7 @@ static NTSTATUS CDROM_ReadQChannel(int dev, int fd, const CDROM_SUB_Q_DATA_FORMA
 
  end:
     ret = CDROM_GetStatusCode(io);
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__) || defined(__DragonFly__)
     SUB_Q_HEADER*       hdr = (SUB_Q_HEADER*)data;
     int                 io;
     struct ioc_read_subchannel	read_sc;
@@ -1141,7 +1134,7 @@ static NTSTATUS CDROM_Verify(int dev, int fd)
         return STATUS_SUCCESS;
     else
         return STATUS_NO_MEDIA_IN_DEVICE;
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__) || defined(__DragonFly__)
     int ret;
     ret = ioctl(fd, CDIOCSTART, NULL);
     if(ret == 0)
@@ -1194,7 +1187,7 @@ static NTSTATUS CDROM_PlayAudioMSF(int fd, const CDROM_PLAY_AUDIO_MSF* audio_msf
 	  msf.cdmsf_min1, msf.cdmsf_sec1, msf.cdmsf_frame1);
  end:
     ret = CDROM_GetStatusCode(io);
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__) || defined(__DragonFly__)
     struct	ioc_play_msf	msf;
     int         io;
 
@@ -1239,7 +1232,7 @@ static NTSTATUS CDROM_SeekAudioMSF(int dev, int fd, const CDROM_SEEK_AUDIO_MSF* 
 #if defined(linux)
     struct cdrom_msf0	msf;
     struct cdrom_subchnl sc;
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__) || defined(__DragonFly__)
     struct ioc_play_msf	msf;
     struct ioc_read_subchannel	read_sc;
     struct cd_sub_channel_info	sc;
@@ -1292,7 +1285,7 @@ static NTSTATUS CDROM_SeekAudioMSF(int dev, int fd, const CDROM_SEEK_AUDIO_MSF* 
       return CDROM_GetStatusCode(ioctl(fd, CDROMSEEK, &msf));
     }
     return STATUS_SUCCESS;
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__) || defined(__DragonFly__)
     read_sc.address_format = CD_MSF_FORMAT;
     read_sc.track          = 0;
     read_sc.data_len       = sizeof(sc);
@@ -1333,7 +1326,7 @@ static NTSTATUS CDROM_PauseAudio(int fd)
 {
 #if defined(linux)
     return CDROM_GetStatusCode(ioctl(fd, CDROMPAUSE));
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__) || defined(__DragonFly__)
     return CDROM_GetStatusCode(ioctl(fd, CDIOCPAUSE, NULL));
 #else
     FIXME(": not supported on this O/S\n");
@@ -1350,7 +1343,7 @@ static NTSTATUS CDROM_ResumeAudio(int fd)
 {
 #if defined(linux)
     return CDROM_GetStatusCode(ioctl(fd, CDROMRESUME));
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__) || defined(__DragonFly__)
     return CDROM_GetStatusCode(ioctl(fd, CDIOCRESUME, NULL));
 #else
     FIXME("not supported on this O/S\n");
@@ -1367,7 +1360,7 @@ static NTSTATUS CDROM_StopAudio(int fd)
 {
 #if defined(linux)
     return CDROM_GetStatusCode(ioctl(fd, CDROMSTOP));
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__) || defined(__DragonFly__)
     return CDROM_GetStatusCode(ioctl(fd, CDIOCSTOP, NULL));
 #else
     FIXME("not supported on this O/S\n");
@@ -1395,7 +1388,7 @@ static NTSTATUS CDROM_GetVolume(int fd, VOLUME_CONTROL* vc)
         vc->PortVolume[3] = volc.channel3;
     }
     return CDROM_GetStatusCode(io);
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__) || defined(__DragonFly__)
     struct  ioc_vol     volc;
     int io;
 
@@ -1430,7 +1423,7 @@ static NTSTATUS CDROM_SetVolume(int fd, const VOLUME_CONTROL* vc)
     volc.channel3 = vc->PortVolume[3];
 
     return CDROM_GetStatusCode(ioctl(fd, CDROMVOLCTRL, &volc));
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__) || defined(__DragonFly__)
     struct  ioc_vol     volc;
 
     volc.vol[0] = vc->PortVolume[0];
@@ -2560,26 +2553,24 @@ static NTSTATUS DVD_ReadStructure(int dev, const DVD_READ_STRUCTURE *structure, 
             internal_dvd_layer_descriptor *p = (internal_dvd_layer_descriptor *) layer;
             struct dvd_layer *l = &s.physical.layer[s.physical.layer_num];
 
-            p->DataLength[0] = 2;
-            p->DataLength[1] = 8;
-            p->Reserved0[0] = 0;
-            p->Reserved0[1] = 0;
-            p->BookVersion = l->book_version;
-            p->BookType = l->book_type;
-            p->MinimumRate = l->min_rate;
-            p->DiskSize = l->disc_size;
-            p->LayerType = l->layer_type;
-            p->TrackPath = l->track_path;
-            p->NumberOfLayers = l->nlayers;
-            p->Reserved1 = 0;
-            p->TrackDensity = l->track_density;
-            p->LinearDensity = l->linear_density;
-            p->StartingDataSector = GET_BE_DWORD(l->start_sector);
-            p->EndDataSector = GET_BE_DWORD(l->end_sector);
-            p->EndLayerZeroSector = GET_BE_DWORD(l->end_sector_l0);
-            p->Reserved5 = 0;
-            p->BCAFlag = l->bca;
-            p->Reserved6 = 0;
+            p->Header.Length = 0x0802;
+            p->Header.Reserved[0] = 0;
+            p->Header.Reserved[1] = 0;
+            p->Descriptor.BookVersion = l->book_version;
+            p->Descriptor.BookType = l->book_type;
+            p->Descriptor.MinimumRate = l->min_rate;
+            p->Descriptor.DiskSize = l->disc_size;
+            p->Descriptor.LayerType = l->layer_type;
+            p->Descriptor.TrackPath = l->track_path;
+            p->Descriptor.NumberOfLayers = l->nlayers;
+            p->Descriptor.Reserved1 = 0;
+            p->Descriptor.TrackDensity = l->track_density;
+            p->Descriptor.LinearDensity = l->linear_density;
+            p->Descriptor.StartingDataSector = GET_BE_DWORD(l->start_sector);
+            p->Descriptor.EndDataSector = GET_BE_DWORD(l->end_sector);
+            p->Descriptor.EndLayerZeroSector = GET_BE_DWORD(l->end_sector_l0);
+            p->Descriptor.Reserved5 = 0;
+            p->Descriptor.BCAFlag = l->bca;
         }
         break;
 
@@ -2611,9 +2602,12 @@ static NTSTATUS DVD_ReadStructure(int dev, const DVD_READ_STRUCTURE *structure, 
 
     case DvdManufacturerDescriptor:
         {
-            PDVD_MANUFACTURER_DESCRIPTOR p = (PDVD_MANUFACTURER_DESCRIPTOR) layer;
+            internal_dvd_manufacturer_descriptor *p = (internal_dvd_manufacturer_descriptor*) layer;
 
-            memcpy(p->ManufacturingInformation, s.manufact.value, 2048);
+            p->Header.Length = 0x0802;
+            p->Header.Reserved[0] = 0;
+            p->Header.Reserved[1] = 0;
+            memcpy(p->Descriptor.ManufacturingInformation, s.manufact.value, 2048);
         }
         break;
 
@@ -2636,7 +2630,7 @@ static NTSTATUS DVD_ReadStructure(int dev, const DVD_READ_STRUCTURE *structure, 
         internal_dvd_layer_descriptor *xlayer;
         PDVD_COPYRIGHT_DESCRIPTOR copy;
         PDVD_DISK_KEY_DESCRIPTOR disk_key;
-        PDVD_MANUFACTURER_DESCRIPTOR manf;
+        internal_dvd_manufacturer_descriptor *manf;
     } nt_desc;
 
     nt_desc.layer = layer;
@@ -2685,26 +2679,24 @@ static NTSTATUS DVD_ReadStructure(int dev, const DVD_READ_STRUCTURE *structure, 
         switch(structure->Format)
         {
         case DvdPhysicalDescriptor:
-            nt_desc.xlayer->DataLength[0] = 2;
-            nt_desc.xlayer->DataLength[1] = 8;
-            nt_desc.xlayer->Reserved0[0] = 0;
-            nt_desc.xlayer->Reserved0[1] = 0;
-            nt_desc.xlayer->BookVersion = desc.phys.partVersion;
-            nt_desc.xlayer->BookType = desc.phys.bookType;
-            nt_desc.xlayer->MinimumRate = desc.phys.minimumRate;
-            nt_desc.xlayer->DiskSize = desc.phys.discSize;
-            nt_desc.xlayer->LayerType = desc.phys.layerType;
-            nt_desc.xlayer->TrackPath = desc.phys.trackPath;
-            nt_desc.xlayer->NumberOfLayers = desc.phys.numberOfLayers;
-            nt_desc.xlayer->Reserved1 = 0;
-            nt_desc.xlayer->TrackDensity = desc.phys.trackDensity;
-            nt_desc.xlayer->LinearDensity = desc.phys.linearDensity;
-            nt_desc.xlayer->BCAFlag = desc.phys.bcaFlag;
-            nt_desc.xlayer->StartingDataSector = *(DWORD *)&desc.phys.zero1;
-            nt_desc.xlayer->EndDataSector = *(DWORD *)&desc.phys.zero2;
-            nt_desc.xlayer->EndLayerZeroSector = *(DWORD *)&desc.phys.zero3;
-            nt_desc.xlayer->Reserved5 = 0;
-            nt_desc.xlayer->Reserved6 = 0;
+            nt_desc.xlayer->Header.Length = 0x0802;
+            nt_desc.xlayer->Header.Reserved[0] = 0;
+            nt_desc.xlayer->Header.Reserved[1] = 0;
+            nt_desc.xlayer->Descriptor.BookVersion = desc.phys.partVersion;
+            nt_desc.xlayer->Descriptor.BookType = desc.phys.bookType;
+            nt_desc.xlayer->Descriptor.MinimumRate = desc.phys.minimumRate;
+            nt_desc.xlayer->Descriptor.DiskSize = desc.phys.discSize;
+            nt_desc.xlayer->Descriptor.LayerType = desc.phys.layerType;
+            nt_desc.xlayer->Descriptor.TrackPath = desc.phys.trackPath;
+            nt_desc.xlayer->Descriptor.NumberOfLayers = desc.phys.numberOfLayers;
+            nt_desc.xlayer->Descriptor.Reserved1 = 0;
+            nt_desc.xlayer->Descriptor.TrackDensity = desc.phys.trackDensity;
+            nt_desc.xlayer->Descriptor.LinearDensity = desc.phys.linearDensity;
+            nt_desc.xlayer->Descriptor.StartingDataSector = GET_BE_DWORD(*(DWORD *)&desc.phys.zero1);
+            nt_desc.xlayer->Descriptor.EndDataSector = GET_BE_DWORD(*(DWORD *)&desc.phys.zero2);
+            nt_desc.xlayer->Descriptor.EndLayerZeroSector = GET_BE_DWORD(*(DWORD *)&desc.phys.zero3);
+            nt_desc.xlayer->Descriptor.Reserved5 = 0;
+            nt_desc.xlayer->Descriptor.BCAFlag = desc.phys.bcaFlag;
             break;
 
         case DvdCopyrightDescriptor:
@@ -2723,8 +2715,11 @@ static NTSTATUS DVD_ReadStructure(int dev, const DVD_READ_STRUCTURE *structure, 
             break;
 
         case DvdManufacturerDescriptor:
+            nt_desc.manf->Header.Length = 0x0802;
+            nt_desc.manf->Header.Reserved[0] = 0;
+            nt_desc.manf->Header.Reserved[1] = 0;
             memcpy(
-                nt_desc.manf->ManufacturingInformation,
+                nt_desc.manf->Descriptor.ManufacturingInformation,
                 desc.manf.discManufacturingInfo,
                 2048);
             break;
@@ -3101,7 +3096,7 @@ NTSTATUS CDROM_DeviceIoControl(HANDLE hDevice,
     case IOCTL_DVD_READ_STRUCTURE:
         sz = sizeof(DVD_LAYER_DESCRIPTOR);
         if (lpInBuffer == NULL || nInBufferSize != sizeof(DVD_READ_STRUCTURE)) status = STATUS_INVALID_PARAMETER;
-        else if (nOutBufferSize < sz) status = STATUS_BUFFER_TOO_SMALL;
+        else if (nOutBufferSize < sz || !lpOutBuffer) status = STATUS_BUFFER_TOO_SMALL;
         else
         {
             TRACE("doing DVD_READ_STRUCTURE\n");

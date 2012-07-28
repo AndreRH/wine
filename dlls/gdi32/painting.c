@@ -486,49 +486,11 @@ COLORREF WINAPI GetPixel( HDC hdc, INT x, INT y )
 
 
 /******************************************************************************
- * ChoosePixelFormat [GDI32.@]
- * Matches a pixel format to given format
+ * GdiSetPixelFormat [GDI32.@]
  *
- * PARAMS
- *    hdc  [I] Device context to search for best pixel match
- *    ppfd [I] Pixel format for which a match is sought
- *
- * RETURNS
- *    Success: Pixel format index closest to given format
- *    Failure: 0
+ * Probably not the correct semantics, it's supposed to be an internal backend for SetPixelFormat.
  */
-INT WINAPI ChoosePixelFormat( HDC hdc, const PIXELFORMATDESCRIPTOR* ppfd )
-{
-    INT ret = 0;
-    DC * dc = get_dc_ptr( hdc );
-
-    TRACE("(%p,%p)\n",hdc,ppfd);
-
-    if (dc)
-    {
-        PHYSDEV physdev = GET_DC_PHYSDEV( dc, pChoosePixelFormat );
-        ret = physdev->funcs->pChoosePixelFormat( physdev, ppfd );
-        release_dc_ptr( dc );
-    }
-    return ret;
-}
-
-
-/******************************************************************************
- * SetPixelFormat [GDI32.@]
- * Sets pixel format of device context
- *
- * PARAMS
- *    hdc          [I] Device context to search for best pixel match
- *    iPixelFormat [I] Pixel format index
- *    ppfd         [I] Pixel format for which a match is sought
- *
- * RETURNS
- *    Success: TRUE
- *    Failure: FALSE
- */
-BOOL WINAPI SetPixelFormat( HDC hdc, INT iPixelFormat,
-                            const PIXELFORMATDESCRIPTOR *ppfd)
+BOOL WINAPI GdiSetPixelFormat( HDC hdc, INT iPixelFormat, const PIXELFORMATDESCRIPTOR *ppfd)
 {
     INT bRet = FALSE;
     DC * dc = get_dc_ptr( hdc );
@@ -547,50 +509,12 @@ BOOL WINAPI SetPixelFormat( HDC hdc, INT iPixelFormat,
 
 
 /******************************************************************************
- * GetPixelFormat [GDI32.@]
- * Gets index of pixel format of DC
+ * GdiDescribePixelFormat [GDI32.@]
  *
- * PARAMETERS
- *    hdc [I] Device context whose pixel format index is sought
- *
- * RETURNS
- *    Success: Currently selected pixel format
- *    Failure: 0
+ * Probably not the correct semantics, it's supposed to be an internal backend for DescribePixelFormat.
  */
-INT WINAPI GetPixelFormat( HDC hdc )
-{
-    INT ret = 0;
-    DC * dc = get_dc_ptr( hdc );
-
-    TRACE("(%p)\n",hdc);
-
-    if (dc)
-    {
-        PHYSDEV physdev = GET_DC_PHYSDEV( dc, pGetPixelFormat );
-        update_dc( dc );
-        ret = physdev->funcs->pGetPixelFormat( physdev );
-        release_dc_ptr( dc );
-    }
-    return ret;
-}
-
-
-/******************************************************************************
- * DescribePixelFormat [GDI32.@]
- * Gets info about pixel format from DC
- *
- * PARAMS
- *    hdc          [I] Device context
- *    iPixelFormat [I] Pixel format selector
- *    nBytes       [I] Size of buffer
- *    ppfd         [O] Pointer to structure to receive pixel format data
- *
- * RETURNS
- *    Success: Maximum pixel format index of the device context
- *    Failure: 0
- */
-INT WINAPI DescribePixelFormat( HDC hdc, INT iPixelFormat, UINT nBytes,
-                                LPPIXELFORMATDESCRIPTOR ppfd )
+INT WINAPI GdiDescribePixelFormat( HDC hdc, INT iPixelFormat, UINT nBytes,
+                                   LPPIXELFORMATDESCRIPTOR ppfd )
 {
     INT ret = 0;
     DC * dc = get_dc_ptr( hdc );
@@ -609,17 +533,11 @@ INT WINAPI DescribePixelFormat( HDC hdc, INT iPixelFormat, UINT nBytes,
 
 
 /******************************************************************************
- * SwapBuffers [GDI32.@]
- * Exchanges front and back buffers of window
+ * GdiSwapBuffers [GDI32.@]
  *
- * PARAMS
- *    hdc [I] Device context whose buffers get swapped
- *
- * RETURNS
- *    Success: TRUE
- *    Failure: FALSE
+ * Probably not the correct semantics, it's supposed to be an internal backend for SwapBuffers.
  */
-BOOL WINAPI SwapBuffers( HDC hdc )
+BOOL WINAPI GdiSwapBuffers( HDC hdc )
 {
     INT bRet = FALSE;
     DC * dc = get_dc_ptr( hdc );

@@ -63,6 +63,10 @@ DEFINE_EXPECT(testobj_propput_d);
 DEFINE_EXPECT(testobj_propput_i);
 DEFINE_EXPECT(global_propargput_d);
 DEFINE_EXPECT(global_propargput_i);
+DEFINE_EXPECT(global_propargput1_d);
+DEFINE_EXPECT(global_propargput1_i);
+DEFINE_EXPECT(collectionobj_newenum_i);
+DEFINE_EXPECT(Next);
 
 #define DISPID_GLOBAL_REPORTSUCCESS 1000
 #define DISPID_GLOBAL_TRACE         1001
@@ -74,15 +78,20 @@ DEFINE_EXPECT(global_propargput_i);
 #define DISPID_GLOBAL_ISNULLDISP    1007
 #define DISPID_GLOBAL_TESTDISP      1008
 #define DISPID_GLOBAL_REFOBJ        1009
-#define DISPID_GLOBAL_PROPARGPUT    1010
-#define DISPID_GLOBAL_COUNTER       1011
+#define DISPID_GLOBAL_COUNTER       1010
+#define DISPID_GLOBAL_PROPARGPUT    1011
+#define DISPID_GLOBAL_PROPARGPUT1   1012
+#define DISPID_GLOBAL_COLLOBJ       1013
+#define DISPID_GLOBAL_DOUBLEASSTRING 1014
 
 #define DISPID_TESTOBJ_PROPGET      2000
 #define DISPID_TESTOBJ_PROPPUT      2001
 
+#define DISPID_COLLOBJ_RESET        3000
+
 static const WCHAR testW[] = {'t','e','s','t',0};
 
-static BOOL strict_dispid_check;
+static BOOL strict_dispid_check, is_english;
 static const char *test_name = "(null)";
 static int test_counter;
 
@@ -325,6 +334,11 @@ static void test_disp(IDispatch *disp)
     ok(id == -1, "id = %d\n", id);
     SysFreeString(str);
 
+    str = a2bstr("publicProp");
+    hres = IDispatchEx_GetDispID(dispex, str, 0x80000000|fdexNameCaseInsensitive, &public_prop_id);
+    SysFreeString(str);
+    ok(hres == S_OK, "GetDispID(publicProp) failed: %08x\n", hres);
+
     IDispatchEx_Release(dispex);
 }
 
@@ -334,6 +348,96 @@ static void _test_grfdex(unsigned line, DWORD grfdex, DWORD expect)
     ok_(__FILE__,line)(grfdex == expect, "grfdex = %x, expected %x\n", grfdex, expect);
 }
 
+static const char *debugstr_guid(REFIID riid)
+{
+    static char buf[50];
+
+    sprintf(buf, "{%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X}",
+            riid->Data1, riid->Data2, riid->Data3, riid->Data4[0],
+            riid->Data4[1], riid->Data4[2], riid->Data4[3], riid->Data4[4],
+            riid->Data4[5], riid->Data4[6], riid->Data4[7]);
+
+    return buf;
+}
+
+static IDispatchEx enumDisp;
+
+static HRESULT WINAPI EnumVARIANT_QueryInterface(IEnumVARIANT *iface, REFIID riid, void **ppv)
+{
+    if(IsEqualGUID(riid, &IID_IUnknown) || IsEqualGUID(riid, &IID_IEnumVARIANT)) {
+        *ppv = iface;
+        return S_OK;
+    }
+
+    if(IsEqualGUID(riid, &IID_IDispatch)) {
+        *ppv = &enumDisp;
+        return S_OK;
+    }
+
+    ok(0, "unexpected call %s\n", debugstr_guid(riid));
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI EnumVARIANT_AddRef(IEnumVARIANT *iface)
+{
+    return 2;
+}
+
+static ULONG WINAPI EnumVARIANT_Release(IEnumVARIANT *iface)
+{
+    return 1;
+}
+
+static unsigned next_cnt;
+
+static HRESULT WINAPI EnumVARIANT_Next(IEnumVARIANT *iface, ULONG celt, VARIANT *rgVar, ULONG *pCeltFetched)
+{
+    if(strict_dispid_check)
+        CHECK_EXPECT2(Next);
+
+    ok(celt == 1, "celt = %d\n", celt);
+    ok(V_VT(rgVar) == VT_EMPTY, "V_VT(rgVar) = %d\n", V_VT(rgVar));
+    ok(!pCeltFetched, "pCeltFetched = %p\n", pCeltFetched);
+
+    if(next_cnt++ < 3) {
+        V_VT(rgVar) = VT_I2;
+        V_I2(rgVar) = next_cnt;
+        return S_OK;
+    }
+
+    return S_FALSE;
+}
+
+static HRESULT WINAPI EnumVARIANT_Skip(IEnumVARIANT *iface, ULONG celt)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI EnumVARIANT_Reset(IEnumVARIANT *iface)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI EnumVARIANT_Clone(IEnumVARIANT *iface, IEnumVARIANT **ppEnum)
+{
+    ok(0, "unexpected call\n");
+    return E_NOTIMPL;
+}
+
+static const IEnumVARIANTVtbl EnumVARIANTVtbl = {
+    EnumVARIANT_QueryInterface,
+    EnumVARIANT_AddRef,
+    EnumVARIANT_Release,
+    EnumVARIANT_Next,
+    EnumVARIANT_Skip,
+    EnumVARIANT_Reset,
+    EnumVARIANT_Clone
+};
+
+static IEnumVARIANT enumObj = { &EnumVARIANTVtbl };
+
 static HRESULT WINAPI DispatchEx_QueryInterface(IDispatchEx *iface, REFIID riid, void **ppv)
 {
     *ppv = NULL;
@@ -342,8 +446,10 @@ static HRESULT WINAPI DispatchEx_QueryInterface(IDispatchEx *iface, REFIID riid,
        || IsEqualGUID(riid, &IID_IDispatch)
        || IsEqualGUID(riid, &IID_IDispatchEx))
         *ppv = iface;
-    else
+    else {
+        trace("QI %s\n", debugstr_guid(riid));
         return E_NOINTERFACE;
+    }
 
     IUnknown_AddRef((IUnknown*)*ppv);
     return S_OK;
@@ -433,7 +539,7 @@ static HRESULT WINAPI DispatchEx_GetDispID(IDispatchEx *iface, BSTR bstrName, DW
 static HRESULT WINAPI DispatchEx_InvokeEx(IDispatchEx *iface, DISPID id, LCID lcid, WORD wFlags, DISPPARAMS *pdp,
         VARIANT *pvarRes, EXCEPINFO *pei, IServiceProvider *pspCaller)
 {
-    ok(0, "unexpected call\n");
+    ok(0, "unexpected call %d\n", id);
     return E_NOTIMPL;
 }
 
@@ -517,6 +623,91 @@ static IDispatchExVtbl testObjVtbl = {
 
 static IDispatchEx testObj = { &testObjVtbl };
 
+static HRESULT WINAPI enumDisp_QueryInterface(IDispatchEx *iface, REFIID riid, void **ppv)
+{
+    return IEnumVARIANT_QueryInterface(&enumObj, riid, ppv);
+}
+
+static IDispatchExVtbl enumDispVtbl = {
+    enumDisp_QueryInterface,
+    DispatchEx_AddRef,
+    DispatchEx_Release,
+    DispatchEx_GetTypeInfoCount,
+    DispatchEx_GetTypeInfo,
+    DispatchEx_GetIDsOfNames,
+    DispatchEx_Invoke,
+    DispatchEx_GetDispID,
+    DispatchEx_InvokeEx,
+    DispatchEx_DeleteMemberByName,
+    DispatchEx_DeleteMemberByDispID,
+    DispatchEx_GetMemberProperties,
+    DispatchEx_GetMemberName,
+    DispatchEx_GetNextDispID,
+    DispatchEx_GetNameSpaceParent
+};
+
+static IDispatchEx enumDisp = { &enumDispVtbl };
+
+static HRESULT WINAPI collectionObj_GetDispID(IDispatchEx *iface, BSTR bstrName, DWORD grfdex, DISPID *pid)
+{
+    if(!strcmp_wa(bstrName, "reset")) {
+        *pid = DISPID_COLLOBJ_RESET;
+        return S_OK;
+    }
+
+    ok(0, "unexpected call %s\n", wine_dbgstr_w(bstrName));
+    return DISP_E_UNKNOWNNAME;
+}
+
+static HRESULT WINAPI collectionObj_InvokeEx(IDispatchEx *iface, DISPID id, LCID lcid, WORD wFlags, DISPPARAMS *pdp,
+        VARIANT *pvarRes, EXCEPINFO *pei, IServiceProvider *pspCaller)
+{
+    switch(id) {
+    case DISPID_NEWENUM:
+        if(strict_dispid_check)
+            CHECK_EXPECT(collectionobj_newenum_i);
+
+        ok(wFlags == (DISPATCH_PROPERTYGET|DISPATCH_METHOD), "wFlags = %x\n", wFlags);
+        ok(pdp != NULL, "pdp == NULL\n");
+        ok(!pdp->rgvarg, "rgvarg == NULL\n");
+        ok(!pdp->rgdispidNamedArgs, "rgdispidNamedArgs != NULL\n");
+        ok(!pdp->cArgs, "cArgs = %d\n", pdp->cArgs);
+        ok(!pdp->cNamedArgs, "cNamedArgs = %d\n", pdp->cNamedArgs);
+        ok(pvarRes != NULL, "pvarRes == NULL\n");
+        ok(pei != NULL, "pei == NULL\n");
+
+        V_VT(pvarRes) = VT_UNKNOWN;
+        V_UNKNOWN(pvarRes) = (IUnknown*)&enumObj;
+        return S_OK;
+    case DISPID_COLLOBJ_RESET:
+        next_cnt = 0;
+        return S_OK;
+    }
+
+    ok(0, "unexpected call %d\n", id);
+    return E_NOTIMPL;
+}
+
+static IDispatchExVtbl collectionObjVtbl = {
+    DispatchEx_QueryInterface,
+    DispatchEx_AddRef,
+    DispatchEx_Release,
+    DispatchEx_GetTypeInfoCount,
+    DispatchEx_GetTypeInfo,
+    DispatchEx_GetIDsOfNames,
+    DispatchEx_Invoke,
+    collectionObj_GetDispID,
+    collectionObj_InvokeEx,
+    DispatchEx_DeleteMemberByName,
+    DispatchEx_DeleteMemberByDispID,
+    DispatchEx_GetMemberProperties,
+    DispatchEx_GetMemberName,
+    DispatchEx_GetNextDispID,
+    DispatchEx_GetNameSpaceParent
+};
+
+static IDispatchEx collectionObj = { &collectionObjVtbl };
+
 static ULONG refobj_ref;
 
 static ULONG WINAPI RefObj_AddRef(IDispatchEx *iface)
@@ -582,6 +773,11 @@ static HRESULT WINAPI Global_GetDispID(IDispatchEx *iface, BSTR bstrName, DWORD 
         *pid = DISPID_GLOBAL_TESTOBJ;
         return S_OK;
     }
+    if(!strcmp_wa(bstrName, "collectionObj")) {
+        test_grfdex(grfdex, fdexNameCaseInsensitive);
+        *pid = DISPID_GLOBAL_COLLOBJ;
+        return S_OK;
+    }
     if(!strcmp_wa(bstrName, "vbvar")) {
         CHECK_EXPECT(global_vbvar_d);
         test_grfdex(grfdex, fdexNameCaseInsensitive);
@@ -609,9 +805,20 @@ static HRESULT WINAPI Global_GetDispID(IDispatchEx *iface, BSTR bstrName, DWORD 
         *pid = DISPID_GLOBAL_PROPARGPUT;
         return S_OK;
     }
+    if(!strcmp_wa(bstrName, "propargput1")) {
+        CHECK_EXPECT(global_propargput1_d);
+        test_grfdex(grfdex, fdexNameCaseInsensitive);
+        *pid = DISPID_GLOBAL_PROPARGPUT1;
+        return S_OK;
+    }
     if(!strcmp_wa(bstrName, "counter")) {
         test_grfdex(grfdex, fdexNameCaseInsensitive);
         *pid = DISPID_GLOBAL_COUNTER;
+        return S_OK;
+    }
+    if(!strcmp_wa(bstrName, "doubleAsString")) {
+        test_grfdex(grfdex, fdexNameCaseInsensitive);
+        *pid = DISPID_GLOBAL_DOUBLEASSTRING;
         return S_OK;
     }
 
@@ -704,12 +911,7 @@ static HRESULT WINAPI Global_InvokeEx(IDispatchEx *iface, DISPID id, LCID lcid, 
         ok(pei != NULL, "pei == NULL\n");
 
         V_VT(pvarRes) = VT_BOOL;
-        if(is_lang_english()) {
-            V_BOOL(pvarRes) = VARIANT_TRUE;
-        }else {
-            skip("Skipping some tests in non-English UIs\n");
-            V_BOOL(pvarRes) = VARIANT_FALSE;
-        }
+        V_BOOL(pvarRes) = is_english ? VARIANT_TRUE : VARIANT_FALSE;
         return S_OK;
 
     case DISPID_GLOBAL_VBVAR:
@@ -742,6 +944,21 @@ static HRESULT WINAPI Global_InvokeEx(IDispatchEx *iface, DISPID id, LCID lcid, 
 
         V_VT(pvarRes) = VT_DISPATCH;
         V_DISPATCH(pvarRes) = (IDispatch*)&testObj;
+        return S_OK;
+
+    case DISPID_GLOBAL_COLLOBJ:
+        ok(wFlags == (DISPATCH_PROPERTYGET|DISPATCH_METHOD), "wFlags = %x\n", wFlags);
+
+        ok(pdp != NULL, "pdp == NULL\n");
+        ok(!pdp->rgvarg, "rgvarg != NULL\n");
+        ok(!pdp->rgdispidNamedArgs, "rgdispidNamedArgs != NULL\n");
+        ok(!pdp->cArgs, "cArgs = %d\n", pdp->cArgs);
+        ok(!pdp->cNamedArgs, "cNamedArgs = %d\n", pdp->cNamedArgs);
+        ok(pvarRes != NULL, "pvarRes == NULL\n");
+        ok(pei != NULL, "pei == NULL\n");
+
+        V_VT(pvarRes) = VT_DISPATCH;
+        V_DISPATCH(pvarRes) = (IDispatch*)&collectionObj;
         return S_OK;
 
     case DISPID_GLOBAL_REFOBJ:
@@ -819,6 +1036,27 @@ static HRESULT WINAPI Global_InvokeEx(IDispatchEx *iface, DISPID id, LCID lcid, 
         ok(V_I2(pdp->rgvarg+2) == 1, "V_I2(psp->rgvargs+2) = %d\n", V_I2(pdp->rgvarg+2));
         return S_OK;
 
+    case DISPID_GLOBAL_PROPARGPUT1:
+        CHECK_EXPECT(global_propargput1_i);
+
+        ok(wFlags == DISPATCH_PROPERTYPUT, "wFlags = %x\n", wFlags);
+        ok(pdp != NULL, "pdp == NULL\n");
+        ok(pdp->rgvarg != NULL, "rgvarg == NULL\n");
+        ok(pdp->rgdispidNamedArgs != NULL, "rgdispidNamedArgs == NULL\n");
+        ok(pdp->cArgs == 2, "cArgs = %d\n", pdp->cArgs);
+        ok(pdp->cNamedArgs == 1, "cNamedArgs = %d\n", pdp->cNamedArgs);
+        ok(pdp->rgdispidNamedArgs[0] == DISPID_PROPERTYPUT, "pdp->rgdispidNamedArgs[0] = %d\n", pdp->rgdispidNamedArgs[0]);
+        ok(!pvarRes, "pvarRes != NULL\n");
+        ok(pei != NULL, "pei == NULL\n");
+
+        ok(V_VT(pdp->rgvarg) == VT_I2, "V_VT(psp->rgvargs) = %d\n", V_VT(pdp->rgvarg));
+        ok(V_I2(pdp->rgvarg) == 0, "V_I2(psp->rgvargs) = %d\n", V_I2(pdp->rgvarg));
+
+        ok(V_VT(pdp->rgvarg+1) == VT_I2, "V_VT(psp->rgvargs+1) = %d\n", V_VT(pdp->rgvarg+1));
+        ok(V_I2(pdp->rgvarg+1) == 1, "V_I2(psp->rgvargs+1) = %d\n", V_I2(pdp->rgvarg+1));
+
+        return S_OK;
+
     case DISPID_GLOBAL_COUNTER:
         ok(pdp != NULL, "pdp == NULL\n");
         todo_wine ok(pdp->rgvarg != NULL, "rgvarg == NULL\n");
@@ -832,6 +1070,15 @@ static HRESULT WINAPI Global_InvokeEx(IDispatchEx *iface, DISPID id, LCID lcid, 
         V_VT(pvarRes) = VT_I2;
         V_I2(pvarRes) = test_counter++;
         return S_OK;
+
+    case DISPID_GLOBAL_DOUBLEASSTRING:
+        ok(wFlags == (INVOKE_FUNC|INVOKE_PROPERTYGET), "wFlags = %x\n", wFlags);
+        ok(pdp->cArgs == 1, "cArgs = %d\n", pdp->cArgs);
+        ok(V_VT(pdp->rgvarg) == VT_R8, "V_VT(pdp->rgvarg) = %d\n", V_VT(pdp->rgvarg));
+        ok(pvarRes != NULL, "pvarRes == NULL\n");
+
+        V_VT(pvarRes) = VT_BSTR;
+        return VarBstrFromR8(V_R8(pdp->rgvarg), 0, 0, &V_BSTR(pvarRes));
     }
 
     ok(0, "unexpected call %d\n", id);
@@ -1294,6 +1541,26 @@ static void run_tests(void)
     CHECK_CALLED(global_propargput_d);
     CHECK_CALLED(global_propargput_i);
 
+    SET_EXPECT(global_propargput1_d);
+    SET_EXPECT(global_propargput1_i);
+    parse_script_a("propargput1 (counter()) = counter()");
+    CHECK_CALLED(global_propargput1_d);
+    CHECK_CALLED(global_propargput1_i);
+
+    SET_EXPECT(global_propargput1_d);
+    SET_EXPECT(global_propargput1_i);
+    parse_script_a("test.propargput1(counter()) = counter()");
+    CHECK_CALLED(global_propargput1_d);
+    CHECK_CALLED(global_propargput1_i);
+
+    next_cnt = 0;
+    SET_EXPECT(collectionobj_newenum_i);
+    SET_EXPECT(Next);
+    parse_script_a("for each x in collectionObj\nnext");
+    CHECK_CALLED(collectionobj_newenum_i);
+    CHECK_CALLED(Next);
+    ok(next_cnt == 4, "next_cnt = %d\n", next_cnt);
+
     parse_script_a("x = 1\n Call ok(x = 1, \"x = \" & x)");
 
     parse_script_a("x = _    \n3");
@@ -1332,6 +1599,10 @@ START_TEST(run)
 {
     int argc;
     char **argv;
+
+    is_english = is_lang_english();
+    if(!is_english)
+        skip("Skipping some tests in non-English UIs\n");
 
     argc = winetest_get_mainargs(&argv);
 

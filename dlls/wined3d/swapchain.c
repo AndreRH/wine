@@ -31,6 +31,7 @@ WINE_DECLARE_DEBUG_CHANNEL(fps);
 static void swapchain_cleanup(struct wined3d_swapchain *swapchain)
 {
     struct wined3d_display_mode mode;
+    HRESULT hr;
     UINT i;
 
     TRACE("Destroying swapchain %p.\n", swapchain);
@@ -79,7 +80,10 @@ static void swapchain_cleanup(struct wined3d_swapchain *swapchain)
         mode.height = swapchain->orig_height;
         mode.refresh_rate = 0;
         mode.format_id = swapchain->orig_fmt;
-        wined3d_device_set_display_mode(swapchain->device, 0, &mode);
+        mode.scanline_ordering = WINED3D_SCANLINE_ORDERING_UNKNOWN;
+        if (FAILED(hr = wined3d_set_adapter_display_mode(swapchain->device->wined3d,
+                swapchain->device->adapter->ordinal, &mode)))
+            ERR("Failed to restore display mode, hr %#x.\n", hr);
     }
 
     if (swapchain->backup_dc)
@@ -145,6 +149,9 @@ HRESULT CDECL wined3d_swapchain_present(struct wined3d_swapchain *swapchain,
     TRACE("swapchain %p, src_rect %s, dst_rect %s, dst_window_override %p, dirty_region %p, flags %#x.\n",
             swapchain, wine_dbgstr_rect(src_rect), wine_dbgstr_rect(dst_rect),
             dst_window_override, dirty_region, flags);
+
+    if (flags)
+        FIXME("Ignoring flags %#x.\n", flags);
 
     if (!swapchain->back_buffers)
     {
@@ -213,57 +220,21 @@ HRESULT CDECL wined3d_swapchain_get_back_buffer(const struct wined3d_swapchain *
 HRESULT CDECL wined3d_swapchain_get_raster_status(const struct wined3d_swapchain *swapchain,
         struct wined3d_raster_status *raster_status)
 {
-    static BOOL warned;
-    LARGE_INTEGER counter, freq_per_sec;
-    LONGLONG freq_per_frame, freq_per_line;
-    struct wined3d_display_mode mode;
+    TRACE("swapchain %p, raster_status %p.\n", swapchain, raster_status);
 
-    /* No OpenGL equivalent */
-    if (!warned)
-    {
-        FIXME("swapchain %p, raster_status %p semi-stub!\n", swapchain, raster_status);
-        warned = TRUE;
-    }
-
-    /* Obtaining the raster status is a widely implemented but optional
-     * feature. When this method returns OK StarCraft 2 expects the
-     * raster_status->InVBlank value to actually change over time.
-     * And Endless Alice Crysis doesn't care even if this method fails.
-     * Thus this method returns OK and fakes raster_status by
-     * QueryPerformanceCounter. */
-
-    if (!QueryPerformanceCounter(&counter) || !QueryPerformanceFrequency(&freq_per_sec))
-        return WINED3DERR_INVALIDCALL;
-
-    if (FAILED(wined3d_swapchain_get_display_mode(swapchain, &mode)))
-        return WINED3DERR_INVALIDCALL;
-    if (mode.refresh_rate == DEFAULT_REFRESH_RATE)
-        mode.refresh_rate = 60;
-
-    freq_per_frame = freq_per_sec.QuadPart / mode.refresh_rate;
-    /* Assume 20 scan lines in the vertical blank */
-    freq_per_line = freq_per_frame / (mode.height + 20);
-    raster_status->scan_line = (counter.QuadPart % freq_per_frame) / freq_per_line;
-    if (raster_status->scan_line < mode.height)
-        raster_status->in_vblank = FALSE;
-    else
-    {
-        raster_status->scan_line = 0;
-        raster_status->in_vblank = TRUE;
-    }
-    TRACE("Returning fake value, in_vblank %u, scan_line %u.\n",
-          raster_status->in_vblank, raster_status->scan_line);
-    return WINED3D_OK;
+    return wined3d_get_adapter_raster_status(swapchain->device->wined3d,
+            swapchain->device->adapter->ordinal, raster_status);
 }
 
 HRESULT CDECL wined3d_swapchain_get_display_mode(const struct wined3d_swapchain *swapchain,
-        struct wined3d_display_mode *mode)
+        struct wined3d_display_mode *mode, enum wined3d_display_rotation *rotation)
 {
     HRESULT hr;
 
-    TRACE("swapchain %p, mode %p.\n", swapchain, mode);
+    TRACE("swapchain %p, mode %p, rotation %p.\n", swapchain, mode, rotation);
 
-    hr = wined3d_get_adapter_display_mode(swapchain->device->wined3d, swapchain->device->adapter->ordinal, mode);
+    hr = wined3d_get_adapter_display_mode(swapchain->device->wined3d,
+            swapchain->device->adapter->ordinal, mode, rotation);
 
     TRACE("Returning w %u, h %u, refresh rate %u, format %s.\n",
             mode->width, mode->height, mode->refresh_rate, debug_d3dformat(mode->format_id));
@@ -354,20 +325,20 @@ static void swapchain_blit(const struct wined3d_swapchain *swapchain,
 
         ENTER_GL();
         context_apply_fbo_state_blit(context, GL_READ_FRAMEBUFFER, backbuffer, NULL, location);
-        glReadBuffer(GL_COLOR_ATTACHMENT0);
+        gl_info->gl_ops.gl.p_glReadBuffer(GL_COLOR_ATTACHMENT0);
         context_check_fbo_status(context, GL_READ_FRAMEBUFFER);
 
         context_apply_fbo_state_blit(context, GL_DRAW_FRAMEBUFFER, swapchain->front_buffer, NULL, SFLAG_INDRAWABLE);
         context_set_draw_buffer(context, GL_BACK);
         context_invalidate_state(context, STATE_FRAMEBUFFER);
 
-        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        gl_info->gl_ops.gl.p_glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
         context_invalidate_state(context, STATE_RENDER(WINED3D_RS_COLORWRITEENABLE));
         context_invalidate_state(context, STATE_RENDER(WINED3D_RS_COLORWRITEENABLE1));
         context_invalidate_state(context, STATE_RENDER(WINED3D_RS_COLORWRITEENABLE2));
         context_invalidate_state(context, STATE_RENDER(WINED3D_RS_COLORWRITEENABLE3));
 
-        glDisable(GL_SCISSOR_TEST);
+        gl_info->gl_ops.gl.p_glDisable(GL_SCISSOR_TEST);
         context_invalidate_state(context, STATE_RENDER(WINED3D_RS_SCISSORTESTENABLE));
 
         /* Note that the texture is upside down */
@@ -406,8 +377,8 @@ static void swapchain_blit(const struct wined3d_swapchain *swapchain,
         /* Set up the texture. The surface is not in a wined3d_texture
          * container, so there are no D3D texture settings to dirtify. */
         device->blitter->set_shader(device->blit_priv, context2, backbuffer);
-        glTexParameteri(backbuffer->texture_target, GL_TEXTURE_MIN_FILTER, gl_filter);
-        glTexParameteri(backbuffer->texture_target, GL_TEXTURE_MAG_FILTER, gl_filter);
+        gl_info->gl_ops.gl.p_glTexParameteri(backbuffer->texture_target, GL_TEXTURE_MIN_FILTER, gl_filter);
+        gl_info->gl_ops.gl.p_glTexParameteri(backbuffer->texture_target, GL_TEXTURE_MAG_FILTER, gl_filter);
 
         context_set_draw_buffer(context, GL_BACK);
 
@@ -419,32 +390,33 @@ static void swapchain_blit(const struct wined3d_swapchain *swapchain,
          *
          * Note that context_apply_blit_state() set up viewport and ortho to
          * match the surface size - we want the GL drawable(=window) size. */
-        glPushAttrib(GL_VIEWPORT_BIT);
-        glViewport(dst_rect->left, win_h - dst_rect->bottom, dst_rect->right, win_h - dst_rect->top);
-        glMatrixMode(GL_PROJECTION);
-        glPushMatrix();
-        glLoadIdentity();
+        gl_info->gl_ops.gl.p_glPushAttrib(GL_VIEWPORT_BIT);
+        gl_info->gl_ops.gl.p_glViewport(dst_rect->left, win_h - dst_rect->bottom,
+                dst_rect->right, win_h - dst_rect->top);
+        gl_info->gl_ops.gl.p_glMatrixMode(GL_PROJECTION);
+        gl_info->gl_ops.gl.p_glPushMatrix();
+        gl_info->gl_ops.gl.p_glLoadIdentity();
 
-        glBegin(GL_QUADS);
+        gl_info->gl_ops.gl.p_glBegin(GL_QUADS);
             /* bottom left */
-            glTexCoord2f(tex_left, tex_bottom);
-            glVertex2i(-1, -1);
+            gl_info->gl_ops.gl.p_glTexCoord2f(tex_left, tex_bottom);
+            gl_info->gl_ops.gl.p_glVertex2i(-1, -1);
 
             /* top left */
-            glTexCoord2f(tex_left, tex_top);
-            glVertex2i(-1, 1);
+            gl_info->gl_ops.gl.p_glTexCoord2f(tex_left, tex_top);
+            gl_info->gl_ops.gl.p_glVertex2i(-1, 1);
 
             /* top right */
-            glTexCoord2f(tex_right, tex_top);
-            glVertex2i(1, 1);
+            gl_info->gl_ops.gl.p_glTexCoord2f(tex_right, tex_top);
+            gl_info->gl_ops.gl.p_glVertex2i(1, 1);
 
             /* bottom right */
-            glTexCoord2f(tex_right, tex_bottom);
-            glVertex2i(1, -1);
-        glEnd();
+            gl_info->gl_ops.gl.p_glTexCoord2f(tex_right, tex_bottom);
+            gl_info->gl_ops.gl.p_glVertex2i(1, -1);
+        gl_info->gl_ops.gl.p_glEnd();
 
-        glPopMatrix();
-        glPopAttrib();
+        gl_info->gl_ops.gl.p_glPopMatrix();
+        gl_info->gl_ops.gl.p_glPopAttrib();
 
         device->blitter->unset_shader(context->gl_info);
         checkGLcall("Swapchain present blit(manual)\n");
@@ -593,7 +565,7 @@ static void swapchain_gl_present(struct wined3d_swapchain *swapchain, const RECT
     }
 
     if (swapchain->num_contexts > 1)
-        wglFinish();
+        gl_info->gl_ops.gl.p_glFinish();
     SwapBuffers(context->hdc); /* TODO: cycle through the swapchain buffers */
 
     TRACE("SwapBuffers called, Starting new frame\n");
@@ -901,7 +873,7 @@ static HRESULT swapchain_init(struct wined3d_swapchain *swapchain, enum wined3d_
     swapchain->win_handle = window;
     swapchain->device_window = window;
 
-    wined3d_get_adapter_display_mode(device->wined3d, adapter->ordinal, &mode);
+    wined3d_get_adapter_display_mode(device->wined3d, adapter->ordinal, &mode, NULL);
     swapchain->orig_width = mode.width;
     swapchain->orig_height = mode.height;
     swapchain->orig_fmt = mode.format_id;
@@ -935,12 +907,11 @@ static HRESULT swapchain_init(struct wined3d_swapchain *swapchain, enum wined3d_
     swapchain_update_render_to_fbo(swapchain);
 
     TRACE("Creating front buffer.\n");
-    hr = device->device_parent->ops->create_rendertarget(device->device_parent, parent,
+    if (FAILED(hr = device->device_parent->ops->create_swapchain_surface(device->device_parent, parent,
             swapchain->desc.backbuffer_width, swapchain->desc.backbuffer_height,
-            swapchain->desc.backbuffer_format, swapchain->desc.multisample_type,
-            swapchain->desc.multisample_quality, TRUE /* Lockable */,
-            &swapchain->front_buffer);
-    if (FAILED(hr))
+            swapchain->desc.backbuffer_format, WINED3DUSAGE_RENDERTARGET,
+            swapchain->desc.multisample_type, swapchain->desc.multisample_quality,
+            &swapchain->front_buffer)))
     {
         WARN("Failed to create front buffer, hr %#x.\n", hr);
         goto err;
@@ -963,9 +934,9 @@ static HRESULT swapchain_init(struct wined3d_swapchain *swapchain, enum wined3d_
         mode.height = desc->backbuffer_height;
         mode.format_id = desc->backbuffer_format;
         mode.refresh_rate = desc->refresh_rate;
+        mode.scanline_ordering = WINED3D_SCANLINE_ORDERING_UNKNOWN;
 
-        hr = wined3d_device_set_display_mode(device, 0, &mode);
-        if (FAILED(hr))
+        if (FAILED(hr = wined3d_set_adapter_display_mode(device->wined3d, device->adapter->ordinal, &mode)))
         {
             WARN("Failed to set display mode, hr %#x.\n", hr);
             goto err;
@@ -1045,12 +1016,11 @@ static HRESULT swapchain_init(struct wined3d_swapchain *swapchain, enum wined3d_
         for (i = 0; i < swapchain->desc.backbuffer_count; ++i)
         {
             TRACE("Creating back buffer %u.\n", i);
-            hr = device->device_parent->ops->create_rendertarget(device->device_parent, parent,
+            if (FAILED(hr = device->device_parent->ops->create_swapchain_surface(device->device_parent, parent,
                     swapchain->desc.backbuffer_width, swapchain->desc.backbuffer_height,
-                    swapchain->desc.backbuffer_format, swapchain->desc.multisample_type,
-                    swapchain->desc.multisample_quality, TRUE /* Lockable */,
-                    &swapchain->back_buffers[i]);
-            if (FAILED(hr))
+                    swapchain->desc.backbuffer_format, WINED3DUSAGE_RENDERTARGET,
+                    swapchain->desc.multisample_type, swapchain->desc.multisample_quality,
+                    &swapchain->back_buffers[i])))
             {
                 WARN("Failed to create back buffer %u, hr %#x.\n", i, hr);
                 goto err;
@@ -1066,12 +1036,11 @@ static HRESULT swapchain_init(struct wined3d_swapchain *swapchain, enum wined3d_
         TRACE("Creating depth/stencil buffer.\n");
         if (!device->auto_depth_stencil)
         {
-            hr = device->device_parent->ops->create_depth_stencil(device->device_parent,
-                    swapchain->desc.backbuffer_width, swapchain->desc.backbuffer_height,
-                    swapchain->desc.auto_depth_stencil_format, swapchain->desc.multisample_type,
-                    swapchain->desc.multisample_quality, FALSE /* FIXME: Discard */,
-                    &device->auto_depth_stencil);
-            if (FAILED(hr))
+            if (FAILED(hr = device->device_parent->ops->create_swapchain_surface(device->device_parent,
+                    device->device_parent, swapchain->desc.backbuffer_width, swapchain->desc.backbuffer_height,
+                    swapchain->desc.auto_depth_stencil_format, WINED3DUSAGE_DEPTHSTENCIL,
+                    swapchain->desc.multisample_type, swapchain->desc.multisample_quality,
+                    &device->auto_depth_stencil)))
             {
                 WARN("Failed to create the auto depth stencil, hr %#x.\n", hr);
                 goto err;

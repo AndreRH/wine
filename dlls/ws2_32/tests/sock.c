@@ -1182,14 +1182,14 @@ static void test_set_getsockopt(void)
     SetLastError(0xdeadbeef);
     err = setsockopt(s, 0xffffffff, SO_RCVTIMEO, (char *) &timeout, size);
     ok( (err == SOCKET_ERROR) && (WSAGetLastError() == WSAEINVAL),
-        "got %d with %d (expected SOCKET_ERROR with WSAEINVAL\n",
+        "got %d with %d (expected SOCKET_ERROR with WSAEINVAL)\n",
         err, WSAGetLastError());
 
     timeout = SOCKTIMEOUT1;
     SetLastError(0xdeadbeef);
     err = setsockopt(s, 0x00008000, SO_RCVTIMEO, (char *) &timeout, size);
     ok( (err == SOCKET_ERROR) && (WSAGetLastError() == WSAEINVAL),
-        "got %d with %d (expected SOCKET_ERROR with WSAEINVAL\n",
+        "got %d with %d (expected SOCKET_ERROR with WSAEINVAL)\n",
         err, WSAGetLastError());
 
     closesocket(s);
@@ -2759,22 +2759,22 @@ static void test_dns(void)
     addr.mem = h + 1;
     if(h->h_addr_list == addr.mem) /* <= W2K */
     {
-        skip("Skipping hostent tests since this OS is unsupported\n");
+        win_skip("Skipping hostent tests since this OS is unsupported\n");
         return;
     }
 
-    todo_wine ok(h->h_aliases == addr.mem,
+    ok(h->h_aliases == addr.mem,
        "hostent->h_aliases should be in %p, it is in %p\n", addr.mem, h->h_aliases);
 
     for(ptr = h->h_aliases, acount = 1; *ptr; ptr++) acount++;
     addr.chr += sizeof(*ptr) * acount;
-    todo_wine ok(h->h_addr_list == addr.mem,
+    ok(h->h_addr_list == addr.mem,
        "hostent->h_addr_list should be in %p, it is in %p\n", addr.mem, h->h_addr_list);
 
     for(ptr = h->h_addr_list, acount = 1; *ptr; ptr++) acount++;
 
     addr.chr += sizeof(*ptr) * acount;
-    todo_wine ok(h->h_addr_list[0] == addr.mem,
+    ok(h->h_addr_list[0] == addr.mem,
        "hostent->h_addr_list[0] should be in %p, it is in %p\n", addr.mem, h->h_addr_list[0]);
 }
 
@@ -5494,11 +5494,11 @@ static void test_completion_port(void)
 
     bret = GetQueuedCompletionStatus(io_port, &num_bytes, &key, &olp, 100);
     ok(bret == FALSE, "failed to get completion status %u\n", bret);
-    todo_wine ok(GetLastError() == ERROR_OPERATION_ABORTED, "Last error was %d\n", GetLastError());
-    todo_wine ok(key == 125, "Key is %lu\n", key);
-    todo_wine ok(num_bytes == 0, "Number of bytes transferred is %u\n", num_bytes);
-    todo_wine ok(olp == &ov, "Overlapped structure is at %p\n", olp);
-    todo_wine ok(olp && (olp->Internal == (ULONG)STATUS_CANCELLED), "Internal status is %lx\n", olp ? olp->Internal : 0);
+    ok(GetLastError() == ERROR_OPERATION_ABORTED, "Last error was %d\n", GetLastError());
+    ok(key == 125, "Key is %lu\n", key);
+    ok(num_bytes == 0, "Number of bytes transferred is %u\n", num_bytes);
+    ok(olp == &ov, "Overlapped structure is at %p\n", olp);
+    ok(olp && (olp->Internal == (ULONG)STATUS_CANCELLED), "Internal status is %lx\n", olp ? olp->Internal : 0);
 
     SetLastError(0xdeadbeef);
     key = 0xdeadbeef;
@@ -5537,11 +5537,11 @@ static void test_completion_port(void)
 
     bret = GetQueuedCompletionStatus(io_port, &num_bytes, &key, &olp, 100);
     ok(bret == FALSE, "failed to get completion status %u\n", bret);
-    todo_wine ok(GetLastError() == ERROR_OPERATION_ABORTED, "Last error was %d\n", GetLastError());
-    todo_wine ok(key == 125, "Key is %lu\n", key);
-    todo_wine ok(num_bytes == 0, "Number of bytes transferred is %u\n", num_bytes);
-    todo_wine ok(olp == &ov, "Overlapped structure is at %p\n", olp);
-    todo_wine ok(olp && (olp->Internal == (ULONG)STATUS_CANCELLED), "Internal status is %lx\n", olp ? olp->Internal : 0);
+    ok(GetLastError() == ERROR_OPERATION_ABORTED, "Last error was %d\n", GetLastError());
+    ok(key == 125, "Key is %lu\n", key);
+    ok(num_bytes == 0, "Number of bytes transferred is %u\n", num_bytes);
+    ok(olp == &ov, "Overlapped structure is at %p\n", olp);
+    ok(olp && (olp->Internal == (ULONG)STATUS_CANCELLED), "Internal status is %lx\n", olp ? olp->Internal : 0);
 
     SetLastError(0xdeadbeef);
     key = 0xdeadbeef;
@@ -5596,11 +5596,11 @@ static void test_completion_port(void)
     olp = (WSAOVERLAPPED *)0xdeadbeef;
     bret = GetQueuedCompletionStatus(io_port, &num_bytes, &key, &olp, 100);
     ok(bret == FALSE, "failed to get completion status %u\n", bret);
-    todo_wine ok(GetLastError() == ERROR_OPERATION_ABORTED, "Last error was %d\n", GetLastError());
-    todo_wine ok(key == 125, "Key is %lu\n", key);
-    todo_wine ok(num_bytes == 0, "Number of bytes transferred is %u\n", num_bytes);
-    todo_wine ok(olp == &ov, "Overlapped structure is at %p\n", olp);
-    todo_wine ok(olp && olp->Internal == (ULONG)STATUS_CANCELLED, "Internal status is %lx\n", olp ? olp->Internal : 0);
+    ok(GetLastError() == ERROR_OPERATION_ABORTED, "Last error was %d\n", GetLastError());
+    ok(key == 125, "Key is %lu\n", key);
+    ok(num_bytes == 0, "Number of bytes transferred is %u\n", num_bytes);
+    ok(olp == &ov, "Overlapped structure is at %p\n", olp);
+    ok(olp && olp->Internal == (ULONG)STATUS_CANCELLED, "Internal status is %lx\n", olp ? olp->Internal : 0);
 
     SetLastError(0xdeadbeef);
     key = 0xdeadbeef;
@@ -5663,11 +5663,11 @@ static void test_completion_port(void)
 
     bret = GetQueuedCompletionStatus(io_port, &num_bytes, &key, &olp, 100);
     ok(bret == FALSE, "failed to get completion status %u\n", bret);
-    todo_wine ok(GetLastError() == ERROR_OPERATION_ABORTED, "Last error was %d\n", GetLastError());
-    todo_wine ok(key == 125, "Key is %lu\n", key);
-    todo_wine ok(num_bytes == 0, "Number of bytes transferred is %u\n", num_bytes);
-    todo_wine ok(olp == &ov, "Overlapped structure is at %p\n", olp);
-    todo_wine ok(olp && (olp->Internal == (ULONG)STATUS_CANCELLED), "Internal status is %lx\n", olp ? olp->Internal : 0);
+    ok(GetLastError() == ERROR_OPERATION_ABORTED, "Last error was %d\n", GetLastError());
+    ok(key == 125, "Key is %lu\n", key);
+    ok(num_bytes == 0, "Number of bytes transferred is %u\n", num_bytes);
+    ok(olp == &ov, "Overlapped structure is at %p\n", olp);
+    ok(olp && (olp->Internal == (ULONG)STATUS_CANCELLED), "Internal status is %lx\n", olp ? olp->Internal : 0);
 
     SetLastError(0xdeadbeef);
     key = 0xdeadbeef;
@@ -5719,11 +5719,11 @@ static void test_completion_port(void)
 
     bret = GetQueuedCompletionStatus(io_port, &num_bytes, &key, &olp, 100);
     ok(bret == FALSE, "failed to get completion status %u\n", bret);
-    todo_wine ok(GetLastError() == ERROR_OPERATION_ABORTED, "Last error was %d\n", GetLastError());
-    todo_wine ok(key == 125, "Key is %lu\n", key);
-    todo_wine ok(num_bytes == 0, "Number of bytes transferred is %u\n", num_bytes);
-    todo_wine ok(olp == &ov, "Overlapped structure is at %p\n", olp);
-    todo_wine ok(olp && (olp->Internal == (ULONG)STATUS_CANCELLED), "Internal status is %lx\n", olp ? olp->Internal : 0);
+    ok(GetLastError() == ERROR_OPERATION_ABORTED, "Last error was %d\n", GetLastError());
+    ok(key == 125, "Key is %lu\n", key);
+    ok(num_bytes == 0, "Number of bytes transferred is %u\n", num_bytes);
+    ok(olp == &ov, "Overlapped structure is at %p\n", olp);
+    ok(olp && (olp->Internal == (ULONG)STATUS_CANCELLED), "Internal status is %lx\n", olp ? olp->Internal : 0);
 
     SetLastError(0xdeadbeef);
     key = 0xdeadbeef;

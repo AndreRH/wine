@@ -33,6 +33,7 @@
 #include "winbase.h"
 #include "objbase.h"
 #include "wincodec.h"
+#include "wincodecsdk.h"
 
 #include "wincodecs_private.h"
 
@@ -57,9 +58,10 @@ static void *libtiff_handle;
 #define MAKE_FUNCPTR(f) static typeof(f) * p##f
 MAKE_FUNCPTR(TIFFClientOpen);
 MAKE_FUNCPTR(TIFFClose);
-MAKE_FUNCPTR(TIFFCurrentDirectory);
+MAKE_FUNCPTR(TIFFCurrentDirOffset);
 MAKE_FUNCPTR(TIFFGetField);
 MAKE_FUNCPTR(TIFFIsByteSwapped);
+MAKE_FUNCPTR(TIFFNumberOfDirectories);
 MAKE_FUNCPTR(TIFFReadDirectory);
 MAKE_FUNCPTR(TIFFReadEncodedStrip);
 MAKE_FUNCPTR(TIFFReadEncodedTile);
@@ -78,6 +80,8 @@ static void *load_libtiff(void)
     if (!libtiff_handle &&
         (libtiff_handle = wine_dlopen(SONAME_LIBTIFF, RTLD_NOW, NULL, 0)) != NULL)
     {
+        void * (*pTIFFSetWarningHandler)(void *);
+        void * (*pTIFFSetWarningHandlerExt)(void *);
 
 #define LOAD_FUNCPTR(f) \
     if((p##f = wine_dlsym(libtiff_handle, #f, NULL, 0)) == NULL) { \
@@ -88,9 +92,10 @@ static void *load_libtiff(void)
     }
         LOAD_FUNCPTR(TIFFClientOpen);
         LOAD_FUNCPTR(TIFFClose);
-        LOAD_FUNCPTR(TIFFCurrentDirectory);
+        LOAD_FUNCPTR(TIFFCurrentDirOffset);
         LOAD_FUNCPTR(TIFFGetField);
         LOAD_FUNCPTR(TIFFIsByteSwapped);
+        LOAD_FUNCPTR(TIFFNumberOfDirectories);
         LOAD_FUNCPTR(TIFFReadDirectory);
         LOAD_FUNCPTR(TIFFReadEncodedStrip);
         LOAD_FUNCPTR(TIFFReadEncodedTile);
@@ -100,6 +105,10 @@ static void *load_libtiff(void)
         LOAD_FUNCPTR(TIFFWriteScanline);
 #undef LOAD_FUNCPTR
 
+        if ((pTIFFSetWarningHandler = wine_dlsym(libtiff_handle, "TIFFSetWarningHandler", NULL, 0)))
+            pTIFFSetWarningHandler(NULL);
+        if ((pTIFFSetWarningHandlerExt = wine_dlsym(libtiff_handle, "TIFFSetWarningHandlerExt", NULL, 0)))
+            pTIFFSetWarningHandlerExt(NULL);
     }
 
     result = libtiff_handle;
@@ -231,6 +240,7 @@ typedef struct {
 
 typedef struct {
     IWICBitmapFrameDecode IWICBitmapFrameDecode_iface;
+    IWICMetadataBlockReader IWICMetadataBlockReader_iface;
     LONG ref;
     TiffDecoder *parent;
     UINT index;
@@ -240,6 +250,7 @@ typedef struct {
 } TiffFrameDecode;
 
 static const IWICBitmapFrameDecodeVtbl TiffFrameDecode_Vtbl;
+static const IWICMetadataBlockReaderVtbl TiffFrameDecode_BlockVtbl;
 
 static inline TiffDecoder *impl_from_IWICBitmapDecoder(IWICBitmapDecoder *iface)
 {
@@ -249,6 +260,11 @@ static inline TiffDecoder *impl_from_IWICBitmapDecoder(IWICBitmapDecoder *iface)
 static inline TiffFrameDecode *impl_from_IWICBitmapFrameDecode(IWICBitmapFrameDecode *iface)
 {
     return CONTAINING_RECORD(iface, TiffFrameDecode, IWICBitmapFrameDecode_iface);
+}
+
+static inline TiffFrameDecode *impl_from_IWICMetadataBlockReader(IWICMetadataBlockReader *iface)
+{
+    return CONTAINING_RECORD(iface, TiffFrameDecode, IWICMetadataBlockReader_iface);
 }
 
 static HRESULT tiff_get_decode_info(TIFF *tiff, tiff_decode_info *decode_info)
@@ -432,12 +448,6 @@ static HRESULT tiff_get_decode_info(TIFF *tiff, tiff_decode_info *decode_info)
     {
         decode_info->tiled = 1;
 
-        if (!ret)
-        {
-            WARN("missing tile width\n");
-            return E_FAIL;
-        }
-
         ret = pTIFFGetField(tiff, TIFFTAG_TILELENGTH, &decode_info->tile_height);
         if (!ret)
         {
@@ -496,9 +506,10 @@ static HRESULT WINAPI TiffDecoder_QueryInterface(IWICBitmapDecoder *iface, REFII
 
     if (!ppv) return E_INVALIDARG;
 
-    if (IsEqualIID(&IID_IUnknown, iid) || IsEqualIID(&IID_IWICBitmapDecoder, iid))
+    if (IsEqualIID(&IID_IUnknown, iid) ||
+        IsEqualIID(&IID_IWICBitmapDecoder, iid))
     {
-        *ppv = This;
+        *ppv = &This->IWICBitmapDecoder_iface;
     }
     else
     {
@@ -624,8 +635,12 @@ static HRESULT WINAPI TiffDecoder_GetMetadataQueryReader(IWICBitmapDecoder *ifac
 static HRESULT WINAPI TiffDecoder_GetPreview(IWICBitmapDecoder *iface,
     IWICBitmapSource **ppIBitmapSource)
 {
-    FIXME("(%p,%p): stub\n", iface, ppIBitmapSource);
-    return E_NOTIMPL;
+    TRACE("(%p,%p)\n", iface, ppIBitmapSource);
+
+    if (!ppIBitmapSource) return E_INVALIDARG;
+
+    *ppIBitmapSource = NULL;
+    return WINCODEC_ERR_UNSUPPORTEDOPERATION;
 }
 
 static HRESULT WINAPI TiffDecoder_GetColorContexts(IWICBitmapDecoder *iface,
@@ -639,6 +654,10 @@ static HRESULT WINAPI TiffDecoder_GetThumbnail(IWICBitmapDecoder *iface,
     IWICBitmapSource **ppIThumbnail)
 {
     TRACE("(%p,%p)\n", iface, ppIThumbnail);
+
+    if (!ppIThumbnail) return E_INVALIDARG;
+
+    *ppIThumbnail = NULL;
     return WINCODEC_ERR_CODECNOTHUMBNAIL;
 }
 
@@ -654,8 +673,7 @@ static HRESULT WINAPI TiffDecoder_GetFrameCount(IWICBitmapDecoder *iface,
     }
 
     EnterCriticalSection(&This->lock);
-    while (pTIFFReadDirectory(This->tiff)) { }
-    *pCount = pTIFFCurrentDirectory(This->tiff)+1;
+    *pCount = pTIFFNumberOfDirectories(This->tiff);
     LeaveCriticalSection(&This->lock);
 
     TRACE("(%p) <-- %i\n", iface, *pCount);
@@ -690,6 +708,7 @@ static HRESULT WINAPI TiffDecoder_GetFrame(IWICBitmapDecoder *iface,
         if (result)
         {
             result->IWICBitmapFrameDecode_iface.lpVtbl = &TiffFrameDecode_Vtbl;
+            result->IWICMetadataBlockReader_iface.lpVtbl = &TiffFrameDecode_BlockVtbl;
             result->ref = 1;
             result->parent = This;
             result->index = index;
@@ -698,7 +717,7 @@ static HRESULT WINAPI TiffDecoder_GetFrame(IWICBitmapDecoder *iface,
             result->cached_tile = HeapAlloc(GetProcessHeap(), 0, decode_info.tile_size);
 
             if (result->cached_tile)
-                *ppIBitmapFrame = (IWICBitmapFrameDecode*)result;
+                *ppIBitmapFrame = &result->IWICBitmapFrameDecode_iface;
             else
             {
                 hr = E_OUTOFMEMORY;
@@ -742,7 +761,11 @@ static HRESULT WINAPI TiffFrameDecode_QueryInterface(IWICBitmapFrameDecode *ifac
         IsEqualIID(&IID_IWICBitmapSource, iid) ||
         IsEqualIID(&IID_IWICBitmapFrameDecode, iid))
     {
-        *ppv = This;
+        *ppv = &This->IWICBitmapFrameDecode_iface;
+    }
+    else if (IsEqualIID(&IID_IWICMetadataBlockReader, iid))
+    {
+        *ppv = &This->IWICMetadataBlockReader_iface;
     }
     else
     {
@@ -856,7 +879,7 @@ static HRESULT WINAPI TiffFrameDecode_CopyPalette(IWICBitmapFrameDecode *iface,
     if (!ret)
     {
         WARN("Couldn't read color map\n");
-        return E_FAIL;
+        return WINCODEC_ERR_PALETTEUNAVAILABLE;
     }
 
     for (i=0; i<color_count; i++)
@@ -1080,8 +1103,12 @@ static HRESULT WINAPI TiffFrameDecode_GetColorContexts(IWICBitmapFrameDecode *if
 static HRESULT WINAPI TiffFrameDecode_GetThumbnail(IWICBitmapFrameDecode *iface,
     IWICBitmapSource **ppIThumbnail)
 {
-    FIXME("(%p,%p): stub\n", iface, ppIThumbnail);
-    return E_NOTIMPL;
+    TRACE("(%p,%p)\n", iface, ppIThumbnail);
+
+    if (!ppIThumbnail) return E_INVALIDARG;
+
+    *ppIThumbnail = NULL;
+    return WINCODEC_ERR_CODECNOTHUMBNAIL;
 }
 
 static const IWICBitmapFrameDecodeVtbl TiffFrameDecode_Vtbl = {
@@ -1096,6 +1123,125 @@ static const IWICBitmapFrameDecodeVtbl TiffFrameDecode_Vtbl = {
     TiffFrameDecode_GetMetadataQueryReader,
     TiffFrameDecode_GetColorContexts,
     TiffFrameDecode_GetThumbnail
+};
+
+static HRESULT WINAPI TiffFrameDecode_Block_QueryInterface(IWICMetadataBlockReader *iface,
+    REFIID iid, void **ppv)
+{
+    TiffFrameDecode *This = impl_from_IWICMetadataBlockReader(iface);
+    return IWICBitmapFrameDecode_QueryInterface(&This->IWICBitmapFrameDecode_iface, iid, ppv);
+}
+
+static ULONG WINAPI TiffFrameDecode_Block_AddRef(IWICMetadataBlockReader *iface)
+{
+    TiffFrameDecode *This = impl_from_IWICMetadataBlockReader(iface);
+    return IWICBitmapFrameDecode_AddRef(&This->IWICBitmapFrameDecode_iface);
+}
+
+static ULONG WINAPI TiffFrameDecode_Block_Release(IWICMetadataBlockReader *iface)
+{
+    TiffFrameDecode *This = impl_from_IWICMetadataBlockReader(iface);
+    return IWICBitmapFrameDecode_Release(&This->IWICBitmapFrameDecode_iface);
+}
+
+static HRESULT WINAPI TiffFrameDecode_Block_GetContainerFormat(IWICMetadataBlockReader *iface,
+    GUID *guid)
+{
+    FIXME("(%p,%p): stub\n", iface, guid);
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI TiffFrameDecode_Block_GetCount(IWICMetadataBlockReader *iface,
+    UINT *count)
+{
+    TRACE("%p,%p\n", iface, count);
+
+    if (!count) return E_INVALIDARG;
+
+    *count = 1;
+    return S_OK;
+}
+
+static HRESULT create_metadata_reader(TiffFrameDecode *This, IWICMetadataReader **reader)
+{
+    HRESULT hr;
+    LARGE_INTEGER dir_offset;
+    IWICMetadataReader *metadata_reader;
+    IWICPersistStream *persist;
+
+    /* FIXME: Use IWICComponentFactory_CreateMetadataReader once it's implemented */
+
+    hr = CoCreateInstance(&CLSID_WICIfdMetadataReader, NULL, CLSCTX_INPROC_SERVER,
+                          &IID_IWICMetadataReader, (void **)&metadata_reader);
+    if (FAILED(hr)) return hr;
+
+    hr = IWICMetadataReader_QueryInterface(metadata_reader, &IID_IWICPersistStream, (void **)&persist);
+    if (FAILED(hr))
+    {
+        IWICMetadataReader_Release(metadata_reader);
+        return hr;
+    }
+
+    EnterCriticalSection(&This->parent->lock);
+
+    dir_offset.QuadPart = pTIFFCurrentDirOffset(This->parent->tiff);
+    hr = IStream_Seek(This->parent->stream, dir_offset, STREAM_SEEK_SET, NULL);
+    if (SUCCEEDED(hr))
+    {
+        BOOL byte_swapped = pTIFFIsByteSwapped(This->parent->tiff);
+#ifdef WORDS_BIGENDIAN
+        DWORD persist_options = byte_swapped ? WICPersistOptionsLittleEndian : WICPersistOptionsBigEndian;
+#else
+        DWORD persist_options = byte_swapped ? WICPersistOptionsBigEndian : WICPersistOptionsLittleEndian;
+#endif
+        persist_options |= WICPersistOptionsNoCacheStream;
+        hr = IWICPersistStream_LoadEx(persist, This->parent->stream, NULL, persist_options);
+        if (FAILED(hr))
+            ERR("IWICPersistStream_LoadEx error %#x\n", hr);
+    }
+
+    LeaveCriticalSection(&This->parent->lock);
+
+    IWICPersistStream_Release(persist);
+
+    if (FAILED(hr))
+    {
+        IWICMetadataReader_Release(metadata_reader);
+        return hr;
+    }
+
+    *reader = metadata_reader;
+    return S_OK;
+}
+
+static HRESULT WINAPI TiffFrameDecode_Block_GetReaderByIndex(IWICMetadataBlockReader *iface,
+    UINT index, IWICMetadataReader **reader)
+{
+    TiffFrameDecode *This = impl_from_IWICMetadataBlockReader(iface);
+
+    TRACE("(%p,%u,%p)\n", iface, index, reader);
+
+    if (!reader || index != 0) return E_INVALIDARG;
+
+    return create_metadata_reader(This, reader);
+}
+
+static HRESULT WINAPI TiffFrameDecode_Block_GetEnumerator(IWICMetadataBlockReader *iface,
+    IEnumUnknown **enum_metadata)
+{
+    FIXME("(%p,%p): stub\n", iface, enum_metadata);
+    return E_NOTIMPL;
+}
+
+static const IWICMetadataBlockReaderVtbl TiffFrameDecode_BlockVtbl =
+{
+    TiffFrameDecode_Block_QueryInterface,
+    TiffFrameDecode_Block_AddRef,
+    TiffFrameDecode_Block_Release,
+    TiffFrameDecode_Block_GetContainerFormat,
+    TiffFrameDecode_Block_GetCount,
+    TiffFrameDecode_Block_GetReaderByIndex,
+    TiffFrameDecode_Block_GetEnumerator
 };
 
 HRESULT TiffDecoder_CreateInstance(IUnknown *pUnkOuter, REFIID iid, void** ppv)
@@ -1126,8 +1272,8 @@ HRESULT TiffDecoder_CreateInstance(IUnknown *pUnkOuter, REFIID iid, void** ppv)
     This->tiff = NULL;
     This->initialized = FALSE;
 
-    ret = IUnknown_QueryInterface((IUnknown*)This, iid, ppv);
-    IUnknown_Release((IUnknown*)This);
+    ret = IWICBitmapDecoder_QueryInterface(&This->IWICBitmapDecoder_iface, iid, ppv);
+    IWICBitmapDecoder_Release(&This->IWICBitmapDecoder_iface);
 
     return ret;
 }
@@ -1584,7 +1730,7 @@ static HRESULT WINAPI TiffEncoder_QueryInterface(IWICBitmapEncoder *iface, REFII
     if (IsEqualIID(&IID_IUnknown, iid) ||
         IsEqualIID(&IID_IWICBitmapEncoder, iid))
     {
-        *ppv = This;
+        *ppv = &This->IWICBitmapEncoder_iface;
     }
     else
     {
@@ -1848,8 +1994,8 @@ HRESULT TiffEncoder_CreateInstance(IUnknown *pUnkOuter, REFIID iid, void** ppv)
     This->num_frames_committed = 0;
     This->committed = FALSE;
 
-    ret = IUnknown_QueryInterface((IUnknown*)This, iid, ppv);
-    IUnknown_Release((IUnknown*)This);
+    ret = IWICBitmapEncoder_QueryInterface(&This->IWICBitmapEncoder_iface, iid, ppv);
+    IWICBitmapEncoder_Release(&This->IWICBitmapEncoder_iface);
 
     return ret;
 }

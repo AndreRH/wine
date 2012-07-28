@@ -1799,7 +1799,7 @@ static void draw_glyph( HDC hdc, INT origin_x, INT origin_y, const GLYPHMETRICS 
                         const struct gdi_image_bits *image, const RECT *clip )
 {
     static const BYTE masks[8] = {0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01};
-    UINT x, y, i, count;
+    UINT x, y, i, count, max_count;
     BYTE *ptr = image->ptr;
     int stride = get_dib_stride( metrics->gmBlackBoxX, 1 );
     POINT *pts;
@@ -1812,8 +1812,8 @@ static void draw_glyph( HDC hdc, INT origin_x, INT origin_y, const GLYPHMETRICS 
     if (!clip) clipped_rect = rect;
     else if (!intersect_rect( &clipped_rect, &rect, clip )) return;
 
-    pts = HeapAlloc( GetProcessHeap(), 0,
-                     max(2,metrics->gmBlackBoxX) * metrics->gmBlackBoxY * sizeof(*pts) );
+    max_count = (metrics->gmBlackBoxX + 1) * metrics->gmBlackBoxY;
+    pts = HeapAlloc( GetProcessHeap(), 0, max_count * sizeof(*pts) );
     if (!pts) return;
 
     count = 0;
@@ -1833,6 +1833,7 @@ static void draw_glyph( HDC hdc, INT origin_x, INT origin_y, const GLYPHMETRICS 
             }
         }
     }
+    assert( count <= max_count );
     DPtoLP( hdc, pts, count );
     for (i = 0; i < count; i += 2) Polyline( hdc, pts + i, 2 );
     HeapFree( GetProcessHeap(), 0, pts );
@@ -3538,7 +3539,7 @@ INT WINAPI AddFontResourceExW( LPCWSTR str, DWORD fl, PVOID pdv )
             int num_resources = 0;
             LPWSTR rt_font = (LPWSTR)((ULONG_PTR)8);  /* we don't want to include winuser.h */
 
-            TRACE("WineEndAddFontResourceEx failed on PE file %s - trying to load resources manually\n",
+            TRACE("WineEngAddFontResourceEx failed on PE file %s - trying to load resources manually\n",
                 wine_dbgstr_w(str));
             if (EnumResourceNamesW(hModule, rt_font, load_enumed_resource, (LONG_PTR)&num_resources))
                 ret = num_resources;

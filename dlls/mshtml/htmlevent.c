@@ -989,6 +989,7 @@ void fire_event(HTMLDocumentNode *doc, eventid_t eid, BOOL set_event, nsIDOMNode
     IHTMLEventObj *prev_event;
     nsIDOMNode *parent, *nsnode;
     BOOL prevent_default = FALSE;
+    HTMLInnerWindow *window;
     HTMLDOMNode *node;
     PRUint16 node_type;
     nsresult nsres;
@@ -996,16 +997,18 @@ void fire_event(HTMLDocumentNode *doc, eventid_t eid, BOOL set_event, nsIDOMNode
 
     TRACE("(%p) %s\n", doc, debugstr_w(event_info[eid].name));
 
-    prev_event = doc->basedoc.window->event;
+    window = doc->basedoc.window->base.inner_window;
+    prev_event = window->event;
     if(set_event) {
         hres = get_node(doc, target, TRUE, &node);
         if(FAILED(hres))
             return;
 
         event_obj = create_event(node, eid, nsevent);
-        doc->basedoc.window->event = &event_obj->IHTMLEventObj_iface;
+        node_release(node);
+        window->event = &event_obj->IHTMLEventObj_iface;
     }else {
-        doc->basedoc.window->event = NULL;
+        window->event = NULL;
     }
 
     nsIDOMNode_GetNodeType(target, &node_type);
@@ -1016,9 +1019,11 @@ void fire_event(HTMLDocumentNode *doc, eventid_t eid, BOOL set_event, nsIDOMNode
     case ELEMENT_NODE:
         do {
             hres = get_node(doc, nsnode, FALSE, &node);
-            if(SUCCEEDED(hres) && node)
+            if(SUCCEEDED(hres) && node) {
                 call_event_handlers(doc, event_obj, *get_node_event_target(node),
                         node->cp_container, eid, (IDispatch*)&node->IHTMLDOMNode_iface);
+                node_release(node);
+            }
 
             if(!(event_info[eid].flags & EVENT_BUBBLE) || (event_obj && event_obj->cancel_bubble))
                 break;
@@ -1043,9 +1048,11 @@ void fire_event(HTMLDocumentNode *doc, eventid_t eid, BOOL set_event, nsIDOMNode
             nsres = nsIDOMHTMLDocument_GetBody(doc->nsdoc, &nsbody);
             if(NS_SUCCEEDED(nsres) && nsbody) {
                 hres = get_node(doc, (nsIDOMNode*)nsbody, FALSE, &node);
-                if(SUCCEEDED(hres) && node)
+                if(SUCCEEDED(hres) && node) {
                     call_event_handlers(doc, event_obj, *get_node_event_target(node),
                             node->cp_container, eid, (IDispatch*)&node->IHTMLDOMNode_iface);
+                    node_release(node);
+                }
                 nsIDOMHTMLElement_Release(nsbody);
             }else {
                 ERR("Could not get body: %08x\n", nsres);
@@ -1065,7 +1072,7 @@ void fire_event(HTMLDocumentNode *doc, eventid_t eid, BOOL set_event, nsIDOMNode
 
     if(event_obj && event_obj->prevent_default)
         prevent_default = TRUE;
-    doc->basedoc.window->event = prev_event;
+    window->event = prev_event;
     if(event_obj)
         IHTMLEventObj_Release(&event_obj->IHTMLEventObj_iface);
 
@@ -1078,8 +1085,10 @@ void fire_event(HTMLDocumentNode *doc, eventid_t eid, BOOL set_event, nsIDOMNode
             if(FAILED(hres))
                 break;
 
-            if(node && node->vtbl->handle_event) {
-                hres = node->vtbl->handle_event(node, eid, nsevent, &prevent_default);
+            if(node) {
+                if(node->vtbl->handle_event)
+                    hres = node->vtbl->handle_event(node, eid, nsevent, &prevent_default);
+                node_release(node);
                 if(FAILED(hres) || prevent_default || (event_obj && event_obj->cancel_bubble))
                     break;
             }
@@ -1341,7 +1350,7 @@ HRESULT detach_event(event_target_t *event_target, HTMLDocument *doc, BSTR name,
     return S_OK;
 }
 
-void update_cp_events(HTMLWindow *window, event_target_t **event_target_ptr, cp_static_data_t *cp, nsIDOMNode *nsnode)
+void update_cp_events(HTMLInnerWindow *window, event_target_t **event_target_ptr, cp_static_data_t *cp, nsIDOMNode *nsnode)
 {
     event_target_t *event_target;
     int i;
@@ -1379,11 +1388,13 @@ void check_event_attr(HTMLDocumentNode *doc, nsIDOMElement *nselem)
 
             TRACE("%p.%s = %s\n", nselem, debugstr_w(event_info[i].attr_name), debugstr_w(attr_value));
 
-            disp = script_parse_event(doc->basedoc.window, attr_value);
+            disp = script_parse_event(doc->basedoc.window->base.inner_window, attr_value);
             if(disp) {
                 hres = get_node(doc, (nsIDOMNode*)nselem, TRUE, &node);
-                if(SUCCEEDED(hres))
+                if(SUCCEEDED(hres)) {
                     set_event_handler_disp(get_node_event_target(node), node->nsnode, node->doc, i, disp);
+                    node_release(node);
+                }
                 IDispatch_Release(disp);
             }
         }
