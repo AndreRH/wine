@@ -1,0 +1,17 @@
+MODULE    = sysdm.cpl
+IMPORTS   = uuid comdlg32 comctl32 shell32 ole32 shlwapi uxtheme user32 gdi32 advapi32
+
+C_SRCS = \
+	helpers.c \
+	about.c \
+	dlls.c \
+	drivedetect.c \
+	drivemgmt.c \
+	drives.c \
+	folders.c \
+	sysdm.c
+
+RC_SRCS = sysdm.rc
+PO_SRCS = sysdm.rc
+
+@MAKE_DLL_RULES@
