@@ -25,9 +25,7 @@
 #include <wine/debug.h>
 #include "resources.h"
 
-#define NUM_PROPERTY_PAGES 2
-
-WINE_DEFAULT_DEBUG_CHANNEL(deskcpl);
+WINE_DEFAULT_DEBUG_CHANNEL(mmsyscpl);
 extern HMODULE hcpl;
 
 #endif

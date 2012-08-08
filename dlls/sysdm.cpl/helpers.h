@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef __WINE_DESKCPL_HELPERSH__
-#define __WINE_DESKCPL_HELPERSH__
+#ifndef __WINE_SYSDMCPL_HELPERSH__
+#define __WINE_SYSDMCPL_HELPERSH__
 
 #include <windows.h>
 
