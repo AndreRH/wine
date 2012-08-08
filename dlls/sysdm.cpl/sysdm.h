@@ -19,8 +19,8 @@
  *
  */
 
-#ifndef __WINE_DESKCPL__
-#define __WINE_DESKCPL__
+#ifndef __WINE_SYSDMCPL__
+#define __WINE_SYSDMCPL__
 
 #include <wine/debug.h>
 #include "resources.h"
