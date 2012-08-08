@@ -25,7 +25,7 @@
 #include <wine/debug.h>
 #include "resources.h"
 
-WINE_DEFAULT_DEBUG_CHANNEL(mmsyscpl);
+WINE_DEFAULT_DEBUG_CHANNEL(sysdmcpl);
 extern HMODULE hcpl;
 
 #endif
