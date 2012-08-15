@@ -1,0 +1,15 @@
+MODULE    = mmsys.cpl
+IMPORTS   = uuid comctl32 shlwapi user32 advapi32 uxtheme comdlg32 shell32 gdi32 winmm
+DELAYIMPORTS = ole32
+
+C_SRCS = \
+	helpers.c \
+	mmsys.c \
+	audio.c \
+	voice.c \
+	hardware.c
+
+RC_SRCS = mmsys.rc
+PO_SRCS = mmsys.rc
+
+@MAKE_DLL_RULES@

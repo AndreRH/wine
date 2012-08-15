@@ -1,0 +1,101 @@
+/*
+ * Audio Settings control panel applet
+ *
+ * Copyright 2002 Jaco Greeff
+ * Copyright 2003 Dimitrie O. Paun
+ * Copyright 2012 Magdalena Nowak
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
+ *
+ */
+
+#include <windef.h>
+#include <winuser.h>
+#include <commctrl.h>
+#include "resources.h"
+
+LANGUAGE LANG_ENGLISH, SUBLANG_DEFAULT
+
+STRINGTABLE
+BEGIN
+    IDS_CPL_NAME        "Sounds and Audio Devices Properties"
+    IDS_CPL_NAME_APP    "Sounds and Audio Devices Properties for %s"
+    IDS_CPL_INFO        "Configure the settings for your sound and voice playback and recording devices."
+    IDS_CPL_ICONNAME    "Sounds and Audio Devices"
+    IDS_TAB_AUDIO       "Audio"
+    IDS_TAB_VOICE       "Voice"
+    IDS_TAB_HARDWARE    "Hardware"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_AUDIO_DRIVER "Selected driver: %s"
+    IDS_AUDIO_DRIVER_NONE "(None)"
+    IDS_AUDIO_TEST_FAILED "Audio test failed!"
+    IDS_AUDIO_TEST_FAILED_TITLE "Error"
+    IDS_AUDIO_SYSDEFAULT "(System default)"
+END
+
+IDD_AUDIO DIALOG  0, 0, 260, 220
+STYLE WS_CHILD | WS_DISABLED
+FONT 8, "MS Shell Dlg"
+BEGIN
+    GROUPBOX        "Sound Playback",IDC_STATIC,8,4,244,27
+  //  LTEXT           "",IDC_AUDIO_DRIVER,18,16,230,8
+  //  GROUPBOX        "Defaults",IDC_STATIC,8,33,244,76
+    LTEXT           "&Default Device:",IDC_STATIC,18,45,230,8
+  //  LTEXT           "Voice output device:",IDC_STATIC,18,61,230,8
+    LTEXT           "D&efault Device:",IDC_STATIC,18,77,230,8
+  //  LTEXT           "Voice input device:",IDC_STATIC,18,93,230,8
+    COMBOBOX        IDC_AUDIOOUT_DEVICE,110,43,135,14,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+  //  COMBOBOX        IDC_VOICEOUT_DEVICE,110,59,135,14,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_AUDIOIN_DEVICE,110,75,135,14,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+  //  COMBOBOX        IDC_VOICEIN_DEVICE,110,91,135,14,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+END
+
+IDD_VOICE DIALOG  0, 0, 260, 220
+STYLE WS_CHILD | WS_DISABLED
+FONT 8, "MS Shell Dlg"
+BEGIN
+    GROUPBOX        "Voice Playback",IDC_STATIC,8,4,244,27
+  //  LTEXT           "",IDC_AUDIO_DRIVER,18,16,230,8
+  //  GROUPBOX        "Defaults",IDC_STATIC,8,33,244,76
+  //  LTEXT           "Output device:",IDC_STATIC,18,45,230,8
+    LTEXT           "&Default Device:",IDC_STATIC,18,61,230,8
+  //  LTEXT           "Input device:",IDC_STATIC,18,77,230,8
+    LTEXT           "Voice input device:",IDC_STATIC,18,93,230,8
+  //  COMBOBOX        IDC_AUDIOOUT_DEVICE,110,43,135,14,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_VOICEOUT_DEVICE,110,59,135,14,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+  //  COMBOBOX        IDC_AUDIOIN_DEVICE,110,75,135,14,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_VOICEIN_DEVICE,110,91,135,14,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+END
+
+IDD_HARDWARE DIALOG  0, 0, 260, 220
+STYLE WS_CHILD | WS_DISABLED
+FONT 8, "MS Shell Dlg"
+BEGIN
+    GROUPBOX        "Driver diagnostics",IDC_STATIC,8,4,244,27
+    LTEXT           "",IDC_AUDIO_DRIVER,18,16,230,8
+    PUSHBUTTON      "&Test Sound",IDC_AUDIO_TEST,8,33,69,14
+END
+
+
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+ 
+/* @makedep: mmsys.ico */
+ICO_MAIN ICON "mmsys.ico"
+
+/* @makedep: idw_testsound.wav */
+IDW_TESTSOUND WAVE "idw_testsound.wav"
