@@ -38,13 +38,12 @@ extern HINSTANCE hInst;
 extern WCHAR display_str[256];
 
 static void test_sound(void) {
-	WINE_ERR("\n");
 	if (!PlaySoundW(MAKEINTRESOURCEW(IDW_TESTSOUND), hInst, SND_RESOURCE | SND_ASYNC)) {
 		WCHAR error_str[256], title_str[256];
 		LoadStringW(hInst, IDS_AUDIO_TEST_FAILED, error_str, sizeof(error_str) / sizeof(*error_str));
 		LoadStringW(hInst, IDS_AUDIO_TEST_FAILED_TITLE, title_str, sizeof(title_str) / sizeof(*title_str));
-		MessageBoxW(NULL, error_str, title_str, MB_OK | MB_ICONERROR);
 		WINE_ERR("%s: %s\n", wine_dbgstr_w(title_str), wine_dbgstr_w(error_str));
+		MessageBoxW(NULL, error_str, title_str, MB_OK | MB_ICONERROR);
 	}
 }
 

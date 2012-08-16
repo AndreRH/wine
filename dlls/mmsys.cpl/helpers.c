@@ -497,8 +497,6 @@ void find_devices(void) {
 	BOOL have_driver = FALSE;
 	HRESULT hr;
 
-	WINE_ERR("devices_found=%i\n", devices_found);
-
 	if (devices_found) return;
 
 	devices_found = TRUE;
@@ -509,13 +507,10 @@ void find_devices(void) {
 
 	hr = CoCreateInstance(&CLSID_MMDeviceEnumerator, NULL, CLSCTX_INPROC_SERVER, &IID_IMMDeviceEnumerator, (void**)&devenum);
 	if (SUCCEEDED(hr)) {
-		WINE_ERR("succeeded\n");
 		PROPVARIANT pv;
 
 		load_devices(devenum, eRender, &num_render_devs, &render_devs);
 		load_devices(devenum, eCapture, &num_capture_devs, &capture_devs);
-
-		printf("num_render_devs=%i\n", num_render_devs);
 
 		PropVariantInit(&pv);
 		if (get_driver_name(devenum, &pv) && pv.u.pwszVal[0] != '\0') {

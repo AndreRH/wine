@@ -76,9 +76,7 @@ INT_PTR CALLBACK AudioDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 		case WM_INITDIALOG: {
 				UINT i;
 
-				WINE_ERR("init\n");
 				find_devices();
-				WINE_ERR("find_devices over, sysdefault_str=%li %s, num_render_devs=%i\n", (LPARAM)sysdefault_str, wine_dbgstr_w(sysdefault_str), num_render_devs);
 				SendDlgItemMessageW(hDlg, IDC_AUDIOOUT_DEVICE, CB_ADDSTRING, 0, (LPARAM)sysdefault_str);
 				SendDlgItemMessageW(hDlg, IDC_AUDIOOUT_DEVICE, CB_SETCURSEL, 0, 0);
 				SendDlgItemMessageW(hDlg, IDC_AUDIOIN_DEVICE, CB_ADDSTRING, 0, (LPARAM)sysdefault_str);
