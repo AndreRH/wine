@@ -27,7 +27,9 @@
 #include <windef.h>
 #include <cpl.h>
 #include <shlobj.h>
+#include <shlwapi.h>
 #include <stdlib.h>
+#include <wine/unicode.h>
 
 #include "desk.h"
 #include "helpers.h"
@@ -114,7 +116,7 @@ LONG CALLBACK CPlApplet(HWND hWnd, UINT command, LPARAM lParam1, LPARAM lParam2)
 			return TRUE;
 
 		case CPL_GETCOUNT:
-			return 1;
+			return 2;
 
 		case CPL_INQUIRE: {
 			CPLINFO *appletInfo = (CPLINFO *) lParam2;
@@ -125,6 +127,16 @@ LONG CALLBACK CPlApplet(HWND hWnd, UINT command, LPARAM lParam1, LPARAM lParam2)
 			return TRUE;
 		}
 
+		case CPL_STARTWPARMSW:
+			/* Get app name */
+			current_app = strchrW((WCHAR*)lParam2, ':');
+			/* Check if there was an app name */
+			if (current_app && current_app[1])
+				++current_app; /* Ignore the colon character (current_app is WCHAR* so ++ will move to the next WCHAR) */
+			else
+				current_app = NULL;
+			TRACE("AppDefaults current_app=%s\n", wine_dbgstr_w(current_app));
+			break;
 		case CPL_DBLCLK:
 			start(hWnd);
 			break;
