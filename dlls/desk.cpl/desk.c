@@ -137,6 +137,7 @@ LONG CALLBACK CPlApplet(HWND hWnd, UINT command, LPARAM lParam1, LPARAM lParam2)
 				current_app = NULL;
 			TRACE("AppDefaults current_app=%s\n", wine_dbgstr_w(current_app));
 			break;
+
 		case CPL_DBLCLK:
 			start(hWnd);
 			break;
