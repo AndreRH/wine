@@ -2,6 +2,7 @@
  *
  * Copyright 2001 Eric Pouech
  * Copyright 2008 Owen Rudge
+ * Copyright 2012 Magdalena Nowak
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -44,6 +45,8 @@
 #define MAX_STRING_LEN      1024
 
 WINE_DEFAULT_DEBUG_CHANNEL(shlctrl);
+
+WCHAR *current_app = NULL;
 
 void Control_UnloadApplet(CPlApplet* applet)
 {
@@ -249,6 +252,9 @@ static void 	 Control_WndProc_Create(HWND hWnd, const CREATESTRUCTW* cs)
    INITCOMMONCONTROLSEX icex;
    INT sb_parts;
    int itemidx;
+   HKEY AppDefaults_key;
+   WCHAR appname[1024];
+   DWORD appname_size;
 
    SetWindowLongPtrW(hWnd, 0, (LONG_PTR)panel);
    panel->hWnd = hWnd;
@@ -326,6 +332,31 @@ static void 	 Control_WndProc_Create(HWND hWnd, const CREATESTRUCTW* cs)
    hSubMenu = GetSubMenu(hMenu, 1);
    CheckMenuRadioItem(hSubMenu, FCIDM_SHVIEW_BIGICON, FCIDM_SHVIEW_REPORTVIEW,
       FCIDM_SHVIEW_BIGICON, MF_BYCOMMAND);
+
+   hSubMenu = GetSubMenu(hMenu, 2);
+
+   if (RegOpenKeyA(HKEY_CURRENT_USER, "Software\\Wine\\AppDefaults", &AppDefaults_key) == ERROR_SUCCESS)
+   {
+      i = 0;
+      appname_size = sizeof(appname)/sizeof(appname[0]);
+      while (RegEnumKeyExW (AppDefaults_key, i, appname, &appname_size, NULL, NULL, NULL, NULL) == ERROR_SUCCESS)
+      {
+          mii.cbSize = sizeof(MENUITEMINFOW);
+          mii.fMask = MIIM_ID | MIIM_STRING;
+          mii.dwTypeData = appname;
+          mii.cch = appname_size;
+          mii.wID = IDM_CPANEL_APPLET_BASE + menucount;
+
+          InsertMenuItemW(hSubMenu, menucount, TRUE, &mii);
+	  ++menucount;
+	  ++i;
+          appname_size = sizeof(appname)/sizeof(appname[0]);
+      }
+
+      RegCloseKey(AppDefaults_key);
+   }
+
+   CheckMenuRadioItem(hSubMenu, 2, i, 2, MF_BYPOSITION);
 
    SetMenu(hWnd, hMenu);
 }
@@ -424,13 +455,71 @@ static void Control_StartApplet(HWND hWnd, CPlItem *item)
     WCHAR verbOpen[] = {'c','p','l','o','p','e','n',0};
     WCHAR format[] = {'@','%','d',0};
     WCHAR param[MAX_PATH];
+    WCHAR name[MAX_PATH];
+
+    WCHAR sysdm_cplW[] = {'s','y','s','d','m','.','c','p','l',0};
+    WCHAR desk_cplW[] = {'d','e','s','k','.','c','p','l',0};
+    WCHAR format2[] = {'%','s',':','%','s',0};
 
     /* execute the applet if item is valid */
     if (item)
     {
         wsprintfW(param, format, item->id);
+        /* If user selected to change AppDefaults, check if the applet supports that */
+        if (current_app) {
+            strcpyW(name, item->applet->cmd);
+            PathStripPathW(name);
+            if ((strcmpiW(name, sysdm_cplW) == 0) || strcmpiW(name, desk_cplW) == 0) {
+                wsprintfW(param, format2, param, current_app);
+	     }
+        }
         ShellExecuteW(hWnd, verbOpen, item->applet->cmd, param, NULL, SW_SHOW);
     }
+}
+
+static void Control_SetApp(HWND hWnd, UINT id)
+{
+    HMENU hMenu, hSubMenu;
+    MENUITEMINFOW mii;
+    CPanel* panel = (CPanel*)GetWindowLongPtrW(hWnd, 0);    
+
+    /* retrieve the CPlItem structure from the menu item data */
+    hMenu = GetMenu(hWnd);
+
+    if (!hMenu)
+        return;
+
+    hSubMenu = GetSubMenu(hMenu, 2);
+
+    if (!hSubMenu)
+        return;
+    
+    if (!id) {
+        current_app = NULL;
+        CheckMenuRadioItem(hSubMenu, IDM_CPANEL_APP_DEFAULT,
+            IDM_CPANEL_APPLET_BASE + panel->total_subprogs + GetMenuItemCount(hSubMenu), IDM_CPANEL_APP_DEFAULT, MF_BYCOMMAND);
+        return;
+    }
+        
+
+    mii.cbSize = sizeof(MENUITEMINFOW);
+    mii.fMask = MIIM_STRING;
+    mii.dwTypeData = NULL;
+
+    if (!GetMenuItemInfoW(hSubMenu, id, FALSE, &mii))
+        return;
+
+    mii.dwTypeData = HeapAlloc(GetProcessHeap(), 0, (mii.cch+1)*sizeof(WCHAR));
+    ++mii.cch;
+
+    if (!GetMenuItemInfoW(hSubMenu, id, FALSE, &mii))
+        return;
+
+    WINE_TRACE("%s\n", wine_dbgstr_w(mii.dwTypeData));
+    current_app = mii.dwTypeData;
+    CheckMenuRadioItem(hSubMenu, IDM_CPANEL_APP_DEFAULT,
+        IDM_CPANEL_APPLET_BASE + panel->total_subprogs + GetMenuItemCount(hSubMenu), id, MF_BYCOMMAND);    
+
 }
 
 static LRESULT WINAPI	Control_WndProc(HWND hWnd, UINT wMsg,
@@ -488,15 +577,30 @@ static LRESULT WINAPI	Control_WndProc(HWND hWnd, UINT wMsg,
                  Control_UpdateListViewStyle(panel, LVS_REPORT, FCIDM_SHVIEW_REPORTVIEW);
                  return 0;
 
+             case IDM_CPANEL_APP_DEFAULT:
+                 Control_SetApp(hWnd, 0);
+                 return 0;
+
+             case IDM_CPANEL_APP_MANAGE: {
+                 static const WCHAR startW[] = {'s','t','a','r','t',0};
+                 static const WCHAR winecfgW[] = {'w','i','n','e','c','f','g',0};
+                 ShellExecuteW(hWnd, startW, winecfgW, NULL, NULL, SW_SHOW);                 
+                 return 0;
+                 }
+
              default:
                  /* check if this is an applet */
                  if ((LOWORD(lParam1) >= IDM_CPANEL_APPLET_BASE) &&
-                     (LOWORD(lParam1) <= IDM_CPANEL_APPLET_BASE + panel->total_subprogs))
+                     (LOWORD(lParam1) < IDM_CPANEL_APPLET_BASE + panel->total_subprogs))
                  {
                      Control_StartApplet(hWnd, Control_GetCPlItem_From_MenuID(hWnd, LOWORD(lParam1)));
                      return 0;
+                 } /* otherwise it's an app */
+                 if ((LOWORD(lParam1) >= IDM_CPANEL_APPLET_BASE + panel->total_subprogs))
+                 {
+                     Control_SetApp(hWnd, LOWORD(lParam1));
+                     return 0;
                  }
-
                  break;
          }
 

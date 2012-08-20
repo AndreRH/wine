@@ -143,6 +143,8 @@
 #define MENU_CPANEL                 200
 #define IDM_CPANEL_EXIT             201
 #define IDM_CPANEL_ABOUT            202
+#define IDM_CPANEL_APP_MANAGE       203
+#define IDM_CPANEL_APP_DEFAULT      204
 #define IDM_CPANEL_APPLET_BASE      210
 
 #define MENU_RECYCLEBIN             300

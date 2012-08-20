@@ -122,6 +122,14 @@ BEGIN
         MENUITEM "&Details", FCIDM_SHVIEW_REPORTVIEW
     END
 
+    POPUP "Per-&application settings"
+    BEGIN
+    	MENUITEM "&Manage applications", IDM_CPANEL_APP_MANAGE
+	MENUITEM SEPARATOR
+	MENUITEM "Default Settings", IDM_CPANEL_APP_DEFAULT
+	/* Registered applications go here */
+    END
+
     POPUP "&Help"
     BEGIN
         MENUITEM "&About Control Panel", IDM_CPANEL_ABOUT

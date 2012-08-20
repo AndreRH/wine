@@ -116,7 +116,7 @@ LONG CALLBACK CPlApplet(HWND hWnd, UINT command, LPARAM lParam1, LPARAM lParam2)
 			return TRUE;
 
 		case CPL_GETCOUNT:
-			return 2;
+			return 1;
 
 		case CPL_INQUIRE: {
 			CPLINFO *appletInfo = (CPLINFO *) lParam2;
