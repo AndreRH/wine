@@ -100,6 +100,7 @@ enum exec_mode_values
     MODE_DLL,
     MODE_EXE,
     MODE_DEF,
+    MODE_SPEC,
     MODE_IMPLIB,
     MODE_RESOURCES
 };
@@ -276,6 +277,7 @@ static const char usage_str[] =
 "\nMode options:\n"
 "       --dll                 Build a .c file from a .spec or .def file\n"
 "       --def                 Build a .def file from a .spec file\n"
+"       --spec                Build a .spec file from a .def file\n"
 "       --exe                 Build a .c file for an executable\n"
 "       --implib              Build an import library\n"
 "       --resources           Build a .o file for the resource files\n\n"
@@ -285,6 +287,7 @@ enum long_options_values
 {
     LONG_OPT_DLL = 1,
     LONG_OPT_DEF,
+    LONG_OPT_SPEC,
     LONG_OPT_EXE,
     LONG_OPT_IMPLIB,
     LONG_OPT_ASCMD,
@@ -307,6 +310,7 @@ static const struct option long_options[] =
 {
     { "dll",           0, 0, LONG_OPT_DLL },
     { "def",           0, 0, LONG_OPT_DEF },
+    { "spec",          0, 0, LONG_OPT_SPEC },
     { "exe",           0, 0, LONG_OPT_EXE },
     { "implib",        0, 0, LONG_OPT_IMPLIB },
     { "as-cmd",        1, 0, LONG_OPT_ASCMD },
@@ -469,6 +473,9 @@ static char **parse_options( int argc, char **argv, DLLSPEC *spec )
             break;
         case LONG_OPT_DEF:
             set_exec_mode( MODE_DEF );
+            break;
+        case LONG_OPT_SPEC:
+            set_exec_mode( MODE_SPEC );
             break;
         case LONG_OPT_EXE:
             set_exec_mode( MODE_EXE );
@@ -654,6 +661,12 @@ int main(int argc, char **argv)
         if (!spec_file_name) fatal_error( "missing .spec file\n" );
         if (!parse_input_file( spec )) break;
         output_def_file( spec, 1 );
+        break;
+    case MODE_SPEC:
+        if (!argv[0]) fatal_error( "missing .def file\n" );
+        spec_file_name = xstrdup( argv[0] );
+        if (!parse_input_file( spec )) break;
+        output_spec_file( spec );
         break;
     case MODE_IMPLIB:
         if (!spec_file_name) fatal_error( "missing .spec file\n" );

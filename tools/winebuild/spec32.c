@@ -914,3 +914,30 @@ void output_def_file( DLLSPEC *spec, int include_private )
     if (!total) warning( "%s: Import library doesn't export anything\n", spec->file_name );
     if (spec32) free_dll_spec( spec32 );
 }
+
+/*******************************************************************
+ *         output_spec_file
+ *
+ * Build a spec file from a def file.
+ */
+void output_spec_file( DLLSPEC *spec )
+{
+    const char *name;
+    int i;
+
+    for (i = 0; i < spec->nb_entry_points; i++)
+    {
+        const ORDDEF *odp = &spec->entry_points[i];
+
+        if (!odp) continue;
+
+        if (odp->name) name = odp->name;
+        else if (odp->export_name) name = odp->export_name;
+        else continue;
+
+        output( "%d stub", odp->ordinal );
+        if (!odp->name || (odp->flags & (FLAG_NONAME|FLAG_ORDINAL))) output( " -noname" );
+        if (odp->flags & FLAG_PRIVATE) output( " -private" );
+        output( " %s\n", name );
+    }
+}
