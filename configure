@@ -15751,6 +15751,7 @@ wine_fn_config_dll avifil32 enable_avifil32 implib,po
 wine_fn_config_test dlls/avifil32/tests avifil32_test
 wine_fn_config_dll avifile.dll16 enable_win16
 wine_fn_config_dll avrt enable_avrt implib
+wine_fn_config_dll aygshell enable_aygshell
 wine_fn_config_dll bcrypt enable_bcrypt
 wine_fn_config_dll browseui enable_browseui po
 wine_fn_config_test dlls/browseui/tests browseui_test
@@ -15767,9 +15768,11 @@ wine_fn_config_test dlls/comctl32/tests comctl32_test
 wine_fn_config_dll comdlg32 enable_comdlg32 implib,po
 wine_fn_config_test dlls/comdlg32/tests comdlg32_test
 wine_fn_config_dll comm.drv16 enable_win16
+wine_fn_config_dll commctrl enable_commctrl
 wine_fn_config_dll commdlg.dll16 enable_win16
 wine_fn_config_dll compobj.dll16 enable_win16
 wine_fn_config_dll compstui enable_compstui implib
+wine_fn_config_dll coredll enable_coredll
 wine_fn_config_dll credui enable_credui implib,po
 wine_fn_config_test dlls/credui/tests credui_test
 wine_fn_config_dll crtdll enable_crtdll implib
