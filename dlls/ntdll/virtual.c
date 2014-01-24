@@ -57,6 +57,7 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(virtual);
 WINE_DECLARE_DEBUG_CHANNEL(module);
+WINE_DECLARE_DEBUG_CHANNEL(ce);
 
 #ifndef MS_SYNC
 #define MS_SYNC 0
@@ -1299,6 +1300,38 @@ static NTSTATUS map_image( HANDLE hmapping, int fd, char *base, SIZE_T total_siz
         }
     }
 
+    if (nt->OptionalHeader.Subsystem == IMAGE_SUBSYSTEM_WINDOWS_CE_GUI)
+    {
+        DWORD* iptr;
+        for (iptr = (void*)((DWORD)ptr + nt->OptionalHeader.BaseOfCode); (DWORD)iptr <= (DWORD)ptr + nt->OptionalHeader.BaseOfCode + nt->OptionalHeader.SizeOfCode; iptr++)
+        {
+            if ((*iptr & 0x0f1f0000) == 0x051f0000)
+            {
+                DWORD offset = *iptr & 0x0fff;
+
+                if (!((*iptr >> 23) & 0x01))
+                    offset *= -1;
+                offset += 8 + (DWORD)iptr;
+
+                if ((*(DWORD*)offset & 0xfffff000) == 0xffffc000)
+                {
+                    DWORD *kptr = (DWORD*)offset;
+                    TRACE_(ce)("%p = 0x%08x\n", iptr, *iptr);
+                    TRACE_(ce)("           0x%08x = 0x%08x\n", offset, *kptr);
+                    switch (*kptr)
+                    {
+                        case 0xffffc80c:
+                            *kptr = (DWORD)&NtCurrentTeb()->ClientId.UniqueProcess;
+                            TRACE_(ce)("    replaced 0x%08x with 0x%08x\n", 0xffffc80c, *kptr);
+                            break;
+                        default:
+                            ERR_(ce)("kptr 0x%08x not handled yet!\n", *kptr);
+                            break;
+                    }
+                }
+            }
+        }
+    }
 
     /* perform base relocation, if necessary */
 
