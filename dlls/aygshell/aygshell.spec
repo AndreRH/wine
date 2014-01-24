@@ -3,7 +3,7 @@
 4 stub -noname SHSipInfo
 5 stub -noname IsPhoneAppWindow
 8 stub -noname SHImListPopup
-9 stub -noname SHInitExtraControls
+9 stdcall SHInitExtraControls()
 10 stub -noname SHCloseApps
 11 stub -noname GetRegisteredAppInfo
 12 stub -noname SetRegisteredAppInfo
@@ -28,13 +28,13 @@
 31 stub -noname SHHandleActivate
 32 stub -noname SHMessageBox
 33 stub -noname SHForceBaseState
-34 stub -noname SHCreateMenuBar
+34 stdcall  SHCreateMenuBar(ptr)
 35 stub -noname SHCreateWorkerWindow
 36 stub -noname SHCommandBar_GetCommandBarByID
 37 stub -noname SHCommandBar_EnableCommand
 38 stub -noname SHCommandBar_GetClientRect
 39 stub -noname SHInputDialog
-40 stub -noname SHRecognizeGesture
+40 stdcall SHRecognizeGesture(ptr)
 41 stub -noname SHCreateContextMenu
 42 stdcall -noname PathRemoveBlanks(ptr) shell32.PathRemoveBlanks
 43 stub -noname SHCreateMainWindow
@@ -50,14 +50,14 @@
 53 stub -noname SHCreateSystemFont
 54 stdcall -noname SHFillRectClr(long ptr long) shlwapi.SHFillRectClr
 55 stub -noname SHColorDisplay
-56 stub -noname SHInitDialog
+56 stdcall SHInitDialog(ptr)
 57 stub -noname SHTrackPopupMenu
 58 stub -noname SHDrawUnderline
 59 stdcall -noname SHSetWindowBits(long long long long) shlwapi.SHSetWindowBits
 62 stub -noname IsSANMessage
 63 stub -noname ?MinPowerOff@@YAHXZ
 64 stub -noname SHLoadImageResource
-65 stub -noname SHFullScreen
+65 stdcall SHFullScreen(ptr long)
 66 stub -noname ?SHMenuBar_GetMenu@@YAPAUHMENU__@@PAUHWND__@@H@Z
 67 stub -noname SHShowContextMenu
 68 stub -noname SHAnimationSequenceIsAnimating
@@ -73,7 +73,7 @@
 80 stub -noname SHNewProfileObj
 81 stub -noname SHEndProfileObj
 82 stub -noname SHRunFontManager
-83 stub -noname SHHandleWMSettingChange
+83 stdcall SHHandleWMSettingChange(ptr long long ptr)
 84 stub -noname SHHandleWMActivate
 85 stub -noname SHStartIfNeeded
 86 stub -noname SHClearStartedBit

@@ -21,11 +21,16 @@
 
 #include <stdarg.h>
 
+#include "ntstatus.h"
+#define WIN32_NO_STATUS
 #include "windows.h"
+#include "winternl.h"
+#include "wine/debug.h"
+
+WINE_DEFAULT_DEBUG_CHANNEL(aygshell);
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
-
     switch (fdwReason)
     {
         case DLL_PROCESS_ATTACH:
@@ -34,6 +39,41 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
         case DLL_PROCESS_DETACH:
             break;
     }
+    return TRUE;
+}
 
+BOOL SHCreateMenuBar(void /*SHMENUBARINFO*/ *pmb)
+{
+    FIXME("stub!\n");
+    return TRUE;
+}
+
+BOOL SHInitExtraControls(void)
+{
+    FIXME("stub!\n");
+    return TRUE;
+}
+
+BOOL SHInitDialog(void*/*PSHINITDLGINFO*/pshidi)
+{
+    FIXME("stub!\n");
+    return TRUE;
+}
+
+BOOL SHFullScreen(HWND hwndRequester, DWORD dwState)
+{
+    FIXME("stub!\n");
+    return TRUE;
+}
+
+DWORD SHRecognizeGesture(void/*SHRGINFO*/ *shrg)
+{
+    FIXME("stub!\n");
+    return 0;
+}
+
+BOOL SHHandleWMSettingChange(HWND hwnd, WPARAM wParam, LPARAM lParam, void/*SHACTIVATEINFO*/ *psai)
+{
+    FIXME("stub!\n");
     return TRUE;
 }
