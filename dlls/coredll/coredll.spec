@@ -1,38 +1,38 @@
-2 stdcall InitializeCriticalSection(ptr) kernel32.InitializeCriticalSection
-3 stdcall DeleteCriticalSection(ptr) kernel32.DeleteCriticalSection
-4 stdcall EnterCriticalSection(ptr) kernel32.EnterCriticalSection
-5 stdcall LeaveCriticalSection(ptr) kernel32.LeaveCriticalSection
-6 stdcall ExitThread(long) kernel32.ExitThread
+2 stdcall InitializeCriticalSection(ptr) WINECE_InitializeCriticalSection
+3 stdcall DeleteCriticalSection(ptr) WINECE_DeleteCriticalSection
+4 stdcall EnterCriticalSection(ptr) WINECE_EnterCriticalSection
+5 stdcall LeaveCriticalSection(ptr) WINECE_LeaveCriticalSection
+6 stdcall ExitThread(long) WINECE_ExitThread
 7 stub -noname PSLNotify
 8 stub -noname InitLocale
 9 stub -noname InterlockedTestExchange
-10 stdcall -arch=i386 InterlockedIncrement(ptr) kernel32.InterlockedIncrement
-11 stdcall -arch=i386 InterlockedDecrement(ptr) kernel32.InterlockedDecrement
-12 stdcall -arch=i386 InterlockedExchange(ptr long) kernel32.InterlockedExchange
+10 stdcall -arch=i386 InterlockedIncrement(ptr) WINECE_InterlockedIncrement
+11 stdcall -arch=i386 InterlockedDecrement(ptr) WINECE_InterlockedDecrement
+12 stdcall -arch=i386 InterlockedExchange(ptr long) WINECE_InterlockedExchange
 13 stub -noname ThreadBaseFunc
 14 stub -noname MainThreadBaseFunc
-15 stdcall TlsGetValue(long) kernel32.TlsGetValue
-16 stdcall TlsSetValue(long ptr) kernel32.TlsSetValue
+15 stdcall TlsGetValue(long) WINECE_TlsGetValue
+16 stdcall TlsSetValue(long ptr) WINECE_TlsSetValue
 17 stub -noname GetVersionEx
-18 stdcall CompareFileTime(ptr ptr) kernel32.CompareFileTime
-19 stdcall SystemTimeToFileTime(ptr ptr) kernel32.SystemTimeToFileTime
-20 stdcall FileTimeToSystemTime(ptr ptr) kernel32.FileTimeToSystemTime
-21 stdcall FileTimeToLocalFileTime(ptr ptr) kernel32.FileTimeToLocalFileTime
-22 stdcall LocalFileTimeToFileTime(ptr ptr) kernel32.LocalFileTimeToFileTime
-23 stdcall GetLocalTime(ptr) kernel32.GetLocalTime
-24 stdcall SetLocalTime(ptr) kernel32.SetLocalTime
-25 stdcall GetSystemTime(ptr) kernel32.GetSystemTime
-26 stdcall SetSystemTime(ptr) kernel32.SetSystemTime
-27 stdcall GetTimeZoneInformation(ptr) kernel32.GetTimeZoneInformation
-28 stdcall SetTimeZoneInformation(ptr) kernel32.SetTimeZoneInformation
+18 stdcall CompareFileTime(ptr ptr) WINECE_CompareFileTime
+19 stdcall SystemTimeToFileTime(ptr ptr) WINECE_SystemTimeToFileTime
+20 stdcall FileTimeToSystemTime(ptr ptr) WINECE_FileTimeToSystemTime
+21 stdcall FileTimeToLocalFileTime(ptr ptr) WINECE_FileTimeToLocalFileTime
+22 stdcall LocalFileTimeToFileTime(ptr ptr) WINECE_LocalFileTimeToFileTime
+23 stdcall GetLocalTime(ptr) WINECE_GetLocalTime
+24 stdcall SetLocalTime(ptr) WINECE_SetLocalTime
+25 stdcall GetSystemTime(ptr) WINECE_GetSystemTime
+26 stdcall SetSystemTime(ptr) WINECE_SetSystemTime
+27 stdcall GetTimeZoneInformation(ptr) WINECE_GetTimeZoneInformation
+28 stdcall SetTimeZoneInformation(ptr) WINECE_SetTimeZoneInformation
 29 stub -noname GetCurrentFT
 30 stub -noname IsAPIReady
-31 cdecl memchr(ptr long long) msvcrt.memchr
+31 cdecl memchr(ptr long long) WINECE_memchr
 32 stub -noname GetAPIAddress
-33 stdcall LocalAlloc(long long) kernel32.LocalAlloc
-34 stdcall LocalReAlloc(long long long) kernel32.LocalReAlloc
-35 stdcall LocalSize(long) kernel32.LocalSize
-36 stdcall LocalFree(long) kernel32.LocalFree
+33 stdcall LocalAlloc(long long) WINECE_LocalAlloc
+34 stdcall LocalReAlloc(long long long) WINECE_LocalReAlloc
+35 stdcall LocalSize(long) WINECE_LocalSize
+36 stdcall LocalFree(long) WINECE_LocalFree
 37 stub -noname RemoteLocalAlloc
 38 stub -noname RemoteLocalReAlloc
 39 stub -noname RemoteLocalSize
@@ -40,85 +40,85 @@
 41 stub -noname LocalAllocInProcess
 42 stub -noname LocalFreeInProcess
 43 stub -noname LocalSizeInProcess
-44 stdcall HeapCreate(long long long) kernel32.HeapCreate
-45 stdcall HeapDestroy(long) kernel32.HeapDestroy
-46 stdcall HeapAlloc(long long long) kernel32.HeapAlloc
-47 stdcall HeapReAlloc(long long ptr long) kernel32.HeapReAlloc
-48 stdcall HeapSize(long long ptr) kernel32.HeapSize
-49 stdcall HeapFree(long long long) kernel32.HeapFree
-50 stdcall GetProcessHeap() kernel32.GetProcessHeap
-51 stdcall HeapValidate(long long ptr) kernel32.HeapValidate
+44 stdcall HeapCreate(long long long) WINECE_HeapCreate
+45 stdcall HeapDestroy(long) WINECE_HeapDestroy
+46 stdcall HeapAlloc(long long long) WINECE_HeapAlloc
+47 stdcall HeapReAlloc(long long ptr long) WINECE_HeapReAlloc
+48 stdcall HeapSize(long long ptr) WINECE_HeapSize
+49 stdcall HeapFree(long long long) WINECE_HeapFree
+50 stdcall GetProcessHeap() WINECE_GetProcessHeap
+51 stdcall HeapValidate(long long ptr) WINECE_HeapValidate
 52 stub -noname GetHeapSnapshot
 53 stub -noname CeModuleJit
 54 stub -noname CompactAllHeaps
 55 stub LocalAllocTrace
 56 varargs wsprintfW(wstr wstr) user32.wsprintfW
-57 stdcall wvsprintfW(ptr wstr ptr) user32.wvsprintfW
-58 cdecl wcscat(wstr wstr) msvcrt.wcscat
-59 cdecl wcschr(wstr long) msvcrt.wcschr
-60 cdecl wcscmp(wstr wstr) msvcrt.wcscmp
-61 cdecl wcscpy(ptr wstr) msvcrt.wcscpy
-62 cdecl wcscspn(wstr wstr) msvcrt.wcscspn
-63 cdecl wcslen(wstr) msvcrt.wcslen
-64 cdecl wcsncat(wstr wstr long) msvcrt.wcsncat
-65 cdecl wcsncmp(wstr wstr long) msvcrt.wcsncmp
-66 cdecl wcsncpy(ptr wstr long) msvcrt.wcsncpy
-67 cdecl _wcsnset(wstr long long) msvcrt._wcsnset
-68 cdecl wcspbrk(wstr wstr) msvcrt.wcspbrk
-69 cdecl wcsrchr(wstr long) msvcrt.wcsrchr
-70 cdecl _wcsrev(wstr) msvcrt._wcsrev
-71 cdecl _wcsset(wstr long) msvcrt._wcsset
-72 cdecl wcsspn(wstr wstr) msvcrt.wcsspn
-73 cdecl wcsstr(wstr wstr) msvcrt.wcsstr
-74 cdecl _wcsdup(wstr) msvcrt._wcsdup
-75 cdecl wcstombs(ptr ptr long) msvcrt.wcstombs
-76 cdecl mbstowcs(ptr str long) msvcrt.mbstowcs
-77 cdecl wcstok(wstr wstr) msvcrt.wcstok
-78 cdecl _wtol(wstr) msvcrt._wtol
+57 stdcall wvsprintfW(ptr wstr ptr) WINECE_wvsprintfW
+58 cdecl wcscat(wstr wstr) WINECE_wcscat
+59 cdecl wcschr(wstr long) WINECE_wcschr
+60 cdecl wcscmp(wstr wstr) WINECE_wcscmp
+61 cdecl wcscpy(ptr wstr) WINECE_wcscpy
+62 cdecl wcscspn(wstr wstr) WINECE_wcscspn
+63 cdecl wcslen(wstr) WINECE_wcslen
+64 cdecl wcsncat(wstr wstr long) WINECE_wcsncat
+65 cdecl wcsncmp(wstr wstr long) WINECE_wcsncmp
+66 cdecl wcsncpy(ptr wstr long) WINECE_wcsncpy
+67 cdecl _wcsnset(wstr long long) WINECE__wcsnset
+68 cdecl wcspbrk(wstr wstr) WINECE_wcspbrk
+69 cdecl wcsrchr(wstr long) WINECE_wcsrchr
+70 cdecl _wcsrev(wstr) WINECE__wcsrev
+71 cdecl _wcsset(wstr long) WINECE__wcsset
+72 cdecl wcsspn(wstr wstr) WINECE_wcsspn
+73 cdecl wcsstr(wstr wstr) WINECE_wcsstr
+74 cdecl _wcsdup(wstr) WINECE__wcsdup
+75 cdecl wcstombs(ptr ptr long) WINECE_wcstombs
+76 cdecl mbstowcs(ptr str long) WINECE_mbstowcs
+77 cdecl wcstok(wstr wstr) WINECE_wcstok
+78 cdecl _wtol(wstr) WINECE__wtol
 79 stub -noname _wtoll
 80 stub -noname Random
 82 stub -noname ProfileStart
 83 stub -noname ProfileStop
 87 stub -noname __C_specific_handler(ptr long ptr ptr)
-88 stdcall GlobalMemoryStatus(ptr) kernel32.GlobalMemoryStatus
-89 stdcall SystemParametersInfoW(long long ptr long) user32.SystemParametersInfoW
-90 stdcall CreateDIBSection(long ptr long ptr long long) gdi32.CreateDIBSection
-91 stdcall EqualRgn(long long) gdi32.EqualRgn
-92 stdcall CreateAcceleratorTableW(ptr long) user32.CreateAcceleratorTableW
-93 stdcall DestroyAcceleratorTable(long) user32.DestroyAcceleratorTable
-94 stdcall LoadAcceleratorsW(long wstr) user32.LoadAcceleratorsW
-95 stdcall RegisterClassW(ptr) user32.RegisterClassW
-96 stdcall CopyRect(ptr ptr) user32.CopyRect
-97 stdcall EqualRect(ptr ptr) user32.EqualRect
-98 stdcall InflateRect(ptr long long) user32.InflateRect
-99 stdcall IntersectRect(ptr ptr ptr) user32.IntersectRect
-100 stdcall IsRectEmpty(ptr) user32.IsRectEmpty
-101 stdcall OffsetRect(ptr long long) user32.OffsetRect
-102 stdcall PtInRect(ptr int64) user32.PtInRect
-103 stdcall SetRect(ptr long long long long) user32.SetRect
-104 stdcall SetRectEmpty(ptr) user32.SetRectEmpty
-105 stdcall SubtractRect(ptr ptr ptr) user32.SubtractRect
-106 stdcall UnionRect(ptr ptr ptr) user32.UnionRect
-107 stdcall ClearCommBreak(long) kernel32.ClearCommBreak
-108 stdcall ClearCommError(long ptr ptr) kernel32.ClearCommError
-109 stdcall EscapeCommFunction(long long) kernel32.EscapeCommFunction
-110 stdcall GetCommMask(long ptr) kernel32.GetCommMask
-111 stdcall GetCommModemStatus(long ptr) kernel32.GetCommModemStatus
-112 stdcall GetCommProperties(long ptr) kernel32.GetCommProperties
-113 stdcall GetCommState(long ptr) kernel32.GetCommState
-114 stdcall GetCommTimeouts(long ptr) kernel32.GetCommTimeouts
-115 stdcall PurgeComm(long long) kernel32.PurgeComm
-116 stdcall SetCommBreak(long) kernel32.SetCommBreak
-117 stdcall SetCommMask(long ptr) kernel32.SetCommMask
-118 stdcall SetCommState(long ptr) kernel32.SetCommState
-119 stdcall SetCommTimeouts(long ptr) kernel32.SetCommTimeouts
-120 stdcall SetupComm(long long long) kernel32.SetupComm
-121 stdcall TransmitCommChar(long long) kernel32.TransmitCommChar
-122 stdcall WaitCommEvent(long ptr ptr) kernel32.WaitCommEvent
+88 stdcall GlobalMemoryStatus(ptr) WINECE_GlobalMemoryStatus
+89 stdcall SystemParametersInfoW(long long ptr long) WINECE_SystemParametersInfoW
+90 stdcall CreateDIBSection(long ptr long ptr long long) WINECE_CreateDIBSection
+91 stdcall EqualRgn(long long) WINECE_EqualRgn
+92 stdcall CreateAcceleratorTableW(ptr long) WINECE_CreateAcceleratorTableW
+93 stdcall DestroyAcceleratorTable(long) WINECE_DestroyAcceleratorTable
+94 stdcall LoadAcceleratorsW(long wstr) WINECE_LoadAcceleratorsW
+95 stdcall RegisterClassW(ptr) WINECE_RegisterClassW
+96 stdcall CopyRect(ptr ptr) WINECE_CopyRect
+97 stdcall EqualRect(ptr ptr) WINECE_EqualRect
+98 stdcall InflateRect(ptr long long) WINECE_InflateRect
+99 stdcall IntersectRect(ptr ptr ptr) WINECE_IntersectRect
+100 stdcall IsRectEmpty(ptr) WINECE_IsRectEmpty
+101 stdcall OffsetRect(ptr long long) WINECE_OffsetRect
+102 stdcall PtInRect(ptr int64) WINECE_PtInRect
+103 stdcall SetRect(ptr long long long long) WINECE_SetRect
+104 stdcall SetRectEmpty(ptr) WINECE_SetRectEmpty
+105 stdcall SubtractRect(ptr ptr ptr) WINECE_SubtractRect
+106 stdcall UnionRect(ptr ptr ptr) WINECE_UnionRect
+107 stdcall ClearCommBreak(long) WINECE_ClearCommBreak
+108 stdcall ClearCommError(long ptr ptr) WINECE_ClearCommError
+109 stdcall EscapeCommFunction(long long) WINECE_EscapeCommFunction
+110 stdcall GetCommMask(long ptr) WINECE_GetCommMask
+111 stdcall GetCommModemStatus(long ptr) WINECE_GetCommModemStatus
+112 stdcall GetCommProperties(long ptr) WINECE_GetCommProperties
+113 stdcall GetCommState(long ptr) WINECE_GetCommState
+114 stdcall GetCommTimeouts(long ptr) WINECE_GetCommTimeouts
+115 stdcall PurgeComm(long long) WINECE_PurgeComm
+116 stdcall SetCommBreak(long) WINECE_SetCommBreak
+117 stdcall SetCommMask(long ptr) WINECE_SetCommMask
+118 stdcall SetCommState(long ptr) WINECE_SetCommState
+119 stdcall SetCommTimeouts(long ptr) WINECE_SetCommTimeouts
+120 stdcall SetupComm(long long long) WINECE_SetupComm
+121 stdcall TransmitCommChar(long long) WINECE_TransmitCommChar
+122 stdcall WaitCommEvent(long ptr ptr) WINECE_WaitCommEvent
 123 stub -noname EnumPnpIds
 124 stub -noname EnumDevices
 125 stub -noname GetDeviceKeys
-126 stdcall CryptAcquireContextW(ptr wstr wstr long long) unicows.CryptAcquireContextW
+126 stdcall CryptAcquireContextW(ptr wstr wstr long long) WINECE_CryptAcquireContextW
 127 stub -noname CryptReleaseContext
 128 stub -noname CryptGenKey
 129 stub -noname CryptDeriveKey
@@ -133,100 +133,100 @@
 138 stub -noname CryptHashSessionKey
 139 stub -noname CryptHashData
 140 stub -noname CryptDestroyHash
-141 stdcall CryptSignHashW(long long ptr long ptr ptr) unicows.CryptSignHashW
-142 stdcall CryptVerifySignatureW(long ptr long long ptr long) unicows.CryptVerifySignatureW
+141 stdcall CryptSignHashW(long long ptr long ptr ptr) WINECE_CryptSignHashW
+142 stdcall CryptVerifySignatureW(long ptr long long ptr long) WINECE_CryptVerifySignatureW
 143 stub -noname CryptGenRandom
 144 stub -noname CryptGetUserKey
-145 stdcall CryptSetProviderW(wstr long) unicows.CryptSetProviderW
+145 stdcall CryptSetProviderW(wstr long) WINECE_CryptSetProviderW
 146 stub -noname CryptGetHashParam
 147 stub -noname CryptSetHashParam
 148 stub -noname CryptGetProvParam
 149 stub -noname CryptSetProvParam
-150 stdcall CryptSetProviderExW(wstr long ptr long) unicows.CryptSetProviderExW
-151 stdcall CryptGetDefaultProviderW(long ptr long ptr ptr) unicows.CryptGetDefaultProviderW
-152 stdcall CryptEnumProviderTypesW(long ptr long ptr ptr ptr) unicows.CryptEnumProviderTypesW
-153 stdcall CryptEnumProvidersW(long ptr long ptr ptr ptr) unicows.CryptEnumProvidersW
+150 stdcall CryptSetProviderExW(wstr long ptr long) WINECE_CryptSetProviderExW
+151 stdcall CryptGetDefaultProviderW(long ptr long ptr ptr) WINECE_CryptGetDefaultProviderW
+152 stdcall CryptEnumProviderTypesW(long ptr long ptr ptr ptr) WINECE_CryptEnumProviderTypesW
+153 stdcall CryptEnumProvidersW(long ptr long ptr ptr ptr) WINECE_CryptEnumProvidersW
 154 stub -noname CryptContextAddRef
 155 stub -noname CryptDuplicateKey
 156 stub -noname CryptDuplicateHash
 157 stub -noname AttachDebugger
 158 stub -noname SetInterruptEvent
 159 stub -noname IsExiting
-160 stdcall CreateDirectoryW(wstr ptr) kernel32.CreateDirectoryW
-161 stdcall RemoveDirectoryW(wstr) kernel32.RemoveDirectoryW
-162 stdcall GetTempPathW(long ptr) kernel32.GetTempPathW
-163 stdcall MoveFileW(wstr wstr) kernel32.MoveFileW
-164 stdcall CopyFileW(wstr wstr long) kernel32.CopyFileW
-165 stdcall DeleteFileW(wstr) kernel32.DeleteFileW
-166 stdcall GetFileAttributesW(wstr) kernel32.GetFileAttributesW
-167 stdcall FindFirstFileW(wstr ptr) kernel32.FindFirstFileW
-168 stdcall CreateFileW(wstr long long ptr long long long) kernel32.CreateFileW
-169 stdcall SetFileAttributesW(wstr long) kernel32.SetFileAttributesW
-170 stdcall ReadFile(long ptr long ptr ptr) kernel32.ReadFile
-171 stdcall WriteFile(long ptr long ptr ptr) kernel32.WriteFile
-172 stdcall GetFileSize(long ptr) kernel32.GetFileSize
-173 stdcall SetFilePointer(long long ptr long) kernel32.SetFilePointer
-174 stdcall GetFileInformationByHandle(long ptr) kernel32.GetFileInformationByHandle
-175 stdcall FlushFileBuffers(long) kernel32.FlushFileBuffers
-176 stdcall GetFileTime(long ptr ptr ptr) kernel32.GetFileTime
-177 stdcall SetFileTime(long ptr ptr ptr) kernel32.SetFileTime
-178 stdcall SetEndOfFile(long) kernel32.SetEndOfFile
-179 stdcall DeviceIoControl(long long ptr long ptr long ptr ptr) kernel32.DeviceIoControl
-180 stdcall FindClose(long) kernel32.FindClose
-181 stdcall FindNextFileW(long ptr) kernel32.FindNextFileW
+160 stdcall CreateDirectoryW(wstr ptr) WINECE_CreateDirectoryW
+161 stdcall RemoveDirectoryW(wstr) WINECE_RemoveDirectoryW
+162 stdcall GetTempPathW(long ptr) WINECE_GetTempPathW
+163 stdcall MoveFileW(wstr wstr) WINECE_MoveFileW
+164 stdcall CopyFileW(wstr wstr long) WINECE_CopyFileW
+165 stdcall DeleteFileW(wstr) WINECE_DeleteFileW
+166 stdcall GetFileAttributesW(wstr) WINECE_GetFileAttributesW
+167 stdcall FindFirstFileW(wstr ptr) WINECE_FindFirstFileW
+168 stdcall CreateFileW(wstr long long ptr long long long) WINECE_CreateFileW
+169 stdcall SetFileAttributesW(wstr long) WINECE_SetFileAttributesW
+170 stdcall ReadFile(long ptr long ptr ptr) WINECE_ReadFile
+171 stdcall WriteFile(long ptr long ptr ptr) WINECE_WriteFile
+172 stdcall GetFileSize(long ptr) WINECE_GetFileSize
+173 stdcall SetFilePointer(long long ptr long) WINECE_SetFilePointer
+174 stdcall GetFileInformationByHandle(long ptr) WINECE_GetFileInformationByHandle
+175 stdcall FlushFileBuffers(long) WINECE_FlushFileBuffers
+176 stdcall GetFileTime(long ptr ptr ptr) WINECE_GetFileTime
+177 stdcall SetFileTime(long ptr ptr ptr) WINECE_SetFileTime
+178 stdcall SetEndOfFile(long) WINECE_SetEndOfFile
+179 stdcall DeviceIoControl(long long ptr long ptr long ptr ptr) WINECE_DeviceIoControl
+180 stdcall FindClose(long) WINECE_FindClose
+181 stdcall FindNextFileW(long ptr) WINECE_FindNextFileW
 182 stub -noname CheckPassword
 183 stub -noname DeleteAndRenameFile
-184 stdcall GetDiskFreeSpaceExW(wstr ptr ptr ptr) kernel32.GetDiskFreeSpaceExW
-185 stdcall IsValidCodePage(long) kernel32.IsValidCodePage
-186 stdcall GetACP() kernel32.GetACP
-187 stdcall GetOEMCP() kernel32.GetOEMCP
-188 stdcall GetCPInfo(long ptr) kernel32.GetCPInfo
+184 stdcall GetDiskFreeSpaceExW(wstr ptr ptr ptr) WINECE_GetDiskFreeSpaceExW
+185 stdcall IsValidCodePage(long) WINECE_IsValidCodePage
+186 stdcall GetACP() WINECE_GetACP
+187 stdcall GetOEMCP() WINECE_GetOEMCP
+188 stdcall GetCPInfo(long ptr) WINECE_GetCPInfo
 189 stub -noname SetACP
 190 stub -noname SetOEMCP
-191 stdcall IsDBCSLeadByte(long) kernel32.IsDBCSLeadByte
-192 stdcall IsDBCSLeadByteEx(long long) kernel32.IsDBCSLeadByteEx
-193 cdecl iswctype(long long) msvcrt.iswctype
-194 cdecl towlower(long) msvcrt.towlower
-195 cdecl towupper(long) msvcrt.towupper
-196 stdcall MultiByteToWideChar(long long str long ptr long) kernel32.MultiByteToWideChar
-197 stdcall WideCharToMultiByte(long long wstr long ptr long ptr ptr) kernel32.WideCharToMultiByte
-198 stdcall CompareStringW(long long wstr long wstr long) kernel32.CompareStringW
-199 stdcall LCMapStringW(long long wstr long ptr long) kernel32.LCMapStringW
-200 stdcall GetLocaleInfoW(long long ptr long) kernel32.GetLocaleInfoW
-201 stdcall SetLocaleInfoW(long long wstr) kernel32.SetLocaleInfoW
-202 stdcall GetTimeFormatW(long long ptr wstr ptr long) kernel32.GetTimeFormatW
-203 stdcall GetDateFormatW(long long ptr wstr ptr long) kernel32.GetDateFormatW
-204 stdcall GetNumberFormatW(long long wstr ptr ptr long) kernel32.GetNumberFormatW
-205 stdcall GetCurrencyFormatW(long long str ptr str long) kernel32.GetCurrencyFormatW
-206 stdcall EnumCalendarInfoW(ptr long long long) kernel32.EnumCalendarInfoW
-207 stdcall EnumTimeFormatsW(ptr long long) kernel32.EnumTimeFormatsW
-208 stdcall EnumDateFormatsW(ptr long long) kernel32.EnumDateFormatsW
-209 stdcall IsValidLocale(long long) kernel32.IsValidLocale
-210 stdcall ConvertDefaultLocale(long) kernel32.ConvertDefaultLocale
-211 stdcall GetSystemDefaultLangID() kernel32.GetSystemDefaultLangID
-212 stdcall GetUserDefaultLangID() kernel32.GetUserDefaultLangID
-213 stdcall GetSystemDefaultLCID() kernel32.GetSystemDefaultLCID
+191 stdcall IsDBCSLeadByte(long) WINECE_IsDBCSLeadByte
+192 stdcall IsDBCSLeadByteEx(long long) WINECE_IsDBCSLeadByteEx
+193 cdecl iswctype(long long) WINECE_iswctype
+194 cdecl towlower(long) WINECE_towlower
+195 cdecl towupper(long) WINECE_towupper
+196 stdcall MultiByteToWideChar(long long str long ptr long) WINECE_MultiByteToWideChar
+197 stdcall WideCharToMultiByte(long long wstr long ptr long ptr ptr) WINECE_WideCharToMultiByte
+198 stdcall CompareStringW(long long wstr long wstr long) WINECE_CompareStringW
+199 stdcall LCMapStringW(long long wstr long ptr long) WINECE_LCMapStringW
+200 stdcall GetLocaleInfoW(long long ptr long) WINECE_GetLocaleInfoW
+201 stdcall SetLocaleInfoW(long long wstr) WINECE_SetLocaleInfoW
+202 stdcall GetTimeFormatW(long long ptr wstr ptr long) WINECE_GetTimeFormatW
+203 stdcall GetDateFormatW(long long ptr wstr ptr long) WINECE_GetDateFormatW
+204 stdcall GetNumberFormatW(long long wstr ptr ptr long) WINECE_GetNumberFormatW
+205 stdcall GetCurrencyFormatW(long long str ptr str long) WINECE_GetCurrencyFormatW
+206 stdcall EnumCalendarInfoW(ptr long long long) WINECE_EnumCalendarInfoW
+207 stdcall EnumTimeFormatsW(ptr long long) WINECE_EnumTimeFormatsW
+208 stdcall EnumDateFormatsW(ptr long long) WINECE_EnumDateFormatsW
+209 stdcall IsValidLocale(long long) WINECE_IsValidLocale
+210 stdcall ConvertDefaultLocale(long) WINECE_ConvertDefaultLocale
+211 stdcall GetSystemDefaultLangID() WINECE_GetSystemDefaultLangID
+212 stdcall GetUserDefaultLangID() WINECE_GetUserDefaultLangID
+213 stdcall GetSystemDefaultLCID() WINECE_GetSystemDefaultLCID
 214 stub -noname SetSystemDefaultLCID
-215 stdcall GetUserDefaultLCID() kernel32.GetUserDefaultLCID
-216 stdcall GetStringTypeW(long wstr long ptr) kernel32.GetStringTypeW
-217 stdcall GetStringTypeExW(long long wstr long ptr) kernel32.GetStringTypeExW
-218 stdcall FoldStringW(long wstr long ptr long) kernel32.FoldStringW
-219 stdcall EnumSystemLocalesW(ptr long) kernel32.EnumSystemLocalesW
-220 stdcall EnumSystemCodePagesW(ptr long) kernel32.EnumSystemCodePagesW
-221 stdcall CharLowerW(wstr) user32.CharLowerW
-222 stdcall CharLowerBuffW(wstr long) user32.CharLowerBuffW
-223 stdcall CharUpperBuffW(wstr long) user32.CharUpperBuffW
-224 stdcall CharUpperW(wstr) user32.CharUpperW
-225 stdcall CharPrevW(wstr wstr) user32.CharPrevW
-226 stdcall CharNextW(wstr) user32.CharNextW
-227 stdcall lstrcmpW(wstr wstr) kernel32.lstrcmpW
-228 stdcall lstrcmpiW(wstr wstr) kernel32.lstrcmpiW
-229 cdecl _wcsnicmp(wstr wstr long) msvcrt._wcsnicmp
-230 cdecl _wcsicmp(wstr wstr) msvcrt._wcsicmp
-231 cdecl _wcslwr(wstr) msvcrt._wcslwr
-232 cdecl _wcsupr(wstr) msvcrt._wcsupr
+215 stdcall GetUserDefaultLCID() WINECE_GetUserDefaultLCID
+216 stdcall GetStringTypeW(long wstr long ptr) WINECE_GetStringTypeW
+217 stdcall GetStringTypeExW(long long wstr long ptr) WINECE_GetStringTypeExW
+218 stdcall FoldStringW(long wstr long ptr long) WINECE_FoldStringW
+219 stdcall EnumSystemLocalesW(ptr long) WINECE_EnumSystemLocalesW
+220 stdcall EnumSystemCodePagesW(ptr long) WINECE_EnumSystemCodePagesW
+221 stdcall CharLowerW(wstr) WINECE_CharLowerW
+222 stdcall CharLowerBuffW(wstr long) WINECE_CharLowerBuffW
+223 stdcall CharUpperBuffW(wstr long) WINECE_CharUpperBuffW
+224 stdcall CharUpperW(wstr) WINECE_CharUpperW
+225 stdcall CharPrevW(wstr wstr) WINECE_CharPrevW
+226 stdcall CharNextW(wstr) WINECE_CharNextW
+227 stdcall lstrcmpW(wstr wstr) WINECE_lstrcmpW
+228 stdcall lstrcmpiW(wstr wstr) WINECE_lstrcmpiW
+229 cdecl _wcsnicmp(wstr wstr long) WINECE__wcsnicmp
+230 cdecl _wcsicmp(wstr wstr) WINECE__wcsicmp
+231 cdecl _wcslwr(wstr) WINECE__wcslwr
+232 cdecl _wcsupr(wstr) WINECE__wcsupr
 233 stub -noname DBCanonicalize
-234 stdcall FormatMessageW(long ptr long long ptr long ptr) kernel32.FormatMessageW
+234 stdcall FormatMessageW(long ptr long long ptr long ptr) WINECE_FormatMessageW
 235 stub -noname RegisterDevice
 236 stub -noname DeregisterDevice
 237 stub -noname LoadFSD
@@ -237,53 +237,53 @@
 242 stub -noname CloseAllFileHandles
 243 stub -noname ReadFileWithSeek
 245 stub -noname CreateDeviceHandle
-246 stdcall CreateWindowExW(long wstr wstr long long long long long long long long ptr) user32.CreateWindowExW
-247 stdcall SetWindowPos(long long long long long long long) user32.SetWindowPos
-248 stdcall GetWindowRect(long ptr) user32.GetWindowRect
-249 stdcall GetClientRect(long long) user32.GetClientRect
-250 stdcall InvalidateRect(long ptr long) user32.InvalidateRect
-251 stdcall GetWindow(long long) user32.GetWindow
-252 stdcall WindowFromPoint(int64) user32.WindowFromPoint
-253 stdcall ChildWindowFromPoint(long int64) user32.ChildWindowFromPoint
-254 stdcall ClientToScreen(long ptr) user32.ClientToScreen
-255 stdcall ScreenToClient(long ptr) user32.ScreenToClient
-256 stdcall SetWindowTextW(long wstr) user32.SetWindowTextW
-257 stdcall GetWindowTextW(long ptr long) user32.GetWindowTextW
-258 stdcall SetWindowLongW(long long long) user32.SetWindowLongW
-259 stdcall GetWindowLongW(long long) user32.GetWindowLongW
-260 stdcall BeginPaint(long ptr) user32.BeginPaint
-261 stdcall EndPaint(long ptr) user32.EndPaint
-262 stdcall GetDC(long) user32.GetDC
-263 stdcall ReleaseDC(long long) user32.ReleaseDC
-264 stdcall -register DefWindowProcW(long long long long) user32.DefWindowProcW
-265 stdcall DestroyWindow(long) user32.DestroyWindow
-266 stdcall ShowWindow(long long) user32.ShowWindow
-267 stdcall UpdateWindow(long) user32.UpdateWindow
-268 stdcall SetParent(long long) user32.SetParent
-269 stdcall GetParent(long) user32.GetParent
-270 stdcall GetWindowDC(long) user32.GetWindowDC
-271 stdcall IsWindow(long) user32.IsWindow
-272 stdcall MoveWindow(long long long long long long) user32.MoveWindow
-273 stdcall GetUpdateRgn(long long long) user32.GetUpdateRgn
-274 stdcall GetUpdateRect(long ptr long) user32.GetUpdateRect
-275 stdcall BringWindowToTop(long) user32.BringWindowToTop
-276 stdcall GetWindowTextLengthW(long) user32.GetWindowTextLengthW
-277 stdcall IsChild(long long) user32.IsChild
-278 stdcall ValidateRect(long ptr) user32.ValidateRect
-279 stdcall SetScrollInfo(long long ptr long) user32.SetScrollInfo
-280 stdcall SetScrollPos(long long long long) user32.SetScrollPos
-281 stdcall SetScrollRange(long long long long long) user32.SetScrollRange
-282 stdcall GetScrollInfo(long long ptr) user32.GetScrollInfo
-283 stdcall GetClassNameW(long ptr long) user32.GetClassNameW
-284 stdcall MapWindowPoints(long long ptr long) user32.MapWindowPoints
-285 stdcall CallWindowProcW(ptr long long long long) user32.CallWindowProcW
-286 stdcall FindWindowW(wstr wstr) user32.FindWindowW
-287 stdcall EnableWindow(long long) user32.EnableWindow
-288 stdcall IsWindowEnabled(long) user32.IsWindowEnabled
-289 stdcall ScrollWindowEx(long long long ptr ptr long ptr long) user32.ScrollWindowEx
-290 stdcall PostThreadMessageW(long long long long) user32.PostThreadMessageW
-291 stdcall EnumWindows(ptr long) user32.EnumWindows
-292 stdcall GetWindowThreadProcessId(long ptr) user32.GetWindowThreadProcessId
+246 stdcall CreateWindowExW(long wstr wstr long long long long long long long long ptr) WINECE_CreateWindowExW
+247 stdcall SetWindowPos(long long long long long long long) WINECE_SetWindowPos
+248 stdcall GetWindowRect(long ptr) WINECE_GetWindowRect
+249 stdcall GetClientRect(long long) WINECE_GetClientRect
+250 stdcall InvalidateRect(long ptr long) WINECE_InvalidateRect
+251 stdcall GetWindow(long long) WINECE_GetWindow
+252 stdcall WindowFromPoint(int64) WINECE_WindowFromPoint
+253 stdcall ChildWindowFromPoint(long int64) WINECE_ChildWindowFromPoint
+254 stdcall ClientToScreen(long ptr) WINECE_ClientToScreen
+255 stdcall ScreenToClient(long ptr) WINECE_ScreenToClient
+256 stdcall SetWindowTextW(long wstr) WINECE_SetWindowTextW
+257 stdcall GetWindowTextW(long ptr long) WINECE_GetWindowTextW
+258 stdcall SetWindowLongW(long long long) WINECE_SetWindowLongW
+259 stdcall GetWindowLongW(long long) WINECE_GetWindowLongW
+260 stdcall BeginPaint(long ptr) WINECE_BeginPaint
+261 stdcall EndPaint(long ptr) WINECE_EndPaint
+262 stdcall GetDC(long) WINECE_GetDC
+263 stdcall ReleaseDC(long long) WINECE_ReleaseDC
+264 stdcall -register DefWindowProcW(long long long long) WINECE_DefWindowProcW
+265 stdcall DestroyWindow(long) WINECE_DestroyWindow
+266 stdcall ShowWindow(long long) WINECE_ShowWindow
+267 stdcall UpdateWindow(long) WINECE_UpdateWindow
+268 stdcall SetParent(long long) WINECE_SetParent
+269 stdcall GetParent(long) WINECE_GetParent
+270 stdcall GetWindowDC(long) WINECE_GetWindowDC
+271 stdcall IsWindow(long) WINECE_IsWindow
+272 stdcall MoveWindow(long long long long long long) WINECE_MoveWindow
+273 stdcall GetUpdateRgn(long long long) WINECE_GetUpdateRgn
+274 stdcall GetUpdateRect(long ptr long) WINECE_GetUpdateRect
+275 stdcall BringWindowToTop(long) WINECE_BringWindowToTop
+276 stdcall GetWindowTextLengthW(long) WINECE_GetWindowTextLengthW
+277 stdcall IsChild(long long) WINECE_IsChild
+278 stdcall ValidateRect(long ptr) WINECE_ValidateRect
+279 stdcall SetScrollInfo(long long ptr long) WINECE_SetScrollInfo
+280 stdcall SetScrollPos(long long long long) WINECE_SetScrollPos
+281 stdcall SetScrollRange(long long long long long) WINECE_SetScrollRange
+282 stdcall GetScrollInfo(long long ptr) WINECE_GetScrollInfo
+283 stdcall GetClassNameW(long ptr long) WINECE_GetClassNameW
+284 stdcall MapWindowPoints(long long ptr long) WINECE_MapWindowPoints
+285 stdcall CallWindowProcW(ptr long long long long) WINECE_CallWindowProcW
+286 stdcall FindWindowW(wstr wstr) WINECE_FindWindowW
+287 stdcall EnableWindow(long long) WINECE_EnableWindow
+288 stdcall IsWindowEnabled(long) WINECE_IsWindowEnabled
+289 stdcall ScrollWindowEx(long long long ptr ptr long ptr long) WINECE_ScrollWindowEx
+290 stdcall PostThreadMessageW(long long long long) WINECE_PostThreadMessageW
+291 stdcall EnumWindows(ptr long) WINECE_EnumWindows
+292 stdcall GetWindowThreadProcessId(long ptr) WINECE_GetWindowThreadProcessId
 293 stub -noname RegisterSIPanel
 294 stub -noname RectangleAnimation
 295 stub -noname SHGetSpecialFolderPath
@@ -366,8 +366,8 @@
 374 stub -noname lineConfigDialogEdit
 375 stub -noname lineAddProvider
 376 stub -noname AudioUpdateFromRegistry
-377 stdcall sndPlaySoundW(ptr long) unicows.sndPlaySoundW
-378 stdcall PlaySoundW(ptr long long) unicows.PlaySoundW
+377 stdcall sndPlaySoundW(ptr long) WINECE_sndPlaySoundW
+378 stdcall PlaySoundW(ptr long long) WINECE_PlaySoundW
 379 stub -noname waveOutGetNumDevs
 380 stub -noname waveOutGetDevCaps
 381 stub -noname waveOutGetVolume
@@ -433,27 +433,27 @@
 441 stub -noname acmStreamUnprepareHeader
 442 stub -noname acmGetVersion
 443 stub -noname acmMetrics
-444 stdcall WNetAddConnection3W(long ptr wstr wstr long) unicows.WNetAddConnection3W
-445 stdcall WNetCancelConnection2W(wstr long long) unicows.WNetCancelConnection2W
-446 stdcall WNetConnectionDialog1W(ptr) unicows.WNetConnectionDialog1W
+444 stdcall WNetAddConnection3W(long ptr wstr wstr long) WINECE_WNetAddConnection3W
+445 stdcall WNetCancelConnection2W(wstr long long) WINECE_WNetCancelConnection2W
+446 stdcall WNetConnectionDialog1W(ptr) WINECE_WNetConnectionDialog1W
 447 stub -noname WNetDisconnectDialog
-448 stdcall WNetDisconnectDialog1W(ptr) unicows.WNetDisconnectDialog1W
-449 stdcall WNetGetConnectionW(wstr ptr ptr) unicows.WNetGetConnectionW
-450 stdcall WNetGetUniversalNameW(wstr long ptr ptr) unicows.WNetGetUniversalNameW
-451 stdcall WNetGetUserW(wstr wstr ptr) unicows.WNetGetUserW
-452 stdcall WNetOpenEnumW(long long long ptr ptr) unicows.WNetOpenEnumW
+448 stdcall WNetDisconnectDialog1W(ptr) WINECE_WNetDisconnectDialog1W
+449 stdcall WNetGetConnectionW(wstr ptr ptr) WINECE_WNetGetConnectionW
+450 stdcall WNetGetUniversalNameW(wstr long ptr ptr) WINECE_WNetGetUniversalNameW
+451 stdcall WNetGetUserW(wstr wstr ptr) WINECE_WNetGetUserW
+452 stdcall WNetOpenEnumW(long long long ptr ptr) WINECE_WNetOpenEnumW
 453 stub -noname WNetCloseEnum
-454 stdcall WNetEnumResourceW(long ptr ptr ptr) unicows.WNetEnumResourceW
-455 stdcall RegCloseKey(long) kernel32.RegCloseKey
-456 stdcall RegCreateKeyExW(long wstr long ptr long long ptr ptr ptr) kernel32.RegCreateKeyExW
-457 stdcall RegDeleteKeyW(long wstr) unicows.RegDeleteKeyW
-458 stdcall RegDeleteValueW(long wstr) kernel32.RegDeleteValueW
-459 stdcall RegEnumValueW(long long ptr ptr ptr ptr ptr ptr) kernel32.RegEnumValueW
-460 stdcall RegEnumKeyExW(long long ptr ptr ptr ptr ptr ptr) kernel32.RegEnumKeyExW
-461 stdcall RegOpenKeyExW(long wstr long long ptr) kernel32.RegOpenKeyExW
-462 stdcall RegQueryInfoKeyW(long ptr ptr ptr ptr ptr ptr ptr ptr ptr ptr ptr) kernel32.RegQueryInfoKeyW
-463 stdcall RegQueryValueExW(long wstr ptr ptr ptr ptr) kernel32.RegQueryValueExW
-464 stdcall RegSetValueExW(long wstr long long ptr long) kernel32.RegSetValueExW
+454 stdcall WNetEnumResourceW(long ptr ptr ptr) WINECE_WNetEnumResourceW
+455 stdcall RegCloseKey(long) WINECE_RegCloseKey
+456 stdcall RegCreateKeyExW(long wstr long ptr long long ptr ptr ptr) WINECE_RegCreateKeyExW
+457 stdcall RegDeleteKeyW(long wstr) WINECE_RegDeleteKeyW
+458 stdcall RegDeleteValueW(long wstr) WINECE_RegDeleteValueW
+459 stdcall RegEnumValueW(long long ptr ptr ptr ptr ptr ptr) WINECE_RegEnumValueW
+460 stdcall RegEnumKeyExW(long long ptr ptr ptr ptr ptr ptr) WINECE_RegEnumKeyExW
+461 stdcall RegOpenKeyExW(long wstr long long ptr) WINECE_RegOpenKeyExW
+462 stdcall RegQueryInfoKeyW(long ptr ptr ptr ptr ptr ptr ptr ptr ptr ptr ptr) WINECE_RegQueryInfoKeyW
+463 stdcall RegQueryValueExW(long wstr ptr ptr ptr ptr) WINECE_RegQueryValueExW
+464 stdcall RegSetValueExW(long wstr long long ptr long) WINECE_RegSetValueExW
 465 stub -noname RegCopyFile
 466 stub -noname RegRestoreFile
 467 stub -noname PegSetUserNotification
@@ -471,79 +471,79 @@
 479 stub -noname CeEventHasOccurred
 480 stub -noname ShellExecuteEx
 481 stub -noname Shell_NotifyIcon
-482 stub -noname SHGetFileInfo
+482 stdcall SHGetFileInfo(ptr long ptr long long) WINECE_SHGetFileInfo
 483 stub -noname SHAddToRecentDocs
 484 stub -noname SHCreateShortcut
 485 stub -noname SHGetShortcutTarget
 486 stub -noname SHShowOutOfMemory
 487 stub -noname SHLoadDIBitmap
-488 stdcall GetOpenFileNameW(ptr) unicows.GetOpenFileNameW
-489 stdcall GetSaveFileNameW(ptr) unicows.GetSaveFileNameW
+488 stdcall GetOpenFileNameW(ptr) WINECE_GetOpenFileNameW
+489 stdcall GetSaveFileNameW(ptr) WINECE_GetSaveFileNameW
 490 stub -noname QueryAPISetID
-491 stdcall TerminateThread(long long) kernel32.TerminateThread
-492 stdcall CreateThread(ptr long ptr long long ptr) kernel32.CreateThread
-493 stdcall CreateProcessW(wstr wstr ptr ptr long long ptr wstr ptr ptr) kernel32.CreateProcessW
-494 stub -noname EventModify
-495 stdcall CreateEventW(ptr long long wstr) kernel32.CreateEventW
-496 stdcall Sleep(long) kernel32.Sleep
-497 stdcall WaitForSingleObject(long long) kernel32.WaitForSingleObject
-498 stdcall WaitForMultipleObjects(long ptr long long) kernel32.WaitForMultipleObjects
-499 stdcall SuspendThread(long) kernel32.SuspendThread
-500 stdcall ResumeThread(long) kernel32.ResumeThread
-502 stdcall SetThreadContext(long ptr) kernel32.SetThreadContext
-503 stdcall WaitForDebugEvent(ptr long) kernel32.WaitForDebugEvent
-504 stdcall ContinueDebugEvent(long long long) kernel32.ContinueDebugEvent
-505 stdcall DebugActiveProcess(long) kernel32.DebugActiveProcess
-506 stdcall ReadProcessMemory(long ptr ptr long ptr) kernel32.ReadProcessMemory
-507 stdcall WriteProcessMemory(long ptr ptr long ptr) kernel32.WriteProcessMemory
-508 stdcall FlushInstructionCache(long long long) kernel32.FlushInstructionCache
-509 stdcall OpenProcess(long long long) kernel32.OpenProcess
+491 stdcall TerminateThread(long long) WINECE_TerminateThread
+492 stdcall CreateThread(ptr long ptr long long ptr) WINECE_CreateThread
+493 stdcall CreateProcessW(wstr wstr ptr ptr long long ptr wstr ptr ptr) WINECE_CreateProcessW
+494 stdcall EventModify(ptr long) COREDLL_EventModify
+495 stdcall CreateEventW(ptr long long wstr) WINECE_CreateEventW
+496 stdcall Sleep(long) WINECE_Sleep
+497 stdcall WaitForSingleObject(long long) WINECE_WaitForSingleObject
+498 stdcall WaitForMultipleObjects(long ptr long long) WINECE_WaitForMultipleObjects
+499 stdcall SuspendThread(long) WINECE_SuspendThread
+500 stdcall ResumeThread(long) WINECE_ResumeThread
+502 stdcall SetThreadContext(long ptr) WINECE_SetThreadContext
+503 stdcall WaitForDebugEvent(ptr long) WINECE_WaitForDebugEvent
+504 stdcall ContinueDebugEvent(long long long) WINECE_ContinueDebugEvent
+505 stdcall DebugActiveProcess(long) WINECE_DebugActiveProcess
+506 stdcall ReadProcessMemory(long ptr ptr long ptr) WINECE_ReadProcessMemory
+507 stdcall WriteProcessMemory(long ptr ptr long ptr) WINECE_WriteProcessMemory
+508 stdcall FlushInstructionCache(long long long) WINECE_FlushInstructionCache
+509 stdcall OpenProcess(long long long) WINECE_OpenProcess
 510 stub -noname DumpKCallProfile
 511 stub -noname THCreateSnapshot
 512 stub -noname THGrow
 513 stub -noname NotifyForceCleanboot
-514 stdcall SetThreadPriority(long long) kernel32.SetThreadPriority
-515 stdcall GetThreadPriority(long) kernel32.GetThreadPriority
-516 stdcall GetLastError() kernel32.GetLastError
-517 stdcall SetLastError(long) kernel32.SetLastError
-518 stdcall GetExitCodeThread(long ptr) kernel32.GetExitCodeThread
-519 stdcall GetExitCodeProcess(long ptr) kernel32.GetExitCodeProcess
+514 stdcall SetThreadPriority(long long) WINECE_SetThreadPriority
+515 stdcall GetThreadPriority(long) WINECE_GetThreadPriority
+516 stdcall GetLastError() WINECE_GetLastError
+517 stdcall SetLastError(long) WINECE_SetLastError
+518 stdcall GetExitCodeThread(long ptr) WINECE_GetExitCodeThread
+519 stdcall GetExitCodeProcess(long ptr) WINECE_GetExitCodeProcess
 520 stub -noname TlsCall
-521 stdcall IsBadCodePtr(ptr) kernel32.IsBadCodePtr
-522 stdcall IsBadReadPtr(ptr long) kernel32.IsBadReadPtr
-523 stdcall IsBadWritePtr(ptr long) kernel32.IsBadWritePtr
-524 stdcall VirtualAlloc(ptr long long long) kernel32.VirtualAlloc
-525 stdcall VirtualFree(ptr long long) kernel32.VirtualFree
-526 stdcall VirtualProtect(ptr long long ptr) kernel32.VirtualProtect
-527 stdcall VirtualQuery(ptr ptr long) kernel32.VirtualQuery
-528 stdcall LoadLibraryW(wstr) kernel32.LoadLibraryW
-529 stdcall FreeLibrary(long) kernel32.FreeLibrary
+521 stdcall IsBadCodePtr(ptr) WINECE_IsBadCodePtr
+522 stdcall IsBadReadPtr(ptr long) WINECE_IsBadReadPtr
+523 stdcall IsBadWritePtr(ptr long) WINECE_IsBadWritePtr
+524 stdcall VirtualAlloc(ptr long long long) WINECE_VirtualAlloc
+525 stdcall VirtualFree(ptr long long) WINECE_VirtualFree
+526 stdcall VirtualProtect(ptr long long ptr) WINECE_VirtualProtect
+527 stdcall VirtualQuery(ptr ptr long) WINECE_VirtualQuery
+528 stdcall LoadLibraryW(wstr) WINECE_LoadLibraryW
+529 stdcall FreeLibrary(long) WINECE_FreeLibrary
 530 stdcall GetProcAddressW(long wstr) COREDLL_GetProcAddressW
 531 stub -noname FindResource
-532 stdcall FindResourceW(long wstr wstr) kernel32.FindResourceW
-533 stdcall LoadResource(long long) kernel32.LoadResource
-534 stdcall SizeofResource(long long) kernel32.SizeofResource
-535 stdcall GetTickCount() kernel32.GetTickCount
-536 stdcall GetProcessVersion(long) kernel32.GetProcessVersion
-537 stdcall GetModuleFileNameW(long ptr long) kernel32.GetModuleFileNameW
-538 stdcall QueryPerformanceCounter(ptr) kernel32.QueryPerformanceCounter
-539 stdcall QueryPerformanceFrequency(ptr) kernel32.QueryPerformanceFrequency
+532 stdcall FindResourceW(long wstr wstr) WINECE_FindResourceW
+533 stdcall LoadResource(long long) WINECE_LoadResource
+534 stdcall SizeofResource(long long) WINECE_SizeofResource
+535 stdcall GetTickCount() WINECE_GetTickCount
+536 stdcall GetProcessVersion(long) WINECE_GetProcessVersion
+537 stdcall GetModuleFileNameW(long ptr long) WINECE_GetModuleFileNameW
+538 stdcall QueryPerformanceCounter(ptr) WINECE_QueryPerformanceCounter
+539 stdcall QueryPerformanceFrequency(ptr) WINECE_QueryPerformanceFrequency
 540 stub -noname ForcePageout
-541 stdcall OutputDebugStringW(wstr) kernel32.OutputDebugStringW
-542 stdcall GetSystemInfo(ptr) kernel32.GetSystemInfo
-543 stdcall RaiseException(long long long ptr) kernel32.RaiseException
-544 stdcall TerminateProcess(long long) kernel32.TerminateProcess
+541 stdcall OutputDebugStringW(wstr) WINECE_OutputDebugStringW
+542 stdcall GetSystemInfo(ptr) WINECE_GetSystemInfo
+543 stdcall RaiseException(long long long ptr) WINECE_RaiseException
+544 stdcall TerminateProcess(long long) WINECE_TerminateProcess
 545 stub -noname NKDbgPrintfW
 546 stub -noname RegisterDbgZones
 547 stub -noname SetDaylightTime
-548 stdcall CreateFileMappingW(long ptr long long long wstr) kernel32.CreateFileMappingW
-549 stdcall MapViewOfFile(long long long long long) kernel32.MapViewOfFile
-550 stdcall UnmapViewOfFile(ptr) kernel32.UnmapViewOfFile
-551 stdcall FlushViewOfFile(ptr long) kernel32.FlushViewOfFile
+548 stdcall CreateFileMappingW(long ptr long long long wstr) WINECE_CreateFileMappingW
+549 stdcall MapViewOfFile(long long long long long) WINECE_MapViewOfFile
+550 stdcall UnmapViewOfFile(ptr) WINECE_UnmapViewOfFile
+551 stdcall FlushViewOfFile(ptr long) WINECE_FlushViewOfFile
 552 stub -noname CreateFileForMapping
-553 stdcall CloseHandle(long) kernel32.CloseHandle
-555 stdcall CreateMutexW(ptr long wstr) kernel32.CreateMutexW
-556 stdcall ReleaseMutex(long) kernel32.ReleaseMutex
+553 stdcall CloseHandle(long) WINECE_CloseHandle
+555 stdcall CreateMutexW(ptr long wstr) WINECE_CreateMutexW
+556 stdcall ReleaseMutex(long) WINECE_ReleaseMutex
 557 stub -noname KernelIoControl
 558 stub -noname AddEventAccess
 559 stub -noname CreateAPISet
@@ -642,58 +642,58 @@
 655 stub -noname AFS_CloseAllFileHandles
 656 stub -noname AFS_GetDiskFreeSpace
 657 stub -noname AFS_NotifyMountedFS
-658 stdcall CreateCaret(long long long long) user32.CreateCaret
-659 stdcall DestroyCaret() user32.DestroyCaret
-660 stdcall HideCaret(long) user32.HideCaret
-661 stdcall ShowCaret(long) user32.ShowCaret
-662 stdcall SetCaretPos(long long) user32.SetCaretPos
-663 stdcall GetCaretPos(ptr) user32.GetCaretPos
-664 stdcall SetCaretBlinkTime(long) user32.SetCaretBlinkTime
-665 stdcall GetCaretBlinkTime() user32.GetCaretBlinkTime
+658 stdcall CreateCaret(long long long long) WINECE_CreateCaret
+659 stdcall DestroyCaret() WINECE_DestroyCaret
+660 stdcall HideCaret(long) WINECE_HideCaret
+661 stdcall ShowCaret(long) WINECE_ShowCaret
+662 stdcall SetCaretPos(long long) WINECE_SetCaretPos
+663 stdcall GetCaretPos(ptr) WINECE_GetCaretPos
+664 stdcall SetCaretBlinkTime(long) WINECE_SetCaretBlinkTime
+665 stdcall GetCaretBlinkTime() WINECE_GetCaretBlinkTime
 666 stub -noname DisableCaretSystemWide
 667 stub -noname EnableCaretSystemWide
-668 stdcall OpenClipboard(long) user32.OpenClipboard
-669 stdcall CloseClipboard() user32.CloseClipboard
-670 stdcall GetClipboardOwner() user32.GetClipboardOwner
-671 stdcall SetClipboardData(long long) user32.SetClipboardData
-672 stdcall GetClipboardData(long) user32.GetClipboardData
-673 stdcall RegisterClipboardFormatW(wstr) user32.RegisterClipboardFormatW
-674 stdcall CountClipboardFormats() user32.CountClipboardFormats
-675 stdcall EnumClipboardFormats(long) user32.EnumClipboardFormats
-676 stdcall GetClipboardFormatNameW(long ptr long) user32.GetClipboardFormatNameW
-677 stdcall EmptyClipboard() user32.EmptyClipboard
-678 stdcall IsClipboardFormatAvailable(long) user32.IsClipboardFormatAvailable
-679 stdcall GetPriorityClipboardFormat(ptr long) user32.GetPriorityClipboardFormat
-680 stdcall GetOpenClipboardWindow() user32.GetOpenClipboardWindow
+668 stdcall OpenClipboard(long) WINECE_OpenClipboard
+669 stdcall CloseClipboard() WINECE_CloseClipboard
+670 stdcall GetClipboardOwner() WINECE_GetClipboardOwner
+671 stdcall SetClipboardData(long long) WINECE_SetClipboardData
+672 stdcall GetClipboardData(long) WINECE_GetClipboardData
+673 stdcall RegisterClipboardFormatW(wstr) WINECE_RegisterClipboardFormatW
+674 stdcall CountClipboardFormats() WINECE_CountClipboardFormats
+675 stdcall EnumClipboardFormats(long) WINECE_EnumClipboardFormats
+676 stdcall GetClipboardFormatNameW(long ptr long) WINECE_GetClipboardFormatNameW
+677 stdcall EmptyClipboard() WINECE_EmptyClipboard
+678 stdcall IsClipboardFormatAvailable(long) WINECE_IsClipboardFormatAvailable
+679 stdcall GetPriorityClipboardFormat(ptr long) WINECE_GetPriorityClipboardFormat
+680 stdcall GetOpenClipboardWindow() WINECE_GetOpenClipboardWindow
 681 stub -noname GetClipboardDataAlloc
-682 stdcall SetCursor(long) user32.SetCursor
-683 stdcall LoadCursorW(long wstr) user32.LoadCursorW
-684 stdcall CheckRadioButton(long long long long) user32.CheckRadioButton
-685 stdcall SendDlgItemMessageW(long long long long long) user32.SendDlgItemMessageW
-686 stdcall SetDlgItemTextW(long long wstr) user32.SetDlgItemTextW
-687 stdcall GetDlgItemTextW(long long ptr long) user32.GetDlgItemTextW
-688 stdcall CreateDialogIndirectParamW(long ptr long ptr long) user32.CreateDialogIndirectParamW
-689 stdcall DefDlgProcW(long long long long) user32.DefDlgProcW
-690 stdcall DialogBoxIndirectParamW(long ptr long ptr long) user32.DialogBoxIndirectParamW
-691 stdcall EndDialog(long long) user32.EndDialog
-692 stdcall GetDlgItem(long long) user32.GetDlgItem
-693 stdcall GetDlgCtrlID(long) user32.GetDlgCtrlID
-694 stdcall GetDialogBaseUnits() user32.GetDialogBaseUnits
-695 stdcall GetDlgItemInt(long long ptr long) user32.GetDlgItemInt
-696 stdcall GetNextDlgTabItem(long long long) user32.GetNextDlgTabItem
-697 stdcall GetNextDlgGroupItem(long long long) user32.GetNextDlgGroupItem
-698 stdcall IsDialogMessageW(long ptr) user32.IsDialogMessageW
-699 stdcall MapDialogRect(long ptr) user32.MapDialogRect
-700 stdcall SetDlgItemInt(long long long long) user32.SetDlgItemInt
-701 stdcall GetForegroundWindow() user32.GetForegroundWindow
-702 stdcall SetForegroundWindow(long) user32.SetForegroundWindow
-703 stdcall SetActiveWindow(long) user32.SetActiveWindow
-704 stdcall SetFocus(long) user32.SetFocus
-705 stdcall GetFocus() user32.GetFocus
-706 stdcall GetActiveWindow() user32.GetActiveWindow
-707 stdcall GetCapture() user32.GetCapture
-708 stdcall SetCapture(long) user32.SetCapture
-709 stdcall ReleaseCapture() user32.ReleaseCapture
+682 stdcall SetCursor(long) WINECE_SetCursor
+683 stdcall LoadCursorW(long wstr) WINECE_LoadCursorW
+684 stdcall CheckRadioButton(long long long long) WINECE_CheckRadioButton
+685 stdcall SendDlgItemMessageW(long long long long long) WINECE_SendDlgItemMessageW
+686 stdcall SetDlgItemTextW(long long wstr) WINECE_SetDlgItemTextW
+687 stdcall GetDlgItemTextW(long long ptr long) WINECE_GetDlgItemTextW
+688 stdcall CreateDialogIndirectParamW(long ptr long ptr long) WINECE_CreateDialogIndirectParamW
+689 stdcall DefDlgProcW(long long long long) WINECE_DefDlgProcW
+690 stdcall DialogBoxIndirectParamW(long ptr long ptr long) WINECE_DialogBoxIndirectParamW
+691 stdcall EndDialog(long long) WINECE_EndDialog
+692 stdcall GetDlgItem(long long) WINECE_GetDlgItem
+693 stdcall GetDlgCtrlID(long) WINECE_GetDlgCtrlID
+694 stdcall GetDialogBaseUnits() WINECE_GetDialogBaseUnits
+695 stdcall GetDlgItemInt(long long ptr long) WINECE_GetDlgItemInt
+696 stdcall GetNextDlgTabItem(long long long) WINECE_GetNextDlgTabItem
+697 stdcall GetNextDlgGroupItem(long long long) WINECE_GetNextDlgGroupItem
+698 stdcall IsDialogMessageW(long ptr) WINECE_IsDialogMessageW
+699 stdcall MapDialogRect(long ptr) WINECE_MapDialogRect
+700 stdcall SetDlgItemInt(long long long long) WINECE_SetDlgItemInt
+701 stdcall GetForegroundWindow() WINECE_GetForegroundWindow
+702 stdcall SetForegroundWindow(long) WINECE_SetForegroundWindow
+703 stdcall SetActiveWindow(long) WINECE_SetActiveWindow
+704 stdcall SetFocus(long) WINECE_SetFocus
+705 stdcall GetFocus() WINECE_GetFocus
+706 stdcall GetActiveWindow() WINECE_GetActiveWindow
+707 stdcall GetCapture() WINECE_GetCapture
+708 stdcall SetCapture(long) WINECE_SetCapture
+709 stdcall ReleaseCapture() WINECE_ReleaseCapture
 710 stub -noname SetKeyboardTarget
 711 stub -noname GetKeyboardTarget
 712 stub -noname ShellModalEnd
@@ -701,448 +701,448 @@
 714 stub -noname BatteryNotifyOfTimeChange
 715 stub -noname GetSystemPowerStatusEx
 716 stub -noname NotifyWinUserSystem
-717 stdcall GetVersionExW(ptr) kernel32.GetVersionExW
+717 stdcall GetVersionExW(ptr) WINECE_GetVersionExW
 718 stub -noname WriteFileWithSeek
 719 varargs sprintf(ptr str) msvcrt.sprintf
 720 stub -noname SystemMemoryLow
-721 cdecl vfwprintf(ptr wstr ptr) msvcrt.vfwprintf
-723 stdcall CreateIconIndirect(ptr) user32.CreateIconIndirect
-725 stdcall DestroyIcon(long) user32.DestroyIcon
-726 stdcall DrawIconEx(long long long long long long long long long) user32.DrawIconEx
-727 stdcall ExtractIconExW(wstr long ptr ptr long) unicows.ExtractIconExW
-728 stdcall LoadIconW(long wstr) user32.LoadIconW
+721 cdecl vfwprintf(ptr wstr ptr) WINECE_vfwprintf
+723 stdcall CreateIconIndirect(ptr) WINECE_CreateIconIndirect
+725 stdcall DestroyIcon(long) WINECE_DestroyIcon
+726 stdcall DrawIconEx(long long long long long long long long long) WINECE_DrawIconEx
+727 stdcall ExtractIconExW(wstr long ptr ptr long) WINECE_ExtractIconExW
+728 stdcall LoadIconW(long wstr) WINECE_LoadIconW
 729 varargs _snprintf(ptr long str) msvcrt._snprintf
-730 stdcall LoadImageW(long wstr long long long long) user32.LoadImageW
-731 stdcall ClipCursor(ptr) user32.ClipCursor
-732 stdcall GetClipCursor(ptr) user32.GetClipCursor
-733 stdcall GetCursor() user32.GetCursor
-734 stdcall GetCursorPos(ptr) user32.GetCursorPos
+730 stdcall LoadImageW(long wstr long long long long) WINECE_LoadImageW
+731 stdcall ClipCursor(ptr) WINECE_ClipCursor
+732 stdcall GetClipCursor(ptr) WINECE_GetClipCursor
+733 stdcall GetCursor() WINECE_GetCursor
+734 stdcall GetCursorPos(ptr) WINECE_GetCursorPos
 735 varargs fwscanf(ptr wstr) msvcrt.fwscanf
-736 stdcall SetCursorPos(long long) user32.SetCursorPos
-737 stdcall ShowCursor(long) user32.ShowCursor
-738 stdcall ImageList_Add(ptr long long) comctl32.ImageList_Add
-739 stdcall ImageList_AddMasked(ptr long long) comctl32.ImageList_AddMasked
-740 stdcall ImageList_BeginDrag(ptr long long long) comctl32.ImageList_BeginDrag
+736 stdcall SetCursorPos(long long) WINECE_SetCursorPos
+737 stdcall ShowCursor(long) WINECE_ShowCursor
+738 stdcall ImageList_Add(ptr long long) WINECE_ImageList_Add
+739 stdcall ImageList_AddMasked(ptr long long) WINECE_ImageList_AddMasked
+740 stdcall ImageList_BeginDrag(ptr long long long) WINECE_ImageList_BeginDrag
 741 stub -noname ImageList_CopyDitherImage
-742 stdcall ImageList_Create(long long long long long) comctl32.ImageList_Create
-743 stdcall ImageList_Destroy(ptr) comctl32.ImageList_Destroy
-744 stdcall ImageList_DragEnter(long long long) comctl32.ImageList_DragEnter
-745 stdcall ImageList_DragLeave(long) comctl32.ImageList_DragLeave
-746 stdcall ImageList_DragMove(long long) comctl32.ImageList_DragMove
-747 stdcall ImageList_DragShowNolock(long) comctl32.ImageList_DragShowNolock
-748 stdcall ImageList_Draw(ptr long long long long long) comctl32.ImageList_Draw
-749 stdcall ImageList_DrawEx(ptr long long long long long long long long long) comctl32.ImageList_DrawEx
-750 stdcall ImageList_DrawIndirect(ptr) comctl32.ImageList_DrawIndirect
-751 stdcall ImageList_EndDrag() comctl32.ImageList_EndDrag
-752 stdcall ImageList_GetBkColor(ptr) comctl32.ImageList_GetBkColor
-753 stdcall ImageList_GetDragImage(ptr ptr) comctl32.ImageList_GetDragImage
-754 stdcall ImageList_GetIcon(ptr long long) comctl32.ImageList_GetIcon
-755 stdcall ImageList_GetIconSize(ptr ptr ptr) comctl32.ImageList_GetIconSize
-756 stdcall ImageList_GetImageCount(ptr) comctl32.ImageList_GetImageCount
-757 stdcall ImageList_GetImageInfo(ptr long ptr) comctl32.ImageList_GetImageInfo
-758 stdcall ImageList_LoadImage(long str long long long long long) comctl32.ImageList_LoadImage
-759 stdcall ImageList_Merge(ptr long ptr long long long) comctl32.ImageList_Merge
-760 stdcall ImageList_Remove(ptr long) comctl32.ImageList_Remove
-761 stdcall ImageList_Replace(ptr long long long) comctl32.ImageList_Replace
-762 stdcall ImageList_ReplaceIcon(ptr long long) comctl32.ImageList_ReplaceIcon
-763 stdcall ImageList_SetBkColor(ptr long) comctl32.ImageList_SetBkColor
-764 stdcall ImageList_SetDragCursorImage(ptr long long long) comctl32.ImageList_SetDragCursorImage
-765 stdcall ImageList_SetIconSize(ptr long long) comctl32.ImageList_SetIconSize
-766 stdcall ImageList_SetOverlayImage(ptr long long) comctl32.ImageList_SetOverlayImage
-767 stdcall ImageList_Copy(ptr long ptr long long) comctl32.ImageList_Copy
-768 stdcall ImageList_Duplicate(ptr) comctl32.ImageList_Duplicate
-769 stdcall ImageList_SetImageCount(ptr long) comctl32.ImageList_SetImageCount
-770 stdcall ImmAssociateContext(long long) imm32.ImmAssociateContext
-771 stdcall ImmConfigureIMEW(long long long ptr) imm32.ImmConfigureIMEW
-772 stdcall ImmCreateIMCC(long) imm32.ImmCreateIMCC
-773 stdcall ImmDestroyIMCC(long) imm32.ImmDestroyIMCC
-774 stdcall ImmEnumRegisterWordW(long ptr wstr long wstr ptr) imm32.ImmEnumRegisterWordW
-775 stdcall ImmEscapeW(long long long ptr) imm32.ImmEscapeW
-776 stdcall ImmGenerateMessage(ptr) imm32.ImmGenerateMessage
-777 stdcall ImmGetCandidateListW(long long ptr long) imm32.ImmGetCandidateListW
-778 stdcall ImmGetCandidateListCountW(long ptr) imm32.ImmGetCandidateListCountW
-779 stdcall ImmGetCandidateWindow(long long ptr) imm32.ImmGetCandidateWindow
-780 stdcall ImmGetCompositionFontW(long ptr) imm32.ImmGetCompositionFontW
-781 stdcall ImmGetCompositionStringW(long long ptr long) imm32.ImmGetCompositionStringW
-782 stdcall ImmGetCompositionWindow(long ptr) imm32.ImmGetCompositionWindow
-783 stdcall ImmGetContext(long) imm32.ImmGetContext
-784 stdcall ImmGetConversionListW(long long wstr ptr long long) imm32.ImmGetConversionListW
-785 stdcall ImmGetConversionStatus(long ptr ptr) imm32.ImmGetConversionStatus
-786 stdcall ImmGetDefaultIMEWnd(long) imm32.ImmGetDefaultIMEWnd
-787 stdcall ImmGetDescriptionW(long ptr long) imm32.ImmGetDescriptionW
-788 stdcall ImmGetGuideLineW(long long ptr long) imm32.ImmGetGuideLineW
-789 stdcall ImmGetIMCCLockCount(long) imm32.ImmGetIMCCLockCount
-790 stdcall ImmGetIMCCSize(long) imm32.ImmGetIMCCSize
-791 stdcall ImmGetIMCLockCount(long) imm32.ImmGetIMCLockCount
-792 stdcall ImmGetOpenStatus(long) imm32.ImmGetOpenStatus
-793 stdcall ImmGetProperty(long long) imm32.ImmGetProperty
-794 stdcall ImmGetRegisterWordStyleW(long long ptr) imm32.ImmGetRegisterWordStyleW
-796 stdcall ImmIsUIMessageW(long long long long) imm32.ImmIsUIMessageW
-797 stdcall ImmLockIMC(long) imm32.ImmLockIMC
-798 stdcall ImmLockIMCC(long) imm32.ImmLockIMCC
-800 stdcall ImmNotifyIME(long long long long) imm32.ImmNotifyIME
-801 stdcall ImmReSizeIMCC(long long) imm32.ImmReSizeIMCC
-802 stdcall ImmRegisterWordW(long wstr long wstr) imm32.ImmRegisterWordW
-803 stdcall ImmReleaseContext(long long) imm32.ImmReleaseContext
+742 stdcall ImageList_Create(long long long long long) WINECE_ImageList_Create
+743 stdcall ImageList_Destroy(ptr) WINECE_ImageList_Destroy
+744 stdcall ImageList_DragEnter(long long long) WINECE_ImageList_DragEnter
+745 stdcall ImageList_DragLeave(long) WINECE_ImageList_DragLeave
+746 stdcall ImageList_DragMove(long long) WINECE_ImageList_DragMove
+747 stdcall ImageList_DragShowNolock(long) WINECE_ImageList_DragShowNolock
+748 stdcall ImageList_Draw(ptr long long long long long) WINECE_ImageList_Draw
+749 stdcall ImageList_DrawEx(ptr long long long long long long long long long) WINECE_ImageList_DrawEx
+750 stdcall ImageList_DrawIndirect(ptr) WINECE_ImageList_DrawIndirect
+751 stdcall ImageList_EndDrag() WINECE_ImageList_EndDrag
+752 stdcall ImageList_GetBkColor(ptr) WINECE_ImageList_GetBkColor
+753 stdcall ImageList_GetDragImage(ptr ptr) WINECE_ImageList_GetDragImage
+754 stdcall ImageList_GetIcon(ptr long long) WINECE_ImageList_GetIcon
+755 stdcall ImageList_GetIconSize(ptr ptr ptr) WINECE_ImageList_GetIconSize
+756 stdcall ImageList_GetImageCount(ptr) WINECE_ImageList_GetImageCount
+757 stdcall ImageList_GetImageInfo(ptr long ptr) WINECE_ImageList_GetImageInfo
+758 stdcall ImageList_LoadImage(long str long long long long long) WINECE_ImageList_LoadImage
+759 stdcall ImageList_Merge(ptr long ptr long long long) WINECE_ImageList_Merge
+760 stdcall ImageList_Remove(ptr long) WINECE_ImageList_Remove
+761 stdcall ImageList_Replace(ptr long long long) WINECE_ImageList_Replace
+762 stdcall ImageList_ReplaceIcon(ptr long long) WINECE_ImageList_ReplaceIcon
+763 stdcall ImageList_SetBkColor(ptr long) WINECE_ImageList_SetBkColor
+764 stdcall ImageList_SetDragCursorImage(ptr long long long) WINECE_ImageList_SetDragCursorImage
+765 stdcall ImageList_SetIconSize(ptr long long) WINECE_ImageList_SetIconSize
+766 stdcall ImageList_SetOverlayImage(ptr long long) WINECE_ImageList_SetOverlayImage
+767 stdcall ImageList_Copy(ptr long ptr long long) WINECE_ImageList_Copy
+768 stdcall ImageList_Duplicate(ptr) WINECE_ImageList_Duplicate
+769 stdcall ImageList_SetImageCount(ptr long) WINECE_ImageList_SetImageCount
+770 stdcall ImmAssociateContext(long long) WINECE_ImmAssociateContext
+771 stdcall ImmConfigureIMEW(long long long ptr) WINECE_ImmConfigureIMEW
+772 stdcall ImmCreateIMCC(long) WINECE_ImmCreateIMCC
+773 stdcall ImmDestroyIMCC(long) WINECE_ImmDestroyIMCC
+774 stdcall ImmEnumRegisterWordW(long ptr wstr long wstr ptr) WINECE_ImmEnumRegisterWordW
+775 stdcall ImmEscapeW(long long long ptr) WINECE_ImmEscapeW
+776 stdcall ImmGenerateMessage(ptr) WINECE_ImmGenerateMessage
+777 stdcall ImmGetCandidateListW(long long ptr long) WINECE_ImmGetCandidateListW
+778 stdcall ImmGetCandidateListCountW(long ptr) WINECE_ImmGetCandidateListCountW
+779 stdcall ImmGetCandidateWindow(long long ptr) WINECE_ImmGetCandidateWindow
+780 stdcall ImmGetCompositionFontW(long ptr) WINECE_ImmGetCompositionFontW
+781 stdcall ImmGetCompositionStringW(long long ptr long) WINECE_ImmGetCompositionStringW
+782 stdcall ImmGetCompositionWindow(long ptr) WINECE_ImmGetCompositionWindow
+783 stdcall ImmGetContext(long) WINECE_ImmGetContext
+784 stdcall ImmGetConversionListW(long long wstr ptr long long) WINECE_ImmGetConversionListW
+785 stdcall ImmGetConversionStatus(long ptr ptr) WINECE_ImmGetConversionStatus
+786 stdcall ImmGetDefaultIMEWnd(long) WINECE_ImmGetDefaultIMEWnd
+787 stdcall ImmGetDescriptionW(long ptr long) WINECE_ImmGetDescriptionW
+788 stdcall ImmGetGuideLineW(long long ptr long) WINECE_ImmGetGuideLineW
+789 stdcall ImmGetIMCCLockCount(long) WINECE_ImmGetIMCCLockCount
+790 stdcall ImmGetIMCCSize(long) WINECE_ImmGetIMCCSize
+791 stdcall ImmGetIMCLockCount(long) WINECE_ImmGetIMCLockCount
+792 stdcall ImmGetOpenStatus(long) WINECE_ImmGetOpenStatus
+793 stdcall ImmGetProperty(long long) WINECE_ImmGetProperty
+794 stdcall ImmGetRegisterWordStyleW(long long ptr) WINECE_ImmGetRegisterWordStyleW
+796 stdcall ImmIsUIMessageW(long long long long) WINECE_ImmIsUIMessageW
+797 stdcall ImmLockIMC(long) WINECE_ImmLockIMC
+798 stdcall ImmLockIMCC(long) WINECE_ImmLockIMCC
+800 stdcall ImmNotifyIME(long long long long) WINECE_ImmNotifyIME
+801 stdcall ImmReSizeIMCC(long long) WINECE_ImmReSizeIMCC
+802 stdcall ImmRegisterWordW(long wstr long wstr) WINECE_ImmRegisterWordW
+803 stdcall ImmReleaseContext(long long) WINECE_ImmReleaseContext
 804 stub -noname ImmSIPanelState
 806 stub -noname ?ImmSetActiveContext@@YAHPAUHWND__@@KH@Z
-807 stdcall ImmSetCandidateWindow(long ptr) imm32.ImmSetCandidateWindow
-808 stdcall ImmSetCompositionFontW(long ptr) imm32.ImmSetCompositionFontW
-809 stdcall ImmSetCompositionStringW(long long ptr long ptr long) imm32.ImmSetCompositionStringW
-810 stdcall ImmSetCompositionWindow(long ptr) imm32.ImmSetCompositionWindow
-811 stdcall ImmSetConversionStatus(long long long) imm32.ImmSetConversionStatus
+807 stdcall ImmSetCandidateWindow(long ptr) WINECE_ImmSetCandidateWindow
+808 stdcall ImmSetCompositionFontW(long ptr) WINECE_ImmSetCompositionFontW
+809 stdcall ImmSetCompositionStringW(long long ptr long ptr long) WINECE_ImmSetCompositionStringW
+810 stdcall ImmSetCompositionWindow(long ptr) WINECE_ImmSetCompositionWindow
+811 stdcall ImmSetConversionStatus(long long long) WINECE_ImmSetConversionStatus
 812 stub -noname ImmSetHotKey
-813 stdcall ImmGetHotKey(long ptr ptr ptr) imm32.ImmGetHotKey
-814 stdcall ImmSetOpenStatus(long long) imm32.ImmSetOpenStatus
-815 stdcall ImmSetStatusWindowPos(long ptr) imm32.ImmSetStatusWindowPos
-816 stdcall ImmSimulateHotKey(long long) imm32.ImmSimulateHotKey
-817 stdcall ImmUnlockIMC(long) imm32.ImmUnlockIMC
-818 stdcall ImmUnlockIMCC(long) imm32.ImmUnlockIMCC
-819 stdcall ImmUnregisterWordW(long wstr long wstr) imm32.ImmUnregisterWordW
+813 stdcall ImmGetHotKey(long ptr ptr ptr) WINECE_ImmGetHotKey
+814 stdcall ImmSetOpenStatus(long long) WINECE_ImmSetOpenStatus
+815 stdcall ImmSetStatusWindowPos(long ptr) WINECE_ImmSetStatusWindowPos
+816 stdcall ImmSimulateHotKey(long long) WINECE_ImmSimulateHotKey
+817 stdcall ImmUnlockIMC(long) WINECE_ImmUnlockIMC
+818 stdcall ImmUnlockIMCC(long) WINECE_ImmUnlockIMCC
+819 stdcall ImmUnregisterWordW(long wstr long wstr) WINECE_ImmUnregisterWordW
 820 stub -noname GetMouseMovePoints
 821 stub -noname QASetWindowsJournalHook
 822 stub -noname QAUnhookWindowsJournalHook
-823 stdcall SendInput(long ptr long) user32.SendInput
-824 stdcall mouse_event(long long long long long) user32.mouse_event
+823 stdcall SendInput(long ptr long) WINECE_SendInput
+824 stdcall mouse_event(long long long long long) WINECE_mouse_event
 825 stub -noname EnableHardwareKeyboard
-826 stdcall GetAsyncKeyState(long) user32.GetAsyncKeyState
+826 stdcall GetAsyncKeyState(long) WINECE_GetAsyncKeyState
 827 stub -noname GetKeyboardStatus
 828 stub -noname KeybdGetDeviceInfo
 829 stub -noname KeybdInitStates
 830 stub -noname KeybdVKeyToUnicode
-831 stdcall MapVirtualKeyW(long long) user32.MapVirtualKeyW
+831 stdcall MapVirtualKeyW(long long) WINECE_MapVirtualKeyW
 832 stub -noname PostKeybdMessage
-833 stdcall keybd_event(long long long long) user32.keybd_event
+833 stdcall keybd_event(long long long long) WINECE_keybd_event
 834 stub -noname GetAsyncShiftFlags
-835 stdcall RegisterHotKey(long long long long) user32.RegisterHotKey
-836 stdcall UnregisterHotKey(long long) user32.UnregisterHotKey
+835 stdcall RegisterHotKey(long long long long) WINECE_RegisterHotKey
+836 stdcall UnregisterHotKey(long long) WINECE_UnregisterHotKey
 837 stub -noname SystemIdleTimerReset
-838 stdcall TranslateAcceleratorW(long long ptr) user32.TranslateAcceleratorW
+838 stdcall TranslateAcceleratorW(long long ptr) WINECE_TranslateAcceleratorW
 839 stub -noname NLedGetDeviceInfo
 840 stub -noname NLedSetDevice
-841 stdcall InsertMenuW(long long long long ptr) user32.InsertMenuW
-842 stdcall AppendMenuW(long long long ptr) user32.AppendMenuW
-843 stdcall RemoveMenu(long long long) user32.RemoveMenu
-844 stdcall DestroyMenu(long) user32.DestroyMenu
-845 stdcall TrackPopupMenuEx(long long long long long ptr) user32.TrackPopupMenuEx
-846 stdcall LoadMenuW(long wstr) user32.LoadMenuW
-847 stdcall EnableMenuItem(long long long) user32.EnableMenuItem
-848 stdcall CheckMenuItem(long long long) user32.CheckMenuItem
-849 stdcall CheckMenuRadioItem(long long long long long) user32.CheckMenuRadioItem
-850 stdcall DeleteMenu(long long long) user32.DeleteMenu
-851 stdcall CreateMenu() user32.CreateMenu
-852 stdcall CreatePopupMenu() user32.CreatePopupMenu
-853 stdcall SetMenuItemInfoW(long long long ptr) user32.SetMenuItemInfoW
-854 stdcall GetMenuItemInfoW(long long long ptr) user32.GetMenuItemInfoW
-855 stdcall GetSubMenu(long long) user32.GetSubMenu
-856 stdcall DrawMenuBar(long) user32.DrawMenuBar
-857 stdcall MessageBeep(long) user32.MessageBeep
-858 stdcall MessageBoxW(long wstr wstr long) user32.MessageBoxW
-859 stdcall -register DispatchMessageW(ptr) user32.DispatchMessageW
-860 stdcall GetKeyState(long) user32.GetKeyState
-861 stdcall -register GetMessageW(ptr long long long) user32.GetMessageW
-862 stdcall GetMessagePos() user32.GetMessagePos
+841 stdcall InsertMenuW(long long long long ptr) WINECE_InsertMenuW
+842 stdcall AppendMenuW(long long long ptr) WINECE_AppendMenuW
+843 stdcall RemoveMenu(long long long) WINECE_RemoveMenu
+844 stdcall DestroyMenu(long) WINECE_DestroyMenu
+845 stdcall TrackPopupMenuEx(long long long long long ptr) WINECE_TrackPopupMenuEx
+846 stdcall LoadMenuW(long wstr) WINECE_LoadMenuW
+847 stdcall EnableMenuItem(long long long) WINECE_EnableMenuItem
+848 stdcall CheckMenuItem(long long long) WINECE_CheckMenuItem
+849 stdcall CheckMenuRadioItem(long long long long long) WINECE_CheckMenuRadioItem
+850 stdcall DeleteMenu(long long long) WINECE_DeleteMenu
+851 stdcall CreateMenu() WINECE_CreateMenu
+852 stdcall CreatePopupMenu() WINECE_CreatePopupMenu
+853 stdcall SetMenuItemInfoW(long long long ptr) WINECE_SetMenuItemInfoW
+854 stdcall GetMenuItemInfoW(long long long ptr) WINECE_GetMenuItemInfoW
+855 stdcall GetSubMenu(long long) WINECE_GetSubMenu
+856 stdcall DrawMenuBar(long) WINECE_DrawMenuBar
+857 stdcall MessageBeep(long) WINECE_MessageBeep
+858 stdcall MessageBoxW(long wstr wstr long) WINECE_MessageBoxW
+859 stdcall -register DispatchMessageW(ptr) WINECE_DispatchMessageW
+860 stdcall GetKeyState(long) WINECE_GetKeyState
+861 stdcall -register GetMessageW(ptr long long long) WINECE_GetMessageW
+862 stdcall GetMessagePos() WINECE_GetMessagePos
 863 stub -noname GetMessageWNoWait
-864 stdcall PeekMessageW(ptr long long long long) user32.PeekMessageW
-865 stdcall PostMessageW(long long long long) user32.PostMessageW
-866 stdcall PostQuitMessage(long) user32.PostQuitMessage
+864 stdcall PeekMessageW(ptr long long long long) WINECE_PeekMessageW
+865 stdcall PostMessageW(long long long long) WINECE_PostMessageW
+866 stdcall PostQuitMessage(long) WINECE_PostQuitMessage
 867 varargs fwprintf(ptr wstr) msvcrt.fwprintf
-868 stdcall SendMessageW(long long long long) user32.SendMessageW
-869 stdcall SendNotifyMessageW(long long long long) user32.SendNotifyMessageW
-870 stdcall -register TranslateMessage(ptr) user32.TranslateMessage
-871 stdcall MsgWaitForMultipleObjectsEx(long ptr long long long) user32.MsgWaitForMultipleObjectsEx
+868 stdcall SendMessageW(long long long long) WINECE_SendMessageW
+869 stdcall SendNotifyMessageW(long long long long) WINECE_SendNotifyMessageW
+870 stdcall -register TranslateMessage(ptr) WINECE_TranslateMessage
+871 stdcall MsgWaitForMultipleObjectsEx(long ptr long long long) WINECE_MsgWaitForMultipleObjectsEx
 872 stub -noname GetMessageSource
-873 stdcall LoadBitmapW(long wstr) user32.LoadBitmapW
-874 stdcall LoadStringW(long long ptr long) user32.LoadStringW
-875 stdcall SetTimer(long long long ptr) user32.SetTimer
-876 stdcall KillTimer(long long) user32.KillTimer
+873 stdcall LoadBitmapW(long wstr) WINECE_LoadBitmapW
+874 stdcall LoadStringW(long long ptr long) WINECE_LoadStringW
+875 stdcall SetTimer(long long long ptr) WINECE_SetTimer
+876 stdcall KillTimer(long long) WINECE_KillTimer
 877 stub -noname TouchCalibrate
-878 stdcall GetClassInfoW(long wstr ptr) user32.GetClassInfoW
-879 stdcall GetClassLongW(long long) user32.GetClassLongW
-880 stdcall SetClassLongW(long long long) user32.SetClassLongW
+878 stdcall GetClassInfoW(long wstr ptr) WINECE_GetClassInfoW
+879 stdcall GetClassLongW(long long) WINECE_GetClassLongW
+880 stdcall SetClassLongW(long long long) WINECE_SetClassLongW
 881 stub -noname GetClassLong
 882 stub -noname SetClassLong
-884 stdcall UnregisterClassW(wstr long) user32.UnregisterClassW
-885 stdcall GetSystemMetrics(long) user32.GetSystemMetrics
-886 stdcall IsWindowVisible(long) user32.IsWindowVisible
-887 stdcall AdjustWindowRectEx(ptr long long long) user32.AdjustWindowRectEx
-888 stdcall GetDoubleClickTime() user32.GetDoubleClickTime
-889 stdcall GetSysColor(long) user32.GetSysColor
-890 stdcall SetSysColors(long ptr ptr) user32.SetSysColors
-891 stdcall RegisterWindowMessageW(wstr) user32.RegisterWindowMessageW
+884 stdcall UnregisterClassW(wstr long) WINECE_UnregisterClassW
+885 stdcall GetSystemMetrics(long) WINECE_GetSystemMetrics
+886 stdcall IsWindowVisible(long) WINECE_IsWindowVisible
+887 stdcall AdjustWindowRectEx(ptr long long long) WINECE_AdjustWindowRectEx
+888 stdcall GetDoubleClickTime() WINECE_GetDoubleClickTime
+889 stdcall GetSysColor(long) WINECE_GetSysColor
+890 stdcall SetSysColors(long ptr ptr) WINECE_SetSysColors
+891 stdcall RegisterWindowMessageW(wstr) WINECE_RegisterWindowMessageW
 892 stub -noname RegisterTaskBar
-893 stdcall AddFontResourceW(wstr) gdi32.AddFontResourceW
+893 stdcall AddFontResourceW(wstr) WINECE_AddFontResourceW
 894 stub -noname CeRemoveFontResource
-895 stdcall CreateFontIndirectW(ptr) gdi32.CreateFontIndirectW
-896 stdcall ExtTextOutW(long long long long ptr wstr long ptr) gdi32.ExtTextOutW
-897 stdcall GetTextExtentExPointW(long wstr long long ptr ptr ptr) gdi32.GetTextExtentExPointW
-898 stdcall GetTextMetricsW(long ptr) gdi32.GetTextMetricsW
+895 stdcall CreateFontIndirectW(ptr) WINECE_CreateFontIndirectW
+896 stdcall ExtTextOutW(long long long long ptr wstr long ptr) WINECE_ExtTextOutW
+897 stdcall GetTextExtentExPointW(long wstr long long ptr ptr ptr) WINECE_GetTextExtentExPointW
+898 stdcall GetTextMetricsW(long ptr) WINECE_GetTextMetricsW
 899 stub -noname PegRemoveFontResource
-900 stdcall RemoveFontResourceW(wstr) gdi32.RemoveFontResourceW
-901 stdcall CreateBitmap(long long long long ptr) gdi32.CreateBitmap
-902 stdcall CreateCompatibleBitmap(long long long) gdi32.CreateCompatibleBitmap
-903 stdcall BitBlt(long long long long long long long long long) gdi32.BitBlt
-904 stdcall MaskBlt(long long long long long long long long long long long long) gdi32.MaskBlt
-905 stdcall StretchBlt(long long long long long long long long long long long) gdi32.StretchBlt
+900 stdcall RemoveFontResourceW(wstr) WINECE_RemoveFontResourceW
+901 stdcall CreateBitmap(long long long long ptr) WINECE_CreateBitmap
+902 stdcall CreateCompatibleBitmap(long long long) WINECE_CreateCompatibleBitmap
+903 stdcall BitBlt(long long long long long long long long long) WINECE_BitBlt
+904 stdcall MaskBlt(long long long long long long long long long long long long) WINECE_MaskBlt
+905 stdcall StretchBlt(long long long long long long long long long long long) WINECE_StretchBlt
 906 stub -noname TransparentImage
-907 stdcall RestoreDC(long long) gdi32.RestoreDC
-908 stdcall SaveDC(long) gdi32.SaveDC
-909 stdcall CreateDCW(wstr wstr wstr ptr) gdi32.CreateDCW
-910 stdcall CreateCompatibleDC(long) gdi32.CreateCompatibleDC
-911 stdcall DeleteDC(long) gdi32.DeleteDC
-912 stdcall DeleteObject(long) gdi32.DeleteObject
-913 stdcall GetBkColor(long) gdi32.GetBkColor
-914 stdcall GetBkMode(long) gdi32.GetBkMode
-915 stdcall GetCurrentObject(long long) gdi32.GetCurrentObject
-916 stdcall GetDeviceCaps(long long) gdi32.GetDeviceCaps
-917 stdcall GetObjectType(long) gdi32.GetObjectType
-918 stdcall GetObjectW(long long ptr) gdi32.GetObjectW
-919 stdcall GetStockObject(long) gdi32.GetStockObject
-920 stdcall GetTextColor(long) gdi32.GetTextColor
-921 stdcall SelectObject(long long) gdi32.SelectObject
-922 stdcall SetBkColor(long long) gdi32.SetBkColor
-923 stdcall SetBkMode(long long) gdi32.SetBkMode
-924 stdcall SetTextColor(long long) gdi32.SetTextColor
-925 stdcall CreatePatternBrush(long) gdi32.CreatePatternBrush
-926 stdcall CreatePen(long long long) gdi32.CreatePen
-927 stdcall FillRgn(long long long) gdi32.FillRgn
-928 stdcall SetROP2(long long) gdi32.SetROP2
-929 stdcall CreateDIBPatternBrushPt(long long) gdi32.CreateDIBPatternBrushPt
-930 stdcall CreatePenIndirect(ptr) gdi32.CreatePenIndirect
-931 stdcall CreateSolidBrush(long) gdi32.CreateSolidBrush
-932 stdcall DrawEdge(long ptr long long) user32.DrawEdge
-933 stdcall DrawFocusRect(long ptr) user32.DrawFocusRect
-934 stdcall Ellipse(long long long long long) gdi32.Ellipse
-935 stdcall FillRect(long ptr long) user32.FillRect
-936 stdcall GetPixel(long long long) gdi32.GetPixel
-937 stdcall GetSysColorBrush(long) user32.GetSysColorBrush
-938 stdcall PatBlt(long long long long long long) gdi32.PatBlt
-939 stdcall Polygon(long ptr long) gdi32.Polygon
-940 stdcall Polyline(long ptr long) gdi32.Polyline
-941 stdcall Rectangle(long long long long long) gdi32.Rectangle
-942 stdcall RoundRect(long long long long long long long) gdi32.RoundRect
-943 stdcall SetBrushOrgEx(long long long ptr) gdi32.SetBrushOrgEx
-944 stdcall SetPixel(long long long long) gdi32.SetPixel
-945 stdcall DrawTextW(long wstr long ptr long) user32.DrawTextW
+907 stdcall RestoreDC(long long) WINECE_RestoreDC
+908 stdcall SaveDC(long) WINECE_SaveDC
+909 stdcall CreateDCW(wstr wstr wstr ptr) WINECE_CreateDCW
+910 stdcall CreateCompatibleDC(long) WINECE_CreateCompatibleDC
+911 stdcall DeleteDC(long) WINECE_DeleteDC
+912 stdcall DeleteObject(long) WINECE_DeleteObject
+913 stdcall GetBkColor(long) WINECE_GetBkColor
+914 stdcall GetBkMode(long) WINECE_GetBkMode
+915 stdcall GetCurrentObject(long long) WINECE_GetCurrentObject
+916 stdcall GetDeviceCaps(long long) WINECE_GetDeviceCaps
+917 stdcall GetObjectType(long) WINECE_GetObjectType
+918 stdcall GetObjectW(long long ptr) WINECE_GetObjectW
+919 stdcall GetStockObject(long) WINECE_GetStockObject
+920 stdcall GetTextColor(long) WINECE_GetTextColor
+921 stdcall SelectObject(long long) WINECE_SelectObject
+922 stdcall SetBkColor(long long) WINECE_SetBkColor
+923 stdcall SetBkMode(long long) WINECE_SetBkMode
+924 stdcall SetTextColor(long long) WINECE_SetTextColor
+925 stdcall CreatePatternBrush(long) WINECE_CreatePatternBrush
+926 stdcall CreatePen(long long long) WINECE_CreatePen
+927 stdcall FillRgn(long long long) WINECE_FillRgn
+928 stdcall SetROP2(long long) WINECE_SetROP2
+929 stdcall CreateDIBPatternBrushPt(long long) WINECE_CreateDIBPatternBrushPt
+930 stdcall CreatePenIndirect(ptr) WINECE_CreatePenIndirect
+931 stdcall CreateSolidBrush(long) WINECE_CreateSolidBrush
+932 stdcall DrawEdge(long ptr long long) WINECE_DrawEdge
+933 stdcall DrawFocusRect(long ptr) WINECE_DrawFocusRect
+934 stdcall Ellipse(long long long long long) WINECE_Ellipse
+935 stdcall FillRect(long ptr long) WINECE_FillRect
+936 stdcall GetPixel(long long long) WINECE_GetPixel
+937 stdcall GetSysColorBrush(long) WINECE_GetSysColorBrush
+938 stdcall PatBlt(long long long long long long) WINECE_PatBlt
+939 stdcall Polygon(long ptr long) WINECE_Polygon
+940 stdcall Polyline(long ptr long) WINECE_Polyline
+941 stdcall Rectangle(long long long long long) WINECE_Rectangle
+942 stdcall RoundRect(long long long long long long long) WINECE_RoundRect
+943 stdcall SetBrushOrgEx(long long long ptr) WINECE_SetBrushOrgEx
+944 stdcall SetPixel(long long long long) WINECE_SetPixel
+945 stdcall DrawTextW(long wstr long ptr long) WINECE_DrawTextW
 946 stub -noname CreateBitmapFromPointer
-947 stdcall CreatePalette(ptr) gdi32.CreatePalette
-948 stdcall GetNearestPaletteIndex(long long) gdi32.GetNearestPaletteIndex
-949 stdcall GetPaletteEntries(long long long ptr) gdi32.GetPaletteEntries
-950 stdcall GetSystemPaletteEntries(long long long ptr) gdi32.GetSystemPaletteEntries
-951 stdcall SetPaletteEntries(long long long ptr) gdi32.SetPaletteEntries
-952 stdcall GetNearestColor(long long) gdi32.GetNearestColor
-953 stdcall RealizePalette(long) gdi32.RealizePalette
-954 stdcall SelectPalette(long long long) gdi32.SelectPalette
-955 stdcall AbortDoc(long) gdi32.AbortDoc
+947 stdcall CreatePalette(ptr) WINECE_CreatePalette
+948 stdcall GetNearestPaletteIndex(long long) WINECE_GetNearestPaletteIndex
+949 stdcall GetPaletteEntries(long long long ptr) WINECE_GetPaletteEntries
+950 stdcall GetSystemPaletteEntries(long long long ptr) WINECE_GetSystemPaletteEntries
+951 stdcall SetPaletteEntries(long long long ptr) WINECE_SetPaletteEntries
+952 stdcall GetNearestColor(long long) WINECE_GetNearestColor
+953 stdcall RealizePalette(long) WINECE_RealizePalette
+954 stdcall SelectPalette(long long long) WINECE_SelectPalette
+955 stdcall AbortDoc(long) WINECE_AbortDoc
 956 stub -noname ?CloseEnhMetaFile@@YAPAUHENHMETAFILE__@@PAUHDC__@@@Z
 957 stub -noname ?CreateEnhMetaFileW@@YAPAUHDC__@@PAU1@PBGPBUtagRECT@@1@Z
 958 stub -noname ?DeleteEnhMetaFile@@YAHPAUHENHMETAFILE__@@@Z
-959 stdcall EndDoc(long) gdi32.EndDoc
-960 stdcall EndPage(long) gdi32.EndPage
+959 stdcall EndDoc(long) WINECE_EndDoc
+960 stdcall EndPage(long) WINECE_EndPage
 961 stub -noname ?PlayEnhMetaFile@@YAHPAUHDC__@@PAUHENHMETAFILE__@@PBUtagRECT@@@Z
-962 stdcall SetAbortProc(long ptr) gdi32.SetAbortProc
-963 stdcall StartDocW(long ptr) gdi32.StartDocW
-964 stdcall StartPage(long) gdi32.StartPage
-965 stdcall EnumFontFamiliesW(long wstr ptr long) gdi32.EnumFontFamiliesW
-966 stdcall EnumFontsW(long wstr ptr long) gdi32.EnumFontsW
-967 stdcall GetTextFaceW(long long ptr) gdi32.GetTextFaceW
-968 stdcall CombineRgn(long long long long) gdi32.CombineRgn
-969 stdcall CreateRectRgnIndirect(ptr) gdi32.CreateRectRgnIndirect
-970 stdcall ExcludeClipRect(long long long long long) gdi32.ExcludeClipRect
-971 stdcall GetClipBox(long ptr) gdi32.GetClipBox
-972 stdcall GetClipRgn(long long) gdi32.GetClipRgn
-973 stdcall GetRegionData(long long ptr) gdi32.GetRegionData
-974 stdcall GetRgnBox(long ptr) gdi32.GetRgnBox
-975 stdcall IntersectClipRect(long long long long long) gdi32.IntersectClipRect
-976 stdcall OffsetRgn(long long long) gdi32.OffsetRgn
-977 stdcall PtInRegion(long long long) gdi32.PtInRegion
-978 stdcall RectInRegion(long ptr) gdi32.RectInRegion
-979 stdcall SelectClipRgn(long long) gdi32.SelectClipRgn
-980 stdcall CreateRectRgn(long long long long) gdi32.CreateRectRgn
-981 stdcall RectVisible(long ptr) gdi32.RectVisible
-982 stdcall SetRectRgn(long long long long long) gdi32.SetRectRgn
-983 stdcall SetViewportOrgEx(long long long ptr) gdi32.SetViewportOrgEx
+962 stdcall SetAbortProc(long ptr) WINECE_SetAbortProc
+963 stdcall StartDocW(long ptr) WINECE_StartDocW
+964 stdcall StartPage(long) WINECE_StartPage
+965 stdcall EnumFontFamiliesW(long wstr ptr long) WINECE_EnumFontFamiliesW
+966 stdcall EnumFontsW(long wstr ptr long) WINECE_EnumFontsW
+967 stdcall GetTextFaceW(long long ptr) WINECE_GetTextFaceW
+968 stdcall CombineRgn(long long long long) WINECE_CombineRgn
+969 stdcall CreateRectRgnIndirect(ptr) WINECE_CreateRectRgnIndirect
+970 stdcall ExcludeClipRect(long long long long long) WINECE_ExcludeClipRect
+971 stdcall GetClipBox(long ptr) WINECE_GetClipBox
+972 stdcall GetClipRgn(long long) WINECE_GetClipRgn
+973 stdcall GetRegionData(long long ptr) WINECE_GetRegionData
+974 stdcall GetRgnBox(long ptr) WINECE_GetRgnBox
+975 stdcall IntersectClipRect(long long long long long) WINECE_IntersectClipRect
+976 stdcall OffsetRgn(long long long) WINECE_OffsetRgn
+977 stdcall PtInRegion(long long long) WINECE_PtInRegion
+978 stdcall RectInRegion(long ptr) WINECE_RectInRegion
+979 stdcall SelectClipRgn(long long) WINECE_SelectClipRgn
+980 stdcall CreateRectRgn(long long long long) WINECE_CreateRectRgn
+981 stdcall RectVisible(long ptr) WINECE_RectVisible
+982 stdcall SetRectRgn(long long long long long) WINECE_SetRectRgn
+983 stdcall SetViewportOrgEx(long long long ptr) WINECE_SetViewportOrgEx
 984 stub -noname ?SetObjectOwner@@YAHPAX0@Z
-985 stdcall ScrollDC(long long long ptr ptr long ptr) user32.ScrollDC
-986 stdcall EnableEUDC(long) gdi32.EnableEUDC
-987 stdcall DrawFrameControl(long ptr long long) user32.DrawFrameControl
-988 cdecl abs(long) msvcrt.abs
-989 cdecl acos(double) msvcrt.acos
-990 cdecl asin(double) msvcrt.asin
-991 cdecl atan(double) msvcrt.atan
-992 cdecl atan2(double double) msvcrt.atan2
-993 cdecl atoi(str) msvcrt.atoi
-994 cdecl atol(str) msvcrt.atol
-995 cdecl atof(str) msvcrt.atof
-996 cdecl _atodbl(ptr str) msvcrt._atodbl
+985 stdcall ScrollDC(long long long ptr ptr long ptr) WINECE_ScrollDC
+986 stdcall EnableEUDC(long) WINECE_EnableEUDC
+987 stdcall DrawFrameControl(long ptr long long) WINECE_DrawFrameControl
+988 cdecl abs(long) WINECE_abs
+989 cdecl acos(double) WINECE_acos
+990 cdecl asin(double) WINECE_asin
+991 cdecl atan(double) WINECE_atan
+992 cdecl atan2(double double) WINECE_atan2
+993 cdecl atoi(str) WINECE_atoi
+994 cdecl atol(str) WINECE_atol
+995 cdecl atof(str) WINECE_atof
+996 cdecl _atodbl(ptr str) WINECE__atodbl
 997 stub -noname _atoflt
-998 cdecl _cabs(long) msvcrt._cabs
-999 cdecl ceil(double) msvcrt.ceil
-1000 cdecl _chgsign(double) msvcrt._chgsign
-1001 cdecl _clearfp() msvcrt._clearfp
-1002 cdecl _controlfp(long long) msvcrt._controlfp
-1003 cdecl _copysign(double double) msvcrt._copysign
-1004 cdecl cos(double) msvcrt.cos
-1005 cdecl cosh(double) msvcrt.cosh
-1006 cdecl difftime(long long) msvcrt.difftime
-1007 cdecl -ret64 div(long long) msvcrt.div
-1008 cdecl _ecvt(double long ptr ptr) msvcrt._ecvt
-1009 cdecl exp(double) msvcrt.exp
-1010 cdecl fabs(double) msvcrt.fabs
-1011 cdecl _fcvt(double long ptr ptr) msvcrt._fcvt
-1012 cdecl _finite(double) msvcrt._finite
-1013 cdecl floor(double) msvcrt.floor
-1014 cdecl fmod(double double) msvcrt.fmod
-1015 cdecl _fpclass(double) msvcrt._fpclass
-1016 cdecl _fpieee_flt(long ptr ptr) msvcrt._fpieee_flt
-1017 cdecl _fpreset() msvcrt._fpreset
-1018 cdecl free(ptr) msvcrt.free
-1019 cdecl frexp(double ptr) msvcrt.frexp
+998 cdecl _cabs(long) WINECE__cabs
+999 cdecl ceil(double) WINECE_ceil
+1000 cdecl _chgsign(double) WINECE__chgsign
+1001 cdecl _clearfp() WINECE__clearfp
+1002 cdecl _controlfp(long long) WINECE__controlfp
+1003 cdecl _copysign(double double) WINECE__copysign
+1004 cdecl cos(double) WINECE_cos
+1005 cdecl cosh(double) WINECE_cosh
+1006 cdecl difftime(long long) WINECE_difftime
+1007 cdecl -ret64 div(long long) WINECE_div
+1008 cdecl _ecvt(double long ptr ptr) WINECE__ecvt
+1009 cdecl exp(double) WINECE_exp
+1010 cdecl fabs(double) WINECE_fabs
+1011 cdecl _fcvt(double long ptr ptr) WINECE__fcvt
+1012 cdecl _finite(double) WINECE__finite
+1013 cdecl floor(double) WINECE_floor
+1014 cdecl fmod(double double) WINECE_fmod
+1015 cdecl _fpclass(double) WINECE__fpclass
+1016 cdecl _fpieee_flt(long ptr ptr) WINECE__fpieee_flt
+1017 cdecl _fpreset() WINECE__fpreset
+1018 cdecl free(ptr) WINECE_free
+1019 cdecl frexp(double ptr) WINECE_frexp
 1020 stub -noname _frnd
 1021 stub -noname _fsqrt
-1022 cdecl _gcvt(double long str) msvcrt._gcvt
-1023 cdecl _hypot(double double) msvcrt._hypot
-1024 cdecl _isnan(double) msvcrt._isnan
-1025 cdecl _itoa(long ptr long) msvcrt._itoa
-1026 cdecl _itow(long ptr long) msvcrt._itow
-1027 cdecl _j0(double) msvcrt._j0
-1028 cdecl _j1(double) msvcrt._j1
-1029 cdecl _jn(long double) msvcrt._jn
-1030 cdecl labs(long) msvcrt.labs
-1031 cdecl ldexp(double long) msvcrt.ldexp
-1032 cdecl ldiv(long long) msvcrt.ldiv
-1033 cdecl log(double) msvcrt.log
-1034 cdecl log10(double) msvcrt.log10
-1035 cdecl _logb(double) msvcrt._logb
-1036 cdecl -arch=i386 longjmp(ptr long) msvcrt.longjmp
-1037 cdecl _lrotl(long long) msvcrt._lrotl
-1038 cdecl _lrotr(long long) msvcrt._lrotr
-1039 cdecl _ltoa(long ptr long) msvcrt._ltoa
-1040 cdecl _ltow(long ptr long) msvcrt._ltow
-1041 cdecl malloc(long) msvcrt.malloc
-1042 cdecl _memccpy(ptr ptr long long) msvcrt._memccpy
-1043 cdecl memcmp(ptr ptr long) msvcrt.memcmp
-1044 cdecl memcpy(ptr ptr long) msvcrt.memcpy
-1045 cdecl _memicmp(str str long) msvcrt._memicmp
-1046 cdecl memmove(ptr ptr long) msvcrt.memmove
-1047 cdecl memset(ptr long long) msvcrt.memset
-1048 cdecl modf(double ptr) msvcrt.modf
-1049 cdecl _msize(ptr) msvcrt._msize
-1050 cdecl _nextafter(double double) msvcrt._nextafter
-1051 cdecl pow(double double) msvcrt.pow
-1052 cdecl qsort(ptr long long ptr) msvcrt.qsort
-1053 cdecl rand() msvcrt.rand
-1054 cdecl realloc(ptr long) msvcrt.realloc
-1055 cdecl _rotl(long long) msvcrt._rotl
-1056 cdecl _rotr(long long) msvcrt._rotr
-1057 cdecl _scalb(double long) msvcrt._scalb
-1058 cdecl sin(double) msvcrt.sin
-1059 cdecl sinh(double) msvcrt.sinh
-1060 cdecl sqrt(double) msvcrt.sqrt
-1061 cdecl srand(long) msvcrt.srand
-1062 cdecl _statusfp() msvcrt._statusfp
-1063 cdecl strcat(str str) msvcrt.strcat
-1064 cdecl strchr(str long) msvcrt.strchr
-1065 cdecl strcmp(str str) msvcrt.strcmp
-1066 cdecl strcpy(ptr str) msvcrt.strcpy
-1067 cdecl strcspn(str str) msvcrt.strcspn
-1068 cdecl strlen(str) msvcrt.strlen
-1069 cdecl strncat(str str long) msvcrt.strncat
-1070 cdecl strncmp(str str long) msvcrt.strncmp
-1071 cdecl strncpy(ptr str long) msvcrt.strncpy
-1072 cdecl strstr(str str) msvcrt.strstr
-1073 cdecl strtok(str str) msvcrt.strtok
-1074 cdecl _swab(str str long) msvcrt._swab
-1075 cdecl tan(double) msvcrt.tan
-1076 cdecl tanh(double) msvcrt.tanh
-1079 cdecl _ultoa(long ptr long) msvcrt._ultoa
-1080 cdecl _ultow(long ptr long) msvcrt._ultow
-1081 cdecl wcstod(wstr ptr) msvcrt.wcstod
-1082 cdecl wcstol(wstr ptr long) msvcrt.wcstol
-1083 cdecl wcstoul(wstr ptr long) msvcrt.wcstoul
-1084 cdecl _y0(double) msvcrt._y0
-1085 cdecl _y1(double) msvcrt._y1
-1086 cdecl _yn(long double) msvcrt._yn
+1022 cdecl _gcvt(double long str) WINECE__gcvt
+1023 cdecl _hypot(double double) WINECE__hypot
+1024 cdecl _isnan(double) WINECE__isnan
+1025 cdecl _itoa(long ptr long) WINECE__itoa
+1026 cdecl _itow(long ptr long) WINECE__itow
+1027 cdecl _j0(double) WINECE__j0
+1028 cdecl _j1(double) WINECE__j1
+1029 cdecl _jn(long double) WINECE__jn
+1030 cdecl labs(long) WINECE_labs
+1031 cdecl ldexp(double long) WINECE_ldexp
+1032 cdecl ldiv(long long) WINECE_ldiv
+1033 cdecl log(double) WINECE_log
+1034 cdecl log10(double) WINECE_log10
+1035 cdecl _logb(double) WINECE__logb
+1036 cdecl -arch=i386 longjmp(ptr long) WINECE_longjmp
+1037 cdecl _lrotl(long long) WINECE__lrotl
+1038 cdecl _lrotr(long long) WINECE__lrotr
+1039 cdecl _ltoa(long ptr long) WINECE__ltoa
+1040 cdecl _ltow(long ptr long) WINECE__ltow
+1041 cdecl malloc(long) WINECE_malloc
+1042 cdecl _memccpy(ptr ptr long long) WINECE__memccpy
+1043 cdecl memcmp(ptr ptr long) WINECE_memcmp
+1044 cdecl memcpy(ptr ptr long) WINECE_memcpy
+1045 cdecl _memicmp(str str long) WINECE__memicmp
+1046 cdecl memmove(ptr ptr long) WINECE_memmove
+1047 cdecl memset(ptr long long) WINECE_memset
+1048 cdecl modf(double ptr) WINECE_modf
+1049 cdecl _msize(ptr) WINECE__msize
+1050 cdecl _nextafter(double double) WINECE__nextafter
+1051 cdecl pow(double double) WINECE_pow
+1052 cdecl qsort(ptr long long ptr) WINECE_qsort
+1053 cdecl rand() WINECE_rand
+1054 cdecl realloc(ptr long) WINECE_realloc
+1055 cdecl _rotl(long long) WINECE__rotl
+1056 cdecl _rotr(long long) WINECE__rotr
+1057 cdecl _scalb(double long) WINECE__scalb
+1058 cdecl sin(double) WINECE_sin
+1059 cdecl sinh(double) WINECE_sinh
+1060 cdecl sqrt(double) WINECE_sqrt
+1061 cdecl srand(long) WINECE_srand
+1062 cdecl _statusfp() WINECE__statusfp
+1063 cdecl strcat(str str) WINECE_strcat
+1064 cdecl strchr(str long) WINECE_strchr
+1065 cdecl strcmp(str str) WINECE_strcmp
+1066 cdecl strcpy(ptr str) WINECE_strcpy
+1067 cdecl strcspn(str str) WINECE_strcspn
+1068 cdecl strlen(str) WINECE_strlen
+1069 cdecl strncat(str str long) WINECE_strncat
+1070 cdecl strncmp(str str long) WINECE_strncmp
+1071 cdecl strncpy(ptr str long) WINECE_strncpy
+1072 cdecl strstr(str str) WINECE_strstr
+1073 cdecl strtok(str str) WINECE_strtok
+1074 cdecl _swab(str str long) WINECE__swab
+1075 cdecl tan(double) WINECE_tan
+1076 cdecl tanh(double) WINECE_tanh
+1079 cdecl _ultoa(long ptr long) WINECE__ultoa
+1080 cdecl _ultow(long ptr long) WINECE__ultow
+1081 cdecl wcstod(wstr ptr) WINECE_wcstod
+1082 cdecl wcstol(wstr ptr long) WINECE_wcstol
+1083 cdecl wcstoul(wstr ptr long) WINECE_wcstoul
+1084 cdecl _y0(double) WINECE__y0
+1085 cdecl _y1(double) WINECE__y1
+1086 cdecl _yn(long double) WINECE__yn
 1087 stub -noname _ld12tod
 1088 stub -noname _ld12tof
 1089 stub -noname __strgtold12
-1090 cdecl tolower(long) msvcrt.tolower
-1091 cdecl toupper(long) msvcrt.toupper
-1092 cdecl _purecall() msvcrt._purecall
+1090 cdecl tolower(long) WINECE_tolower
+1091 cdecl toupper(long) WINECE_toupper
+1092 cdecl _purecall() WINECE__purecall
 1093 stub -noname _fltused
 1094 cdecl -arch=win32 ??3@YAXPAX@Z(ptr) msvcrt.??3@YAXPAX@Z
 1095 cdecl -arch=win32 ??2@YAPAXI@Z(long) msvcrt.??2@YAPAXI@Z
 1096 varargs _snwprintf(ptr long wstr) msvcrt._snwprintf
 1097 varargs swprintf(ptr wstr) msvcrt.swprintf
 1098 varargs swscanf(wstr wstr) msvcrt.swscanf
-1099 cdecl vswprintf(ptr wstr ptr) msvcrt.vswprintf
+1099 cdecl vswprintf(ptr wstr ptr) WINECE_vswprintf
 1100 stub -noname _getstdfilex
 1101 varargs scanf(str) msvcrt.scanf
 1102 varargs printf(str) msvcrt.printf
-1103 cdecl vprintf(str ptr) msvcrt.vprintf
-1104 cdecl getchar() msvcrt.getchar
-1105 cdecl putchar(long) msvcrt.putchar
-1106 cdecl gets(str) msvcrt.gets
-1107 cdecl puts(str) msvcrt.puts
-1108 cdecl fgetc(ptr) msvcrt.fgetc
-1109 cdecl fgets(ptr long ptr) msvcrt.fgets
-1110 cdecl fputc(long ptr) msvcrt.fputc
-1111 cdecl fputs(str ptr) msvcrt.fputs
-1112 cdecl ungetc(long ptr) msvcrt.ungetc
-1113 cdecl fopen(str str) msvcrt.fopen
+1103 cdecl vprintf(str ptr) WINECE_vprintf
+1104 cdecl getchar() WINECE_getchar
+1105 cdecl putchar(long) WINECE_putchar
+1106 cdecl gets(str) WINECE_gets
+1107 cdecl puts(str) WINECE_puts
+1108 cdecl fgetc(ptr) WINECE_fgetc
+1109 cdecl fgets(ptr long ptr) WINECE_fgets
+1110 cdecl fputc(long ptr) WINECE_fputc
+1111 cdecl fputs(str ptr) WINECE_fputs
+1112 cdecl ungetc(long ptr) WINECE_ungetc
+1113 cdecl fopen(str str) WINECE_fopen
 1114 varargs fscanf(ptr str) msvcrt.fscanf
 1115 varargs fprintf(ptr str) msvcrt.fprintf
-1116 cdecl vfprintf(ptr str ptr) msvcrt.vfprintf
-1117 cdecl _wfdopen(long wstr) msvcrt._wfdopen
-1118 cdecl fclose(ptr) msvcrt.fclose
-1119 cdecl _fcloseall() msvcrt._fcloseall
-1120 cdecl fread(ptr long long ptr) msvcrt.fread
-1121 cdecl fwrite(ptr long long ptr) msvcrt.fwrite
-1122 cdecl fflush(ptr) msvcrt.fflush
-1123 cdecl _flushall() msvcrt._flushall
-1124 cdecl _fileno(ptr) msvcrt._fileno
-1125 cdecl feof(ptr) msvcrt.feof
-1126 cdecl ferror(ptr) msvcrt.ferror
-1127 cdecl clearerr(ptr) msvcrt.clearerr
-1128 cdecl fgetpos(ptr ptr) msvcrt.fgetpos
-1129 cdecl fsetpos(ptr ptr) msvcrt.fsetpos
-1130 cdecl fseek(ptr long long) msvcrt.fseek
-1131 cdecl ftell(ptr) msvcrt.ftell
-1132 cdecl _vsnwprintf(ptr long wstr ptr) msvcrt._vsnwprintf
+1116 cdecl vfprintf(ptr str ptr) WINECE_vfprintf
+1117 cdecl _wfdopen(long wstr) WINECE__wfdopen
+1118 cdecl fclose(ptr) WINECE_fclose
+1119 cdecl _fcloseall() WINECE__fcloseall
+1120 cdecl fread(ptr long long ptr) WINECE_fread
+1121 cdecl fwrite(ptr long long ptr) WINECE_fwrite
+1122 cdecl fflush(ptr) WINECE_fflush
+1123 cdecl _flushall() WINECE__flushall
+1124 cdecl _fileno(ptr) WINECE__fileno
+1125 cdecl feof(ptr) WINECE_feof
+1126 cdecl ferror(ptr) WINECE_ferror
+1127 cdecl clearerr(ptr) WINECE_clearerr
+1128 cdecl fgetpos(ptr ptr) WINECE_fgetpos
+1129 cdecl fsetpos(ptr ptr) WINECE_fsetpos
+1130 cdecl fseek(ptr long long) WINECE_fseek
+1131 cdecl ftell(ptr) WINECE_ftell
+1132 cdecl _vsnwprintf(ptr long wstr ptr) WINECE__vsnwprintf
 1133 varargs wscanf(wstr) msvcrt.wscanf
 1134 varargs wprintf(wstr) msvcrt.wprintf
-1135 cdecl vwprintf(wstr ptr) msvcrt.vwprintf
-1136 cdecl getwchar() msvcrt.getwchar
-1137 cdecl putwchar(long) msvcrt.putwchar
-1138 cdecl _getws(ptr) msvcrt._getws
-1139 cdecl _putws(wstr) msvcrt._putws
-1140 cdecl fgetwc(ptr) msvcrt.fgetwc
-1141 cdecl fputwc(long ptr) msvcrt.fputwc
-1142 cdecl ungetwc(long ptr) msvcrt.ungetwc
-1143 cdecl fgetws(ptr long ptr) msvcrt.fgetws
-1144 cdecl fputws(wstr ptr) msvcrt.fputws
-1145 cdecl _wfopen(wstr wstr) msvcrt._wfopen
-1146 cdecl vsprintf(ptr str ptr) msvcrt.vsprintf
-1147 cdecl _vsnprintf(ptr long str ptr) msvcrt._vsnprintf
-1148 stdcall GetThreadContext(long ptr) kernel32.GetThreadContext
+1135 cdecl vwprintf(wstr ptr) WINECE_vwprintf
+1136 cdecl getwchar() WINECE_getwchar
+1137 cdecl putwchar(long) WINECE_putwchar
+1138 cdecl _getws(ptr) WINECE__getws
+1139 cdecl _putws(wstr) WINECE__putws
+1140 cdecl fgetwc(ptr) WINECE_fgetwc
+1141 cdecl fputwc(long ptr) WINECE_fputwc
+1142 cdecl ungetwc(long ptr) WINECE_ungetwc
+1143 cdecl fgetws(ptr long ptr) WINECE_fgetws
+1144 cdecl fputws(wstr ptr) WINECE_fputws
+1145 cdecl _wfopen(wstr wstr) WINECE__wfopen
+1146 cdecl vsprintf(ptr str ptr) WINECE_vsprintf
+1147 cdecl _vsnprintf(ptr long str ptr) WINECE__vsnprintf
+1148 stdcall GetThreadContext(long ptr) WINECE_GetThreadContext
 1149 stub -noname GetStdioPathW
 1150 stub -noname SetStdioPathW
 1151 stub -noname _InitStdioLib
-1152 stdcall RegFlushKey(long) kernel32.RegFlushKey
+1152 stdcall RegFlushKey(long) WINECE_RegFlushKey
 1153 stub -noname ReadRegistryFromOEM
 1154 stub -noname WriteRegistryToOEM
 1155 stub -noname WriteDebugLED
 1156 stub -noname UnregisterFunc1
-1157 stdcall BeginDeferWindowPos(long) user32.BeginDeferWindowPos
-1158 stdcall DeferWindowPos(long long long long long long long long) user32.DeferWindowPos
-1159 stdcall EndDeferWindowPos(long) user32.EndDeferWindowPos
-1160 stdcall GetKeyboardLayoutNameW(ptr) user32.GetKeyboardLayoutNameW
+1157 stdcall BeginDeferWindowPos(long) WINECE_BeginDeferWindowPos
+1158 stdcall DeferWindowPos(long long long long long long long long) WINECE_DeferWindowPos
+1159 stdcall EndDeferWindowPos(long) WINECE_EndDeferWindowPos
+1160 stdcall GetKeyboardLayoutNameW(ptr) WINECE_GetKeyboardLayoutNameW
 1161 stub -noname LockPages
 1162 stub -noname UnlockPages
 1163 stub -noname SHCreateExplorerInstance
 1164 stub -noname CeMountDBVol
 1165 stub -noname CeEnumDBVolumes
-1166 stdcall TranslateCharsetInfo(ptr ptr long) gdi32.TranslateCharsetInfo
+1166 stdcall TranslateCharsetInfo(ptr ptr long) WINECE_TranslateCharsetInfo
 1167 stub -noname CreateFileForMappingW
 1168 stub -noname lineSetCurrentLocation
 1169 stub -noname SipStatus
@@ -1153,14 +1153,13 @@
 1174 stub -noname SipEnumIM
 1175 stub -noname SipGetCurrentIM
 1176 stub -noname SipSetCurrentIM
-1177 stdcall GetModuleHandleW(wstr) kernel32.GetModuleHandleW
+1177 stdcall GetModuleHandleW(wstr) WINECE_GetModuleHandleW
 1179 stub -noname ActivateDevice
 1180 stub -noname DeactivateDevice
-1181 extern _HUGE msvcrt._HUGE
-1182 stdcall ExtEscape(long long long ptr long ptr) gdi32.ExtEscape
-1185 stdcall GetDCEx(long long long) user32.GetDCEx
-1186 stdcall GetThreadTimes(long ptr ptr ptr ptr) kernel32.GetThreadTimes
-1187 cdecl _setmode(long long) msvcrt._setmode
+1182 stdcall ExtEscape(long long long ptr long ptr) WINECE_ExtEscape
+1185 stdcall GetDCEx(long long long) WINECE_GetDCEx
+1186 stdcall GetThreadTimes(long ptr ptr ptr ptr) WINECE_GetThreadTimes
+1187 cdecl _setmode(long long) WINECE__setmode
 1189 stub -noname CeFindNextDatabaseEx
 1190 stub -noname CeCreateDatabaseEx
 1191 stub -noname CeSetDatabaseInfoEx
@@ -1170,23 +1169,23 @@
 1195 stub -noname CeOidGetInfoEx
 1196 stub -noname CeFindFirstDatabaseEx
 1197 stub -noname CeUnmountDBVol
-1198 stdcall ImmCreateContext() imm32.ImmCreateContext
-1199 stdcall ImmDestroyContext(long) imm32.ImmDestroyContext
-1200 stdcall ImmGetStatusWindowPos(long ptr) imm32.ImmGetStatusWindowPos
-1201 cdecl _wfreopen(wstr wstr ptr) msvcrt._wfreopen
-1202 stdcall SetWindowsHookExW(long long long long) user32.SetWindowsHookExW
-1203 stdcall UnhookWindowsHookEx(long) user32.UnhookWindowsHookEx
-1204 stdcall CallNextHookEx(long long long long) user32.CallNextHookEx
-1205 stdcall ImmAssociateContextEx(long long long) imm32.ImmAssociateContextEx
-1206 stdcall ImmDisableIME(long) imm32.ImmDisableIME
-1207 stdcall ImmGetIMEFileNameW(long ptr long) imm32.ImmGetIMEFileNameW
-1209 stdcall ImmIsIME(long) imm32.ImmIsIME
-1210 stdcall ImmGetVirtualKey(long) imm32.ImmGetVirtualKey
-1211 stdcall ImmGetImeMenuItemsW(long long long ptr ptr long) imm32.ImmGetImeMenuItemsW
+1198 stdcall ImmCreateContext() WINECE_ImmCreateContext
+1199 stdcall ImmDestroyContext(long) WINECE_ImmDestroyContext
+1200 stdcall ImmGetStatusWindowPos(long ptr) WINECE_ImmGetStatusWindowPos
+1201 cdecl _wfreopen(wstr wstr ptr) WINECE__wfreopen
+1202 stdcall SetWindowsHookExW(long long long long) WINECE_SetWindowsHookExW
+1203 stdcall UnhookWindowsHookEx(long) WINECE_UnhookWindowsHookEx
+1204 stdcall CallNextHookEx(long long long long) WINECE_CallNextHookEx
+1205 stdcall ImmAssociateContextEx(long long long) WINECE_ImmAssociateContextEx
+1206 stdcall ImmDisableIME(long) WINECE_ImmDisableIME
+1207 stdcall ImmGetIMEFileNameW(long ptr long) WINECE_ImmGetIMEFileNameW
+1209 stdcall ImmIsIME(long) WINECE_ImmIsIME
+1210 stdcall ImmGetVirtualKey(long) WINECE_ImmGetVirtualKey
+1211 stdcall ImmGetImeMenuItemsW(long long long ptr ptr long) WINECE_ImmGetImeMenuItemsW
 1213 stub -noname IsProcessDying
 1214 stub -noname SipSetDefaultRect
 1215 stub -noname FlushViewOfFileMaybe
-1216 stdcall FreeLibraryAndExitThread(long long) kernel32.FreeLibraryAndExitThread
+1216 stdcall FreeLibraryAndExitThread(long long) WINECE_FreeLibraryAndExitThread
 1217 stub -noname CeFlushDBVol
 1218 stub -noname ?DefaultImcGet@@YAKXZ
 1219 stub -noname ?DefaultImeWndGet@@YAPAUHWND__@@XZ
@@ -1199,20 +1198,20 @@
 1226 stub -noname CeFreeNotification
 1227 stub -noname GetCRTStorageEx
 1228 stub -noname GetCRTFlags
-1229 stdcall GetKeyboardLayout(long) user32.GetKeyboardLayout
+1229 stdcall GetKeyboardLayout(long) WINECE_GetKeyboardLayout
 1230 stub -noname GetProcAddressA
-1231 stdcall GetCommandLineW() kernel32.GetCommandLineW
-1232 stdcall DisableThreadLibraryCalls(long) kernel32.DisableThreadLibraryCalls
-1233 stdcall TryEnterCriticalSection(ptr) kernel32.TryEnterCriticalSection
-1234 stdcall GetTempFileNameW(wstr wstr long ptr) kernel32.GetTempFileNameW
-1235 stdcall FindFirstFileExW(wstr long ptr long ptr long) kernel32.FindFirstFileExW
+1231 stdcall GetCommandLineW() WINECE_GetCommandLineW
+1232 stdcall DisableThreadLibraryCalls(long) WINECE_DisableThreadLibraryCalls
+1233 stdcall TryEnterCriticalSection(ptr) WINECE_TryEnterCriticalSection
+1234 stdcall GetTempFileNameW(wstr wstr long ptr) WINECE_GetTempFileNameW
+1235 stdcall FindFirstFileExW(wstr long ptr long ptr long) WINECE_FindFirstFileExW
 1236 stub -noname GetDeviceByIndex
-1237 stdcall GetFileAttributesExW(wstr long ptr) kernel32.GetFileAttributesExW
-1238 stdcall CreateSemaphoreW(ptr long long wstr) kernel32.CreateSemaphoreW
-1239 stdcall ReleaseSemaphore(long long ptr) kernel32.ReleaseSemaphore
+1237 stdcall GetFileAttributesExW(wstr long ptr) WINECE_GetFileAttributesExW
+1238 stdcall CreateSemaphoreW(ptr long long wstr) WINECE_CreateSemaphoreW
+1239 stdcall ReleaseSemaphore(long long ptr) WINECE_ReleaseSemaphore
 1240 stub -noname ComThreadBaseFunc
-1241 stdcall LoadLibraryExW(wstr long long) kernel32.LoadLibraryExW
-1242 stdcall ImmRequestMessageW(ptr long long) imm32.ImmRequestMessageW
+1241 stdcall LoadLibraryExW(wstr long long) WINECE_LoadLibraryExW
+1242 stdcall ImmRequestMessageW(ptr long long) WINECE_ImmRequestMessageW
 1244 stub -noname CeSetThreadQuantum
 1245 stub -noname CeGetThreadQuantum
 1246 stub -noname lineAccept
@@ -1285,11 +1284,11 @@
 1313 stub -noname phoneSetStatusMessages
 1314 stub -noname phoneSetVolume
 1315 stub -noname phoneShutdown
-1317 stdcall GetSystemDefaultUILanguage() kernel32.GetSystemDefaultUILanguage
-1318 stdcall GetUserDefaultUILanguage() kernel32.GetUserDefaultUILanguage
+1317 stdcall GetSystemDefaultUILanguage() WINECE_GetSystemDefaultUILanguage
+1318 stdcall GetUserDefaultUILanguage() WINECE_GetUserDefaultUILanguage
 1319 stub -noname SetUserDefaultUILanguage
-1320 stdcall EnumUILanguagesW(ptr long long) kernel32.EnumUILanguagesW
-1346 cdecl calloc(long long) msvcrt.calloc
+1320 stdcall EnumUILanguagesW(ptr long long) WINECE_EnumUILanguagesW
+1346 cdecl calloc(long long) WINECE_calloc
 1352 stub -noname CeSetUserNotificationEx
 1353 stub -noname CeGetUserNotificationHandles
 1354 stub -noname CeGetUserNotification
@@ -1297,29 +1296,29 @@
 1358 stub -noname GetSystemPowerStatusEx2
 1395 stub -noname CeGetCallerTrust
 1396 stub -noname OpenDeviceKey
-1397 stdcall GetDesktopWindow() user32.GetDesktopWindow
-1398 stdcall SetWindowRgn(long long long) user32.SetWindowRgn
-1399 stdcall GetWindowRgn(long long) user32.GetWindowRgn
-1403 cdecl strtod(str ptr) msvcrt.strtod
-1404 cdecl strtol(str ptr long) msvcrt.strtol
-1405 cdecl strtoul(str ptr long) msvcrt.strtoul
-1406 cdecl strpbrk(str str) msvcrt.strpbrk
-1407 cdecl strrchr(str long) msvcrt.strrchr
-1408 cdecl strspn(str str) msvcrt.strspn
-1409 cdecl _strdup(str) msvcrt._strdup
-1410 cdecl _stricmp(str str) msvcrt._stricmp
-1411 cdecl _strnicmp(str str long) msvcrt._strnicmp
-1412 cdecl _strnset(str long long) msvcrt._strnset
-1413 cdecl _strrev(str) msvcrt._strrev
-1414 cdecl _strset(str long) msvcrt._strset
-1415 cdecl _strlwr(str) msvcrt._strlwr
-1416 cdecl _strupr(str) msvcrt._strupr
-1417 cdecl _isctype(long long) msvcrt._isctype
-1418 cdecl -ret64 _atoi64(str) msvcrt._atoi64
-1419 stdcall InSendMessage() user32.InSendMessage
-1420 stdcall GetQueueStatus(long) user32.GetQueueStatus
+1397 stdcall GetDesktopWindow() WINECE_GetDesktopWindow
+1398 stdcall SetWindowRgn(long long long) WINECE_SetWindowRgn
+1399 stdcall GetWindowRgn(long long) WINECE_GetWindowRgn
+1403 cdecl strtod(str ptr) WINECE_strtod
+1404 cdecl strtol(str ptr long) WINECE_strtol
+1405 cdecl strtoul(str ptr long) WINECE_strtoul
+1406 cdecl strpbrk(str str) WINECE_strpbrk
+1407 cdecl strrchr(str long) WINECE_strrchr
+1408 cdecl strspn(str str) WINECE_strspn
+1409 cdecl _strdup(str) WINECE__strdup
+1410 cdecl _stricmp(str str) WINECE__stricmp
+1411 cdecl _strnicmp(str str long) WINECE__strnicmp
+1412 cdecl _strnset(str long long) WINECE__strnset
+1413 cdecl _strrev(str) WINECE__strrev
+1414 cdecl _strset(str long) WINECE__strset
+1415 cdecl _strlwr(str) WINECE__strlwr
+1416 cdecl _strupr(str) WINECE__strupr
+1417 cdecl _isctype(long long) WINECE__isctype
+1418 cdecl -ret64 _atoi64(str) WINECE__atoi64
+1419 stdcall InSendMessage() WINECE_InSendMessage
+1420 stdcall GetQueueStatus(long) WINECE_GetQueueStatus
 1421 stub -noname LoadFSDEx
-1424 stdcall RasEnumDevicesW(ptr ptr ptr) unicows.RasEnumDevicesW
+1424 stdcall RasEnumDevicesW(ptr ptr ptr) WINECE_RasEnumDevicesW
 1425 stub -noname CeResyncFilesys
 1443 stub -noname CeGetRandomSeed
 1446 stub -noname CeMapArgumentArray
@@ -1332,10 +1331,10 @@
 1455 stub -noname CeSetExtendedPdata
 1456 cdecl -arch=win32 ??_U@YAPAXI@Z(long) msvcrt.??_U@YAPAXI@Z
 1457 cdecl -arch=win32 ??_V@YAXPAX@Z(ptr) msvcrt.??_V@YAXPAX@Z
-1458 stdcall RasGetProjectionInfoW(long long ptr ptr) unicows.RasGetProjectionInfoW
-1459 stdcall VerQueryValueW(ptr wstr ptr ptr) version.VerQueryValueW
-1460 stdcall GetFileVersionInfoW(wstr long long ptr) version.GetFileVersionInfoW
-1461 stdcall GetFileVersionInfoSizeW(wstr ptr) version.GetFileVersionInfoSizeW
+1458 stdcall RasGetProjectionInfoW(long long ptr ptr) WINECE_RasGetProjectionInfoW
+1459 stdcall VerQueryValueW(ptr wstr ptr ptr) WINECE_VerQueryValueW
+1460 stdcall GetFileVersionInfoW(wstr long long ptr) WINECE_GetFileVersionInfoW
+1461 stdcall GetFileVersionInfoSizeW(wstr ptr) WINECE_GetFileVersionInfoSizeW
 1462 stub -noname SetOOMEvent
 1463 stub -noname RasGetLinkStatistics
 1464 stub -noname RasGetDispPhoneNumW
@@ -1359,12 +1358,12 @@
 1488 stub -noname SHCreateShortcutEx
 1489 stub -noname KernelLibIoControl
 1490 stub -noname RegisterAFSEx
-1491 stdcall -arch=i386 InterlockedExchangeAdd(ptr long ) kernel32.InterlockedExchangeAdd
-1492 stdcall -arch=i386 InterlockedCompareExchange(ptr long long) kernel32.InterlockedCompareExchange
+1491 stdcall -arch=i386 InterlockedExchangeAdd(ptr long ) WINECE_InterlockedExchangeAdd
+1492 stdcall -arch=i386 InterlockedCompareExchange(ptr long long) WINECE_InterlockedCompareExchange
 1493 stub -noname LoadAnimatedCursor
 1494 stub -noname ActivateDeviceEx
 1495 stub -noname SendMessageTimeout
-1496 stdcall OpenEventW(long long wstr) kernel32.OpenEventW
+1496 stdcall OpenEventW(long long wstr) WINECE_OpenEventW
 1497 stub -noname SetProp
 1498 stub -noname GetProp
 1499 stub -noname RemoveProp
@@ -1387,14 +1386,14 @@
 1516 stub -noname ServiceUnbindPorts
 1517 stub -noname EnumServices
 1518 stub -noname GetServiceHandle
-1519 stdcall GlobalAddAtomW(wstr) kernel32.GlobalAddAtomW
-1520 stdcall GlobalDeleteAtom(long) kernel32.GlobalDeleteAtom
-1521 stdcall GlobalFindAtomW(wstr) kernel32.GlobalFindAtomW
-1522 stdcall MonitorFromPoint(int64 long) user32.MonitorFromPoint
-1523 stdcall MonitorFromRect(ptr long) user32.MonitorFromRect
-1524 stdcall MonitorFromWindow(long long) user32.MonitorFromWindow
+1519 stdcall GlobalAddAtomW(wstr) WINECE_GlobalAddAtomW
+1520 stdcall GlobalDeleteAtom(long) WINECE_GlobalDeleteAtom
+1521 stdcall GlobalFindAtomW(wstr) WINECE_GlobalFindAtomW
+1522 stdcall MonitorFromPoint(int64 long) WINECE_MonitorFromPoint
+1523 stdcall MonitorFromRect(ptr long) WINECE_MonitorFromRect
+1524 stdcall MonitorFromWindow(long long) WINECE_MonitorFromWindow
 1525 stub -noname GetMonitorInfo
-1526 stdcall EnumDisplayMonitors(long ptr ptr long) user32.EnumDisplayMonitors
+1526 stdcall EnumDisplayMonitors(long ptr ptr long) WINECE_EnumDisplayMonitors
 1527 stub -noname GetEventData
 1528 stub -noname SetEventData
 1529 stub -noname CreateMsgQueue
@@ -1403,7 +1402,7 @@
 1532 stub -noname GetMsgQueueInfo
 1533 stub -noname CloseMsgQueue
 1534 stub -noname SleepTillTick
-1535 stdcall DuplicateHandle(long long long ptr long long long) kernel32.DuplicateHandle
+1535 stdcall DuplicateHandle(long long long ptr long long long) WINECE_DuplicateHandle
 1536 stub -noname OpenMsgQueue
 1537 stub -noname SetPasswordStatus
 1538 stub -noname GetPasswordStatus
@@ -1411,7 +1410,7 @@
 1540 stub -noname AccessibilitySoundSentryEvent
 1541 stub -noname ImmEnableIME
 1542 stub -noname RegOpenProcessKey
-1550 cdecl -arch=i386 -norelay __CxxFrameHandler(ptr ptr ptr ptr) msvcrt.__CxxFrameHandler
+1550 cdecl -arch=i386 -norelay __CxxFrameHandler(ptr ptr ptr ptr) WINECE___CxxFrameHandler
 1551 stub -noname __CxxThrowException
 1552 stub -noname ?set_terminate@std@@YAP6AXXZP6AXXZ@Z
 1553 stub -noname ?set_unexpected@std@@YAP6AXXZP6AXXZ@Z
@@ -1419,9 +1418,9 @@
 1556 stub -noname ?terminate@std@@YAXXZ
 1557 stub -noname ?unexpected@std@@YAXXZ
 1558 stub -noname ?_inconsistency@@YAXXZ
-1559 cdecl __RTCastToVoid(ptr) msvcrt.__RTCastToVoid
-1560 cdecl __RTtypeid(ptr) msvcrt.__RTtypeid
-1561 cdecl __RTDynamicCast(ptr long ptr ptr long) msvcrt.__RTDynamicCast
+1559 cdecl __RTCastToVoid(ptr) WINECE___RTCastToVoid
+1560 cdecl __RTtypeid(ptr) WINECE___RTtypeid
+1561 cdecl __RTDynamicCast(ptr long ptr ptr long) WINECE___RTDynamicCast
 1562 stub -noname ??1type_info@@UAA@XZ
 1563 stub -noname ??8type_info@@QBAHABV0@@Z
 1564 stub -noname ??9type_info@@QBAHABV0@@Z
@@ -1442,7 +1441,7 @@
 1579 stub -noname ??_7exception@std@@6B@
 1580 stub -noname ??_7type_info@@6B@
 1581 stub -noname GetSystemPowerState
-1582 stdcall SetSystemPowerState(long long) kernel32.SetSystemPowerState
+1582 stdcall SetSystemPowerState(long long) WINECE_SetSystemPowerState
 1583 stub -noname SetPowerRequirement
 1584 stub -noname ReleasePowerRequirement
 1585 stub -noname RequestPowerNotifications
@@ -1458,8 +1457,8 @@
 1596 stub -noname mixerMessage
 1597 stub -noname mixerSetControlDetails
 1598 stub -noname mixerClose
-1599 stdcall CryptProtectData(ptr wstr ptr ptr ptr long ptr) crypt32.CryptProtectData
-1600 stdcall CryptUnprotectData(ptr ptr ptr ptr ptr long ptr) crypt32.CryptUnprotectData
+1599 stdcall CryptProtectData(ptr wstr ptr ptr ptr long ptr) WINECE_CryptProtectData
+1600 stdcall CryptUnprotectData(ptr ptr ptr ptr ptr long ptr) WINECE_CryptUnprotectData
 1601 stub -noname CeGenRandom
 1602 stub -noname MapCallerPtr
 1603 stub -noname MapPtrToProcWithSize
@@ -1467,19 +1466,19 @@
 1605 stub -noname RemoteHeapReAlloc
 1606 stub -noname RemoteHeapFree
 1607 stub -noname RemoteHeapSize
-1608 cdecl setvbuf(ptr str long long) msvcrt.setvbuf
+1608 cdecl setvbuf(ptr str long long) WINECE_setvbuf
 1609 stub -noname RegisterPowerRelationship
 1610 stub -noname ReleasePowerRelationship
 1611 stub -noname ChangeDisplaySettingsEx
 1612 stub -noname ResourceCreateList
 1613 stub -noname ResourceRequest
 1614 stub -noname ResourceRelease
-1615 stdcall InvalidateRgn(long long long) user32.InvalidateRgn
-1616 stdcall ValidateRgn(long long) user32.ValidateRgn
-1617 stdcall ExtCreateRegion(ptr long ptr) gdi32.ExtCreateRegion
+1615 stdcall InvalidateRgn(long long long) WINECE_InvalidateRgn
+1616 stdcall ValidateRgn(long long) WINECE_ValidateRgn
+1617 stdcall ExtCreateRegion(ptr long ptr) WINECE_ExtCreateRegion
 1618 cdecl -arch=win32 ?_query_new_handler@@YAP6AHI@ZXZ() msvcrt.?_query_new_handler@@YAP6AHI@ZXZ
 1619 cdecl ?set_new_handler@@YAP6AXXZP6AXXZ@Z(ptr) msvcrt.?set_new_handler@@YAP6AXXZP6AXXZ@Z
-1621 cdecl -ret64 _abs64(int64) msvcrt._abs64
+1621 cdecl -ret64 _abs64(int64) WINECE__abs64
 1622 stub -noname _byteswap_uint64
 1623 stub -noname _byteswap_ulong
 1624 stub -noname _byteswap_ushort
@@ -1496,24 +1495,24 @@
 1635 stub -noname _isunorderedf
 1636 stub -noname _MulHigh
 1637 stub -noname _MulUnsignedHigh
-1638 cdecl -ret64 _rotl64(int64 long) msvcrt._rotl64
-1639 cdecl -ret64 _rotr64(int64 long) msvcrt._rotr64
+1638 cdecl -ret64 _rotl64(int64 long) WINECE__rotl64
+1639 cdecl -ret64 _rotr64(int64 long) WINECE__rotr64
 1640 stub -noname ceilf(float)
 1641 stub -noname fabsf
 1642 stub -noname floorf(float)
 1643 stub -noname fmodf(float float)
 1644 stub -noname sqrtf(float)
-1645 cdecl _XcptFilter(long ptr) msvcrt._XcptFilter
+1645 cdecl _XcptFilter(long ptr) WINECE__XcptFilter
 1646 stub -noname ??2@YAPAXIABUnothrow_t@std@@@Z
 1647 stub -noname ?nothrow@std@@3Unothrow_t@1@B
 1648 cdecl ?_set_new_mode@@YAHH@Z(long) msvcrt.?_set_new_mode@@YAHH@Z
 1649 cdecl ?_query_new_mode@@YAHXZ() msvcrt.?_query_new_mode@@YAHXZ
 1650 cdecl -arch=win32 ?_set_new_handler@@YAP6AHI@ZP6AHI@Z@Z(ptr) msvcrt.?_set_new_handler@@YAP6AHI@ZP6AHI@Z@Z
-1651 stdcall MoveToEx(long long long ptr) gdi32.MoveToEx
-1652 stdcall LineTo(long long long) gdi32.LineTo
-1653 stdcall GetCurrentPositionEx(long ptr) gdi32.GetCurrentPositionEx
-1654 stdcall SetTextAlign(long long) gdi32.SetTextAlign
-1655 stdcall GetTextAlign(long) gdi32.GetTextAlign
+1651 stdcall MoveToEx(long long long ptr) WINECE_MoveToEx
+1652 stdcall LineTo(long long long) WINECE_LineTo
+1653 stdcall GetCurrentPositionEx(long ptr) WINECE_GetCurrentPositionEx
+1654 stdcall SetTextAlign(long long) WINECE_SetTextAlign
+1655 stdcall GetTextAlign(long) WINECE_GetTextAlign
 1658 stub -noname ?_Xlen@std@@YAXXZ
 1659 stub -noname ?_Xran@std@@YAXXZ
 1660 stub -noname ?_Nomemory@std@@YAXXZ
@@ -1521,14 +1520,14 @@
 1662 stub -noname ??3@YAXPAXABUnothrow_t@std@@@Z
 1663 stub -noname ??_V@YAXPAXABUnothrow_t@std@@@Z
 1664 stub -noname GetCharWidth32
-1665 stdcall GetDIBColorTable(long long long ptr) gdi32.GetDIBColorTable
-1666 stdcall SetDIBColorTable(long long long ptr) gdi32.SetDIBColorTable
-1667 stdcall StretchDIBits(long long long long long long long long long ptr ptr long long) gdi32.StretchDIBits
+1665 stdcall GetDIBColorTable(long long long ptr) WINECE_GetDIBColorTable
+1666 stdcall SetDIBColorTable(long long long ptr) WINECE_SetDIBColorTable
+1667 stdcall StretchDIBits(long long long long long long long long long ptr ptr long long) WINECE_StretchDIBits
 1668 stub -noname DDKReg_GetWindowInfo
 1669 stub -noname DDKReg_GetIsrInfo
 1670 stub -noname DDKReg_GetPciInfo
 1671 stub -noname LoadKernelLibrary
-1672 stdcall RedrawWindow(long ptr long long) user32.RedrawWindow
+1672 stdcall RedrawWindow(long ptr long long) WINECE_RedrawWindow
 1673 stub -noname RasGetEapUserData
 1674 stub -noname RasSetEapUserData
 1675 stub -noname RasGetEapConnectionData
@@ -1538,9 +1537,9 @@
 1679 stub -noname GetDevicePower
 1680 stub -noname IsSystemFile
 1681 stub -noname CeLogGetZones
-1682 stdcall FindFirstChangeNotificationW(wstr long long) kernel32.FindFirstChangeNotificationW
-1683 stdcall FindNextChangeNotification(long) kernel32.FindNextChangeNotification
-1684 stdcall FindCloseChangeNotification(long) kernel32.FindCloseChangeNotification
+1682 stdcall FindFirstChangeNotificationW(wstr long long) WINECE_FindFirstChangeNotificationW
+1683 stdcall FindNextChangeNotification(long) WINECE_FindNextChangeNotification
+1684 stdcall FindCloseChangeNotification(long) WINECE_FindCloseChangeNotification
 1685 stub -noname AFS_FindFirstChangeNotificationW
 1686 stub -noname GetUserDirectory
 1687 stub -noname AdvertiseInterface
@@ -1581,8 +1580,8 @@
 1722 stub -noname GwesPowerDown
 1723 stub -noname GwesPowerUp
 1724 stub -noname VirtualSetAttributes
-1725 stdcall SetBitmapBits(long long ptr) gdi32.SetBitmapBits
-1726 stdcall SetDIBitsToDevice(long long long long long long long long long ptr ptr long) gdi32.SetDIBitsToDevice
+1725 stdcall SetBitmapBits(long long ptr) WINECE_SetBitmapBits
+1726 stdcall SetDIBitsToDevice(long long long long long long long long long ptr ptr long) WINECE_SetDIBitsToDevice
 1727 stub -noname GetProcessIDFromIndex
 1742 stub -noname StringCchCopyNW
 1743 stub -noname StringCbCopyNW
@@ -1600,7 +1599,7 @@
 1755 stub -noname StringCbCatNExA
 1756 stub -noname StringCchLengthA
 1757 stub -noname StringCbLengthA
-1758 stdcall IsProcessorFeaturePresent(long) kernel32.IsProcessorFeaturePresent
+1758 stdcall IsProcessorFeaturePresent(long) WINECE_IsProcessorFeaturePresent
 1759 stub -noname ServiceClosePort
 1760 stub -noname GetCallStackSnapshot
 1761 stub -noname Int_CreateEventW
@@ -1608,12 +1607,12 @@
 1763 stub -noname GradientFill
 1764 stub -noname PowerPolicyNotify
 1765 stub -noname CacheRangeFlush
-1766 stdcall ActivateKeyboardLayout(long long) user32.ActivateKeyboardLayout
-1767 stdcall GetKeyboardLayoutList(long ptr) user32.GetKeyboardLayoutList
-1768 stdcall LoadKeyboardLayoutW(wstr long) user32.LoadKeyboardLayoutW
+1766 stdcall ActivateKeyboardLayout(long long) WINECE_ActivateKeyboardLayout
+1767 stdcall GetKeyboardLayoutList(long ptr) WINECE_GetKeyboardLayoutList
+1768 stdcall LoadKeyboardLayoutW(wstr long) WINECE_LoadKeyboardLayoutW
 1769 stub -noname ImmGetKeyboardLayout
-1770 stdcall InvertRect(long ptr) user32.InvertRect
-1771 stdcall GetKeyboardType(long) user32.GetKeyboardType
+1770 stdcall InvertRect(long ptr) WINECE_InvertRect
+1771 stdcall GetKeyboardType(long) WINECE_GetKeyboardType
 1775 stub -noname CeSetProcessVersion
 1776 stub -noname DecompressBinaryBlock
 1777 stub -noname EnumDisplaySettings
@@ -1646,49 +1645,49 @@
 1819 stub -noname ReportEventW
 1820 stub -noname RegisterEventSourceW
 1821 stub -noname DeregisterEventSource
-1822 stdcall GetIconInfo(long ptr) user32.GetIconInfo
+1822 stdcall GetIconInfo(long ptr) WINECE_GetIconInfo
 1823 stub -noname CeGetNotificationThreadId
-1824 stdcall GetStretchBltMode(long) gdi32.GetStretchBltMode
-1825 stdcall SetStretchBltMode(long long) gdi32.SetStretchBltMode
+1824 stdcall GetStretchBltMode(long) WINECE_GetStretchBltMode
+1825 stdcall SetStretchBltMode(long long) WINECE_SetStretchBltMode
 1826 stub -noname DeleteStaticMapping
 1827 stub -noname VerifyUser
 1828 stub -noname LASSReloadConfig
 1829 stub -noname ForcePixelDoubling
 1830 stub -noname IsForcePixelDoubling
-1831 stdcall ReadFileScatter(long ptr long ptr ptr) kernel32.ReadFileScatter
-1832 stdcall WriteFileGather(long ptr long ptr ptr) kernel32.WriteFileGather
+1831 stdcall ReadFileScatter(long ptr long ptr ptr) WINECE_ReadFileScatter
+1832 stdcall WriteFileGather(long ptr long ptr ptr) WINECE_WriteFileGather
 1833 stub -noname ResourceRequestEx
 1834 stub -noname ResourceMarkAsShareable
 1835 stub -noname ResourceDestroyList
 1836 stub -noname CeHeapCreate
-1837 stdcall -ordinal DPA_Create(long) comctl32.DPA_Create
-1838 stdcall -ordinal DPA_CreateEx(long long) comctl32.DPA_CreateEx
-1839 stdcall -ordinal DPA_Clone(ptr ptr) comctl32.DPA_Clone
-1840 stdcall -ordinal DPA_DeleteAllPtrs(ptr) comctl32.DPA_DeleteAllPtrs
-1841 stdcall -ordinal DPA_DeletePtr(ptr long) comctl32.DPA_DeletePtr
-1842 stdcall -ordinal DPA_Destroy(ptr) comctl32.DPA_Destroy
-1843 stdcall -ordinal DPA_DestroyCallback(ptr ptr long) comctl32.DPA_DestroyCallback
-1844 stdcall -ordinal DPA_EnumCallback(long long long) comctl32.DPA_EnumCallback
-1845 stdcall -ordinal DPA_GetPtr(ptr long) comctl32.DPA_GetPtr
-1846 stdcall -ordinal DPA_GetPtrIndex(ptr ptr) comctl32.DPA_GetPtrIndex
-1847 stdcall -ordinal DPA_Grow(ptr long) comctl32.DPA_Grow
-1848 stdcall -ordinal DPA_InsertPtr(ptr long ptr) comctl32.DPA_InsertPtr
-1849 stdcall -ordinal DPA_Search(ptr ptr long ptr long long) comctl32.DPA_Search
-1850 stdcall -ordinal DPA_SetPtr(ptr long ptr) comctl32.DPA_SetPtr
-1851 stdcall -ordinal DPA_Sort(ptr ptr long) comctl32.DPA_Sort
-1852 stdcall -ordinal DSA_Create(long long) comctl32.DSA_Create
+1837 stdcall -ordinal DPA_Create(long) WINECE_DPA_Create
+1838 stdcall -ordinal DPA_CreateEx(long long) WINECE_DPA_CreateEx
+1839 stdcall -ordinal DPA_Clone(ptr ptr) WINECE_DPA_Clone
+1840 stdcall -ordinal DPA_DeleteAllPtrs(ptr) WINECE_DPA_DeleteAllPtrs
+1841 stdcall -ordinal DPA_DeletePtr(ptr long) WINECE_DPA_DeletePtr
+1842 stdcall -ordinal DPA_Destroy(ptr) WINECE_DPA_Destroy
+1843 stdcall -ordinal DPA_DestroyCallback(ptr ptr long) WINECE_DPA_DestroyCallback
+1844 stdcall -ordinal DPA_EnumCallback(long long long) WINECE_DPA_EnumCallback
+1845 stdcall -ordinal DPA_GetPtr(ptr long) WINECE_DPA_GetPtr
+1846 stdcall -ordinal DPA_GetPtrIndex(ptr ptr) WINECE_DPA_GetPtrIndex
+1847 stdcall -ordinal DPA_Grow(ptr long) WINECE_DPA_Grow
+1848 stdcall -ordinal DPA_InsertPtr(ptr long ptr) WINECE_DPA_InsertPtr
+1849 stdcall -ordinal DPA_Search(ptr ptr long ptr long long) WINECE_DPA_Search
+1850 stdcall -ordinal DPA_SetPtr(ptr long ptr) WINECE_DPA_SetPtr
+1851 stdcall -ordinal DPA_Sort(ptr ptr long) WINECE_DPA_Sort
+1852 stdcall -ordinal DSA_Create(long long) WINECE_DSA_Create
 1853 stub -noname DSA_Clone
-1854 stdcall -ordinal DSA_DeleteAllItems(ptr) comctl32.DSA_DeleteAllItems
-1855 stdcall -ordinal DSA_DeleteItem(ptr long) comctl32.DSA_DeleteItem
-1856 stdcall -ordinal DSA_Destroy(ptr) comctl32.DSA_Destroy
-1857 stdcall -ordinal DSA_DestroyCallback(ptr ptr long) comctl32.DSA_DestroyCallback
-1858 stdcall -ordinal DSA_EnumCallback(ptr ptr long) comctl32.DSA_EnumCallback
-1859 stdcall -ordinal DSA_GetItem(ptr long long) comctl32.DSA_GetItem
-1860 stdcall -ordinal DSA_GetItemPtr(ptr long) comctl32.DSA_GetItemPtr
+1854 stdcall -ordinal DSA_DeleteAllItems(ptr) WINECE_DSA_DeleteAllItems
+1855 stdcall -ordinal DSA_DeleteItem(ptr long) WINECE_DSA_DeleteItem
+1856 stdcall -ordinal DSA_Destroy(ptr) WINECE_DSA_Destroy
+1857 stdcall -ordinal DSA_DestroyCallback(ptr ptr long) WINECE_DSA_DestroyCallback
+1858 stdcall -ordinal DSA_EnumCallback(ptr ptr long) WINECE_DSA_EnumCallback
+1859 stdcall -ordinal DSA_GetItem(ptr long long) WINECE_DSA_GetItem
+1860 stdcall -ordinal DSA_GetItemPtr(ptr long) WINECE_DSA_GetItemPtr
 1861 stub -noname DSA_Grow
-1862 stdcall -ordinal DSA_InsertItem(ptr long long) comctl32.DSA_InsertItem
+1862 stdcall -ordinal DSA_InsertItem(ptr long long) WINECE_DSA_InsertItem
 1863 stub -noname DSA_Search
-1864 stdcall -ordinal DSA_SetItem(ptr long long) comctl32.DSA_SetItem
+1864 stdcall -ordinal DSA_SetItem(ptr long long) WINECE_DSA_SetItem
 1865 stub -noname DSA_SetRange
 1866 stub -noname DSA_Sort
 1867 stub -noname GetGweApiSetTables
@@ -1701,21 +1700,21 @@
 1874 stub -noname EnumDeviceInterfaces
 1875 stub -noname __security_gen_cookie
 1876 stub -noname __report_gsfailure
-1877 stdcall MulDiv(long long long) kernel32.MulDiv
+1877 stdcall MulDiv(long long long) WINECE_MulDiv
 1878 stub -noname CredWrite
 1879 stub -noname CredRead
 1880 stub -noname CredUpdate
 1881 stub -noname CredDelete
 1882 stub -noname CredFree
 1883 stub -noname AlphaBlend
-1884 stdcall HeapCompact(long long) kernel32.HeapCompact
-1885 stdcall EnumFontFamiliesExW(long ptr ptr long long) gdi32.EnumFontFamiliesExW
+1884 stdcall HeapCompact(long long) WINECE_HeapCompact
+1885 stdcall EnumFontFamiliesExW(long ptr ptr long long) WINECE_EnumFontFamiliesExW
 1886 stub -noname GetNlsTables
-1887 stdcall GetCharABCWidthsI(long long long ptr ptr) gdi32.GetCharABCWidthsI
-1888 stdcall GetFontData(long long long ptr long) gdi32.GetFontData
-1889 stdcall GetOutlineTextMetricsW(long long ptr) gdi32.GetOutlineTextMetricsW
-1890 stdcall SetLayout(long long) gdi32.SetLayout
-1891 stdcall GetLayout(long) gdi32.GetLayout
+1887 stdcall GetCharABCWidthsI(long long long ptr ptr) WINECE_GetCharABCWidthsI
+1888 stdcall GetFontData(long long long ptr long) WINECE_GetFontData
+1889 stdcall GetOutlineTextMetricsW(long long ptr) WINECE_GetOutlineTextMetricsW
+1890 stdcall SetLayout(long long) WINECE_SetLayout
+1891 stdcall GetLayout(long) WINECE_GetLayout
 1892 stub -noname CeAddDatabaseProps
 1893 stub -noname CeAddSyncPartner
 1894 stub -noname CeAttachCustomTrackingData
@@ -1758,18 +1757,18 @@
 1955 stub -noname AttachHdstub
 1956 stub -noname AttachOsAxsT0
 1957 stub -noname CeGetCanonicalPathNameW
-1958 stdcall CopyFileExW(wstr wstr ptr ptr ptr long) kernel32.CopyFileExW
+1958 stdcall CopyFileExW(wstr wstr ptr ptr ptr long) WINECE_CopyFileExW
 1959 stub -noname MatchesWildcardMask
 1960 stub -noname CaptureDumpFileOnDevice
 1961 stub -noname GetDeviceHandleFromContext
-1962 stdcall SetTextCharacterExtra(long long) gdi32.SetTextCharacterExtra
-1963 stdcall GetTextCharacterExtra(long) gdi32.GetTextCharacterExtra
+1962 stdcall SetTextCharacterExtra(long long) WINECE_SetTextCharacterExtra
+1963 stdcall GetTextCharacterExtra(long) WINECE_GetTextCharacterExtra
 1964 stub -noname ReportFault
 1965 stub -noname CeFsIoControlW
 1966 stub -noname AFS_FsIoControlW
 1967 cdecl ?uncaught_exception@std@@YA_NXZ() msvcp71.?uncaught_exception@std@@YA_NXZ
-1968 stdcall LockFileEx(long long long long long ptr) kernel32.LockFileEx
-1969 stdcall UnlockFileEx(long long long long ptr) kernel32.UnlockFileEx
+1968 stdcall LockFileEx(long long long long long ptr) WINECE_LockFileEx
+1969 stdcall UnlockFileEx(long long long long ptr) WINECE_UnlockFileEx
 1970 stub -noname OpenEventLogW
 1971 stub -noname CloseEventLog
 1972 stub -noname BackupEventLogW
@@ -1777,22 +1776,22 @@
 1974 stub -noname UnLockEventLog
 1975 stub -noname ReadEventLogRaw
 1976 stub -noname CreateEnrollmentConfigDialog
-1977 stdcall -ordinal SHLoadIndirectString(wstr ptr long ptr) shlwapi.SHLoadIndirectString
+1977 stdcall -ordinal SHLoadIndirectString(wstr ptr long ptr) WINECE_SHLoadIndirectString
 1978 stub -noname CeGetVolumeInfoW
 1979 stub -noname ImmActivateLayout
 1980 stub -noname ImmSendNotification
 1981 stub -noname IsNamedEventSignaled
 1982 stub -noname AttachOsAxsT1
 1983 stub -noname ConnectOsAxsT1
-1984 stdcall SetWindowOrgEx(long long long ptr) gdi32.SetWindowOrgEx
-1985 stdcall GetWindowOrgEx(long ptr) gdi32.GetWindowOrgEx
-1986 stdcall GetWindowExtEx(long ptr) gdi32.GetWindowExtEx
-1987 stdcall OffsetViewportOrgEx(long long long ptr) gdi32.OffsetViewportOrgEx
-1988 stdcall GetViewportOrgEx(long ptr) gdi32.GetViewportOrgEx
-1989 stdcall GetViewportExtEx(long ptr) gdi32.GetViewportExtEx
-1990 stdcall GetROP2(long) gdi32.GetROP2
-1991 stdcall DebugActiveProcessStop(long) kernel32.DebugActiveProcessStop
-1992 stdcall DebugSetProcessKillOnExit(long) kernel32.DebugSetProcessKillOnExit
+1984 stdcall SetWindowOrgEx(long long long ptr) WINECE_SetWindowOrgEx
+1985 stdcall GetWindowOrgEx(long ptr) WINECE_GetWindowOrgEx
+1986 stdcall GetWindowExtEx(long ptr) WINECE_GetWindowExtEx
+1987 stdcall OffsetViewportOrgEx(long long long ptr) WINECE_OffsetViewportOrgEx
+1988 stdcall GetViewportOrgEx(long ptr) WINECE_GetViewportOrgEx
+1989 stdcall GetViewportExtEx(long ptr) WINECE_GetViewportExtEx
+1990 stdcall GetROP2(long) WINECE_GetROP2
+1991 stdcall DebugActiveProcessStop(long) WINECE_DebugActiveProcessStop
+1992 stdcall DebugSetProcessKillOnExit(long) WINECE_DebugSetProcessKillOnExit
 1993 stub -noname GetDeviceUniqueID
 1994 stub -noname CeGetModuleInfo
 1995 stub -noname RequestBluetoothNotifications
@@ -1804,9 +1803,9 @@
 2001 stub -noname __rt_srem64by64
 2002 stub -noname __rt_udiv64by64
 2003 stub -noname __rt_urem64by64
-2005 stub -noname __rt_sdiv
+2005 stdcall __rt_sdiv(long long) COREDLL_rt_sdiv
 2006 stub -noname __rt_sdiv10
-2008 stub -noname __rt_udiv
+2008 stdcall __rt_udiv(long long) COREDLL_rt_udiv
 2009 stub -noname __rt_udiv10
 2010 stub -noname __rt_srsh
 2011 stub -noname __rt_ursh
@@ -1861,7 +1860,7 @@
 2504 stub -noname CeRegTestSetValueW
 2505 stub -noname CeRegGetInfo
 2506 stub -noname CeRegGetNotificationInfo
-2507 stdcall CheckRemoteDebuggerPresent(long ptr) kernel32.CheckRemoteDebuggerPresent
+2507 stdcall CheckRemoteDebuggerPresent(long ptr) WINECE_CheckRemoteDebuggerPresent
 2508 stub -noname CeSafeCopyMemory
 2509 stub -noname CeCertVerify
 2510 stub -noname CeGetProcessTrust
