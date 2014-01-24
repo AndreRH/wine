@@ -560,6 +560,24 @@ static NTSTATUS raise_exception( EXCEPTION_RECORD *rec, CONTEXT *context, BOOL f
     return STATUS_SUCCESS;
 }
 
+static void ce_exception( SIGCONTEXT *sigcontext, unsigned int nr )
+{
+    switch (nr)
+    {
+        case 0xf000f7f8: /* TerminateProcess */
+            NtTerminateProcess( (HANDLE)REGn_sig(0, sigcontext), REGn_sig(1, sigcontext) );
+            if (GetCurrentProcessId() != REGn_sig(0, sigcontext))
+            {
+                WARN("GetCurrentProcessId() %08x != REGn_sig(0, sigcontext) %08lx\n",
+                     GetCurrentProcessId(), REGn_sig(0, sigcontext));
+                exit(REGn_sig(1, sigcontext));
+            }
+            break;
+        default:
+            ERR("nr %08x not handled yet\n", nr);
+            return;
+    }
+}
 
 /**********************************************************************
  *		segv_handler
@@ -570,6 +588,8 @@ static void segv_handler( int signal, siginfo_t *info, void *ucontext )
 {
     EXCEPTION_RECORD *rec;
     SIGCONTEXT *context = ucontext;
+
+    if (((unsigned int)info->si_addr & 0xf000f000) == 0xf000f000) ce_exception(context, (unsigned int)info->si_addr);
 
     /* check for page fault inside the thread stack */
     if (TRAP_sig(context) == TRAP_ARM_PAGEFLT &&
