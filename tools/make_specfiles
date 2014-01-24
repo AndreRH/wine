@@ -152,6 +152,10 @@ my @dll_groups =
   "api-ms-win-downlevel-version-l1-1-0",
  ],
  [
+  "ws2_32",
+  "ws2",
+ ],
+ [
   "msvcrt",
   "ntdll",
   "ntoskrnl.exe"

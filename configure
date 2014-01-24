@@ -16301,6 +16301,7 @@ wine_fn_config_test dlls/wmiutils/tests wmiutils_test
 wine_fn_config_dll wmvcore enable_wmvcore
 wine_fn_config_dll wnaspi32 enable_wnaspi32 implib
 wine_fn_config_dll wow32 enable_win16 implib
+wine_fn_config_dll ws2 enable_ws2
 wine_fn_config_dll ws2_32 enable_ws2_32 implib
 wine_fn_config_test dlls/ws2_32/tests ws2_32_test
 wine_fn_config_dll wshom.ocx enable_wshom_ocx
