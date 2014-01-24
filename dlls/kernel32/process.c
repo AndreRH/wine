@@ -1050,7 +1050,26 @@ __ASM_GLOBAL_FUNC( call_process_entry,
 #else
 static inline DWORD call_process_entry( PEB *peb, LPTHREAD_START_ROUTINE entry )
 {
-    return entry( peb );
+    IMAGE_NT_HEADERS *nt = RtlImageNtHeader( peb->ImageBaseAddress );
+    if (nt->OptionalHeader.Subsystem == IMAGE_SUBSYSTEM_WINDOWS_CE_GUI)
+    {
+		WCHAR emptyW[] = {0};
+		LPWSTR cmdline;
+		DWORD (CALLBACK *wince)(HINSTANCE hInst, HINSTANCE hPrevInst, LPWSTR lpCmdLine, int nCmdShow);
+		STARTUPINFOW info;
+		GetStartupInfoW( &info );
+		if (!(info.dwFlags & STARTF_USESHOWWINDOW)) info.wShowWindow = 1;
+		wince = (void*)entry;
+		cmdline=strchrW(GetCommandLineW(), ' ');
+		if (cmdline)
+			cmdline++;
+		else
+			cmdline=emptyW;
+		ERR("%s\n", wine_dbgstr_w(cmdline));
+		return wince( GetModuleHandleW(0), 0, cmdline, info.wShowWindow );
+	}
+	else
+		return entry( peb );
 }
 #endif
 
