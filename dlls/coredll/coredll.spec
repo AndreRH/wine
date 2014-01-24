@@ -469,7 +469,7 @@
 477 stub -noname CeHandleAppNotifications
 478 stub -noname CeGetUserNotificationPreferences
 479 stub -noname CeEventHasOccurred
-480 stub -noname ShellExecuteEx
+480 stdcall ShellExecuteEx(long) WINECE_ShellExecuteEx
 481 stub -noname Shell_NotifyIcon
 482 stdcall SHGetFileInfo(ptr long ptr long long) WINECE_SHGetFileInfo
 483 stub -noname SHAddToRecentDocs
@@ -1519,7 +1519,7 @@
 1661 stub -noname ??_U@YAPAXIABUnothrow_t@std@@@Z
 1662 stub -noname ??3@YAXPAXABUnothrow_t@std@@@Z
 1663 stub -noname ??_V@YAXPAXABUnothrow_t@std@@@Z
-1664 stub -noname GetCharWidth32
+1664 stdcall GetCharWidth32(long long long long) WINECE_GetCharWidth32
 1665 stdcall GetDIBColorTable(long long long ptr) WINECE_GetDIBColorTable
 1666 stdcall SetDIBColorTable(long long long ptr) WINECE_SetDIBColorTable
 1667 stdcall StretchDIBits(long long long long long long long long long ptr ptr long long) WINECE_StretchDIBits
