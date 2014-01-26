@@ -1,5 +1,6 @@
 DEFS      = -D__WINESRC__ $(EXTRADEFS)
 MODCFLAGS = @BUILTINFLAG@
+EXTRALIBS = -Wl,-Ttext=0x100000
 
 C_SRCS = \
 	main.c \
