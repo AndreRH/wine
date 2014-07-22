@@ -1,0 +1,15 @@
+before_script:
+  - brew list
+  - brew info libpng
+  - brew info freetype
+  - brew remove libpng jpeg libxml2 libtiff libtool
+  - brew install --universal freetype
+  - brew install --universal jpeg
+  - brew install --universal libtiff
+  - brew install --universal little-cms2
+  - brew install --universal sane-backends
+  - brew install --universal libgphoto2
+language: objective-c
+compiler:
+  - gcc
+script: ./configure --without-x && make
