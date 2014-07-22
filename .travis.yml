@@ -9,7 +9,7 @@ before_script:
   - brew install --universal little-cms2
   - brew install --universal sane-backends
   - brew install --universal libgphoto2
-language: objective-c
+language: c
 compiler:
   - gcc
 script: ./configure --without-x && make
