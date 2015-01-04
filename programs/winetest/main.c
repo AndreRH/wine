@@ -317,7 +317,7 @@ static void print_version (void)
     static const char platform[] = "powerpc";
 #elif defined(__arm__)
     static const char platform[] = "arm";
-#elif defined(__aarch64__)
+#elif defined(__mips__)
     static const char platform[] = "arm64";
 #else
 # error CPU unknown

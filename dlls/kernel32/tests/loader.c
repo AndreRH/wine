@@ -90,7 +90,7 @@ static IMAGE_NT_HEADERS nt_header =
       IMAGE_FILE_MACHINE_POWERPC, /* Machine */
 #elif defined __arm__
       IMAGE_FILE_MACHINE_ARMNT, /* Machine */
-#elif defined __aarch64__
+#elif defined __mips__
       IMAGE_FILE_MACHINE_ARM64, /* Machine */
 #else
 # error You must specify the machine type

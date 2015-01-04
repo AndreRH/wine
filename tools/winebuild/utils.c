@@ -64,6 +64,8 @@ static const struct
     { "x86_64",  CPU_x86_64 },
     { "powerpc", CPU_POWERPC },
     { "arm",     CPU_ARM },
+    { "mips",     CPU_MIPS },
+    { "mipsel",     CPU_MIPS },
     { "arm64",   CPU_ARM64 },
     { "aarch64", CPU_ARM64 },
 };
@@ -916,6 +918,7 @@ unsigned int get_alignment(unsigned int align)
         /* fall through */
     case CPU_POWERPC:
     case CPU_ARM:
+    case CPU_MIPS:
     case CPU_ARM64:
         n = 0;
         while ((1u << n) != align) n++;
@@ -935,6 +938,7 @@ unsigned int get_page_size(void)
     case CPU_x86_64:  return 4096;
     case CPU_POWERPC: return 4096;
     case CPU_ARM:     return 4096;
+    case CPU_MIPS:    return 4096;
     case CPU_ARM64:   return 4096;
     }
     /* unreached */
@@ -950,6 +954,7 @@ unsigned int get_ptr_size(void)
     case CPU_x86:
     case CPU_POWERPC:
     case CPU_ARM:
+case CPU_MIPS:
         return 4;
     case CPU_x86_64:
     case CPU_ARM64:

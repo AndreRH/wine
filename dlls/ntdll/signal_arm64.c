@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifdef __aarch64__
+#ifdef __mips__
 
 #include "config.h"
 #include "wine/port.h"
@@ -69,14 +69,13 @@ typedef ucontext_t SIGCONTEXT;
 
 /* All Registers access - only for local access */
 # define REG_sig(reg_name, context) ((context)->uc_mcontext.reg_name)
-# define REGn_sig(reg_num, context) ((context)->uc_mcontext.regs[reg_num])
+# define REGn_sig(reg_num, context) ((context)->uc_mcontext.gregs[reg_num])
 
 /* Special Registers access  */
-# define SP_sig(context)            REG_sig(sp, context)    /* Stack pointer */
+# define SP_sig(context)            REGn_sig(29, context)    /* Stack pointer */
 # define PC_sig(context)            REG_sig(pc, context)    /* Program counter */
-# define PSTATE_sig(context)        REG_sig(pstate, context) /* Current State Register */
-# define FP_sig(context)            REGn_sig(29, context)    /* Frame pointer */
-# define LR_sig(context)            REGn_sig(30, context)    /* Link Register */
+# define FP_sig(context)            REGn_sig(30, context)    /* Frame pointer */
+# define LR_sig(context)            REGn_sig(31, context)    /* Link Register */
 
 /* Exceptions */
 # define FAULT_sig(context)         REG_sig(fault_address, context)
@@ -117,17 +116,7 @@ static inline BOOL is_valid_frame( void *frame )
  */
 static void save_context( CONTEXT *context, const SIGCONTEXT *sigcontext )
 {
-#define C(n) context->X##n = REGn_sig(n,sigcontext)
-    /* Save normal registers */
-    C(0); C(1); C(2); C(3); C(4); C(5); C(6); C(7); C(8); C(9);
-    C(10); C(11); C(12); C(13); C(14); C(15); C(16); C(17); C(18); C(19);
-    C(20); C(21); C(22); C(23); C(24); C(25); C(26); C(27); C(28); C(29); C(30);
-#undef C
-
     context->ContextFlags = CONTEXT_FULL;
-    context->Sp     = SP_sig(sigcontext);     /* Stack pointer */
-    context->Pc     = PC_sig(sigcontext);     /* Program Counter */
-    context->PState = PSTATE_sig(sigcontext); /* Current State Register */
 }
 
 
@@ -138,16 +127,7 @@ static void save_context( CONTEXT *context, const SIGCONTEXT *sigcontext )
  */
 static void restore_context( const CONTEXT *context, SIGCONTEXT *sigcontext )
 {
-#define C(n)  REGn_sig(n,sigcontext) = context->X##n
-    /* Restore normal registers */
-    C(0); C(1); C(2); C(3); C(4); C(5); C(6); C(7); C(8); C(9);
-    C(10); C(11); C(12); C(13); C(14); C(15); C(16); C(17); C(18); C(19);
-    C(20); C(21); C(22); C(23); C(24); C(25); C(26); C(27); C(28); C(29); C(30);
-#undef C
 
-    SP_sig(sigcontext)     = context->Sp;     /* Stack pointer */
-    PC_sig(sigcontext)     = context->Pc;     /* Program Counter */
-    PSTATE_sig(sigcontext) = context->PState; /* Current State Register */
 }
 
 
@@ -198,22 +178,6 @@ void set_cpu_context( const CONTEXT *context )
  */
 void copy_context( CONTEXT *to, const CONTEXT *from, DWORD flags )
 {
-    flags &= ~CONTEXT_ARM64;  /* get rid of CPU id */
-    if (flags & CONTEXT_CONTROL)
-    {
-        to->Sp      = from->Sp;
-        to->Pc      = from->Pc;
-        to->PState  = from->PState;
-    }
-    if (flags & CONTEXT_INTEGER)
-    {
-#define C(n)  to->X##n = from->X##n
-    /* Restore normal registers */
-    C(0); C(1); C(2); C(3); C(4); C(5); C(6); C(7); C(8); C(9);
-    C(10); C(11); C(12); C(13); C(14); C(15); C(16); C(17); C(18); C(19);
-    C(20); C(21); C(22); C(23); C(24); C(25); C(26); C(27); C(28); C(29); C(30);
-#undef C
-    }
 }
 
 /***********************************************************************
@@ -223,28 +187,6 @@ void copy_context( CONTEXT *to, const CONTEXT *from, DWORD flags )
  */
 NTSTATUS context_to_server( context_t *to, const CONTEXT *from )
 {
-    DWORD flags = from->ContextFlags & ~CONTEXT_ARM64;  /* get rid of CPU id */
-
-    memset( to, 0, sizeof(*to) );
-    to->cpu = CPU_ARM64;
-
-    if (flags & CONTEXT_CONTROL)
-    {
-        to->flags |= SERVER_CTX_CONTROL;
-        to->ctl.arm64_regs.sp     = from->Sp;
-        to->ctl.arm64_regs.pc     = from->Pc;
-        to->ctl.arm64_regs.pstate = from->PState;
-    }
-    if (flags & CONTEXT_INTEGER)
-    {
-        to->flags |= SERVER_CTX_INTEGER;
-#define C(n)  to->integer.arm64_regs.x[n] = from->X##n
-    /* Restore normal registers */
-    C(0); C(1); C(2); C(3); C(4); C(5); C(6); C(7); C(8); C(9);
-    C(10); C(11); C(12); C(13); C(14); C(15); C(16); C(17); C(18); C(19);
-    C(20); C(21); C(22); C(23); C(24); C(25); C(26); C(27); C(28); C(29); C(30);
-#undef C
-    }
     return STATUS_SUCCESS;
 }
 
@@ -256,26 +198,6 @@ NTSTATUS context_to_server( context_t *to, const CONTEXT *from )
  */
 NTSTATUS context_from_server( CONTEXT *to, const context_t *from )
 {
-    if (from->cpu != CPU_ARM64) return STATUS_INVALID_PARAMETER;
-
-    to->ContextFlags = CONTEXT_ARM64;
-    if (from->flags & SERVER_CTX_CONTROL)
-    {
-        to->ContextFlags |= CONTEXT_CONTROL;
-        to->Sp     = from->ctl.arm64_regs.sp;
-        to->Pc     = from->ctl.arm64_regs.pc;
-        to->PState = from->ctl.arm64_regs.pstate;
-    }
-    if (from->flags & SERVER_CTX_INTEGER)
-    {
-        to->ContextFlags |= CONTEXT_INTEGER;
-#define C(n)  to->X##n = from->integer.arm64_regs.x[n]
-    /* Restore normal registers */
-    C(0); C(1); C(2); C(3); C(4); C(5); C(6); C(7); C(8); C(9);
-    C(10); C(11); C(12); C(13); C(14); C(15); C(16); C(17); C(18); C(19);
-    C(20); C(21); C(22); C(23); C(24); C(25); C(26); C(27); C(28); C(29); C(30);
-#undef C
-     }
     return STATUS_SUCCESS;
 }
 
@@ -525,7 +447,6 @@ static void trap_handler( int signal, siginfo_t *info, void *ucontext )
     save_context( &context, ucontext );
     rec.ExceptionFlags   = EXCEPTION_CONTINUABLE;
     rec.ExceptionRecord  = NULL;
-    rec.ExceptionAddress = (LPVOID)context.Pc;
     rec.NumberParameters = 0;
     status = raise_exception( &rec, &context, TRUE );
     if (status) raise_status( status, &rec );
@@ -592,7 +513,6 @@ static void fpe_handler( int signal, siginfo_t *siginfo, void *sigcontext )
     }
     rec.ExceptionFlags   = EXCEPTION_CONTINUABLE;
     rec.ExceptionRecord  = NULL;
-    rec.ExceptionAddress = (LPVOID)context.Pc;
     rec.NumberParameters = 0;
     status = raise_exception( &rec, &context, TRUE );
     if (status) raise_status( status, &rec );
@@ -618,7 +538,6 @@ static void int_handler( int signal, siginfo_t *siginfo, void *sigcontext )
         rec.ExceptionCode    = CONTROL_C_EXIT;
         rec.ExceptionFlags   = EXCEPTION_CONTINUABLE;
         rec.ExceptionRecord  = NULL;
-        rec.ExceptionAddress = (LPVOID)context.Pc;
         rec.NumberParameters = 0;
         status = raise_exception( &rec, &context, TRUE );
         if (status) raise_status( status, &rec );
@@ -642,7 +561,6 @@ static void abrt_handler( int signal, siginfo_t *siginfo, void *sigcontext )
     rec.ExceptionCode    = EXCEPTION_WINE_ASSERTION;
     rec.ExceptionFlags   = EH_NONCONTINUABLE;
     rec.ExceptionRecord  = NULL;
-    rec.ExceptionAddress = (LPVOID)context.Pc;
     rec.NumberParameters = 0;
     status = raise_exception( &rec, &context, TRUE );
     if (status) raise_status( status, &rec );
@@ -827,7 +745,6 @@ void WINAPI RtlRaiseException( EXCEPTION_RECORD *rec )
     NTSTATUS status;
 
     RtlCaptureContext( &context );
-    rec->ExceptionAddress = (LPVOID)context.Pc;
     status = raise_exception( rec, &context, TRUE );
     if (status) raise_status( status, rec );
 }

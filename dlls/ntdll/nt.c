@@ -1109,7 +1109,7 @@ static inline void get_cpuinfo(SYSTEM_CPU_INFORMATION* info)
     info->Architecture = PROCESSOR_ARCHITECTURE_ARM;
 }
 
-#elif defined(__aarch64__)
+#elif defined(__mips__)
 
 static inline void get_cpuinfo(SYSTEM_CPU_INFORMATION* info)
 {

@@ -160,6 +160,8 @@ static const struct
     { "x86_64",  CPU_x86_64 },
     { "powerpc", CPU_POWERPC },
     { "arm",     CPU_ARM },
+    { "mips",     CPU_MIPS },
+    { "mipsel",     CPU_MIPS },
     { "aarch64", CPU_ARM64 }
 };
 
@@ -221,6 +223,8 @@ static const enum target_cpu build_cpu = CPU_x86_64;
 static const enum target_cpu build_cpu = CPU_POWERPC;
 #elif defined(__arm__)
 static const enum target_cpu build_cpu = CPU_ARM;
+#elif defined(__mips__)
+static const enum target_cpu build_cpu = CPU_MIPS;
 #elif defined(__aarch64__)
 static const enum target_cpu build_cpu = CPU_ARM64;
 #else
@@ -464,6 +468,7 @@ static char *get_lib_dir( struct options *opts )
         case CPU_x86:     strcpy( p, "/i386-linux-gnu" ); break;
         case CPU_x86_64:  strcpy( p, "/x86_64-linux-gnu" ); break;
         case CPU_ARM:     strcpy( p, "/arm-linux-gnueabi" ); break;
+		case CPU_MIPS:    strcpy( p, "/mipsel-linux-gnu" ); break;
         case CPU_ARM64:   strcpy( p, "/aarch64-linux-gnu" ); break;
         case CPU_POWERPC: strcpy( p, "/powerpc-linux-gnu" ); break;
         default:

@@ -56,6 +56,8 @@ enum target_cpu target_cpu = CPU_x86_64;
 enum target_cpu target_cpu = CPU_POWERPC;
 #elif defined(__arm__)
 enum target_cpu target_cpu = CPU_ARM;
+#elif defined(__mips__)
+enum target_cpu target_cpu = CPU_MIPS;
 #elif defined(__aarch64__)
 enum target_cpu target_cpu = CPU_ARM64;
 #else

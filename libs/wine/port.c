@@ -156,6 +156,23 @@ __ASM_GLOBAL_FUNC( wine_call_on_stack,
                    "blx r2\n\t"         /* call func */
                    "mov sp, r4\n\t"     /* restore old sp from local var */
                    "pop {r4,PC}")       /* fetch return address into pc */
+#elif defined(__mips__) && defined(__GNUC__)
+__ASM_GLOBAL_FUNC( wine_call_on_stack,
+                   "addiu $sp,$sp,-32\n\t"
+                   "sw $ra,28($sp)\n\t"
+                   "sw $s0,24($sp)\n\t"
+                   "move $s0,$sp\n\t"
+                   "move $sp,$a2\n\t"
+                   "move $t9,$a0\n\t"
+                   "move $a0,$a1\n\t"
+                   "jalr $t9\n\t"
+                   "nop\n\t" /* delay */
+                   "move $sp,$s0\n\t"
+                   "lw $s0,24($sp)\n\t"
+                   "lw $ra,28($sp)\n\t"
+                   "jr $ra\n\t"
+                   "addiu $sp,$sp,32") /* delay */
+
 #elif defined(__aarch64__) && defined(__GNUC__)
 __ASM_GLOBAL_FUNC( wine_call_on_stack,
                    "stp x29, x30, [sp,#-32]!\n\t"    /* save return address on stack */

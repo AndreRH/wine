@@ -396,46 +396,13 @@ static struct cpu_register cpu_register_map[] = {
     REG(Pc, 4, CONTEXT_CONTROL),
     REG(Cpsr, 4, CONTEXT_CONTROL),
 };
-#elif defined(__aarch64__)
+#elif defined(__mips__)
 static const char target_xml[] = "";
 static struct cpu_register cpu_register_map[] = {
-    REG(X0,  8, CONTEXT_INTEGER),
-    REG(X1,  8, CONTEXT_INTEGER),
-    REG(X2,  8, CONTEXT_INTEGER),
-    REG(X3,  8, CONTEXT_INTEGER),
-    REG(X4,  8, CONTEXT_INTEGER),
-    REG(X5,  8, CONTEXT_INTEGER),
-    REG(X6,  8, CONTEXT_INTEGER),
-    REG(X7,  8, CONTEXT_INTEGER),
-    REG(X8,  8, CONTEXT_INTEGER),
-    REG(X9,  8, CONTEXT_INTEGER),
-    REG(X10, 8, CONTEXT_INTEGER),
-    REG(X11, 8, CONTEXT_INTEGER),
-    REG(X12, 8, CONTEXT_INTEGER),
-    REG(X13, 8, CONTEXT_INTEGER),
-    REG(X14, 8, CONTEXT_INTEGER),
-    REG(X15, 8, CONTEXT_INTEGER),
-    REG(X16, 8, CONTEXT_INTEGER),
-    REG(X17, 8, CONTEXT_INTEGER),
-    REG(X18, 8, CONTEXT_INTEGER),
-    REG(X19, 8, CONTEXT_INTEGER),
-    REG(X20, 8, CONTEXT_INTEGER),
-    REG(X21, 8, CONTEXT_INTEGER),
-    REG(X22, 8, CONTEXT_INTEGER),
-    REG(X23, 8, CONTEXT_INTEGER),
-    REG(X24, 8, CONTEXT_INTEGER),
-    REG(X25, 8, CONTEXT_INTEGER),
-    REG(X26, 8, CONTEXT_INTEGER),
-    REG(X27, 8, CONTEXT_INTEGER),
-    REG(X28, 8, CONTEXT_INTEGER),
-    REG(X29, 8, CONTEXT_INTEGER),
-    REG(X30, 8, CONTEXT_INTEGER),
-    REG(Sp,  8, CONTEXT_CONTROL),
-    REG(Pc,  8, CONTEXT_CONTROL),
-    REG(PState, 8, CONTEXT_CONTROL),
+
 };
 #else
-# error Define the registers map for your CPU
+//# error Define the registers map for your CPU
 #endif
 #undef REG
 

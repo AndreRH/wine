@@ -61,7 +61,7 @@ static const unsigned int supported_cpus = CPU_FLAG(CPU_x86_64) | CPU_FLAG(CPU_x
 static const unsigned int supported_cpus = CPU_FLAG(CPU_POWERPC);
 #elif defined(__arm__)
 static const unsigned int supported_cpus = CPU_FLAG(CPU_ARM);
-#elif defined(__aarch64__)
+#elif defined(__mips__)
 static const unsigned int supported_cpus = CPU_FLAG(CPU_ARM64);
 #else
 #error Unsupported CPU

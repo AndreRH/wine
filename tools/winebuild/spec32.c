@@ -442,6 +442,11 @@ static void output_asm_constructor( const char *constructor )
             output( "\n\t.section \".text\",\"ax\"\n" );
             output( "\tblx %s\n", asm_name(constructor) );
             break;
+        case CPU_MIPS:
+            output( "\n\t.section \".text\",\"ax\"\n" );
+            output( "\tnop\n" );
+            //output( "\tjal %s\n", asm_name(constructor) );
+            break;
         case CPU_ARM64:
         case CPU_POWERPC:
             output( "\n\t.section \".init\",\"ax\"\n" );
@@ -489,6 +494,11 @@ void output_module( DLLSPEC *spec )
             output( "\n\t.section \".text\",\"ax\"\n" );
             output( "\tb 1f\n" );
             break;
+		case CPU_MIPS:
+            output( "\n\t.section \".text\",\"ax\"\n" );
+            output( "\tnop\n" );
+            //output( "\tj 1f\n" );
+            break;
         case CPU_ARM64:
         case CPU_POWERPC:
             output( "\n\t.section \".init\",\"ax\"\n" );
@@ -515,6 +525,7 @@ void output_module( DLLSPEC *spec )
     case CPU_x86_64:  machine = IMAGE_FILE_MACHINE_AMD64; break;
     case CPU_POWERPC: machine = IMAGE_FILE_MACHINE_POWERPC; break;
     case CPU_ARM:     machine = IMAGE_FILE_MACHINE_ARMNT; break;
+    case CPU_MIPS:
     case CPU_ARM64:   machine = IMAGE_FILE_MACHINE_ARM64; break;
     }
     output( "\t.short 0x%04x\n",          /* Machine */
@@ -551,7 +562,7 @@ void output_module( DLLSPEC *spec )
     output( "\t.short %u,%u\n",           /* Major/MinorSubsystemVersion */
              spec->subsystem_major, spec->subsystem_minor );
     output( "\t.long 0\n" );                          /* Win32VersionValue */
-    output( "\t.long %s-.L__wine_spec_rva_base\n",    /* SizeOfImage */
+    output( "\t.long %s\n",    /* SizeOfImage */
              asm_name("_end") );
     output( "\t.long %u\n", page_size );  /* SizeOfHeaders */
     output( "\t.long 0\n" );              /* CheckSum */
@@ -697,6 +708,7 @@ void output_fake_module( DLLSPEC *spec )
     case CPU_x86_64:  put_word( IMAGE_FILE_MACHINE_AMD64 ); break;
     case CPU_POWERPC: put_word( IMAGE_FILE_MACHINE_POWERPC ); break;
     case CPU_ARM:     put_word( IMAGE_FILE_MACHINE_ARMNT ); break;
+    case CPU_MIPS:
     case CPU_ARM64:   put_word( IMAGE_FILE_MACHINE_ARM64 ); break;
     }
     put_word( nb_sections );                         /* NumberOfSections */

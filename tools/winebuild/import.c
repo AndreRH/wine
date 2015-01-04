@@ -654,6 +654,17 @@ static void output_import_thunk( const char *name, const char *table, int pos )
         output( "\tldr PC,[PC,IP]\n" );
         output( "1:\t.long %s+%u-(1b+4)\n", table, pos );
         break;
+					/*output( "\tlw $t9,%%got(%s)($gp)\n", asm_name("__wine_spec_delay_load") );
+					output( "\tlw $t7,%%lo(%s)($t9)\n", asm_name("__wine_spec_delay_load") );
+					output( "\tandi $t9,$t7,8\n" );*/
+    case CPU_MIPS:
+		output( "\tlw $t9,%%got(%s)($gp)\n", table );
+		output( "\tlw $t7,%%lo(%s)($t9)\n", table );
+		output( "\tandi $t9,$t7,8+%u\n", pos );
+        /*output( "\tla $t9,1f\n");*/
+        output( "\tjr $t9\n" );
+        output( "\tnop\n" );
+        break;
     case CPU_ARM64:
         output( "\tadr x9, 1f\n" );
         output( "\tldur x9, [x9, #0]\n" );
@@ -977,6 +988,31 @@ static void output_delayed_import_thunks( const DLLSPEC *spec )
         output( "\tbx IP\n");
         output( "2:\t.long %s-1b\n", asm_name("__wine_spec_delay_load") );
         break;
+    case CPU_MIPS:
+        output( "\taddiu $sp,$sp,-32\n" );
+        output( "\tsw $a0,28($sp)\n" );
+        output( "\tsw $a1,24($sp)\n" );
+        output( "\tsw $a2,20($sp)\n" );
+        output( "\tsw $a3,16($sp)\n" );
+        output( "\tsw $fp,12($sp)\n" );
+        output( "\tsw $ra, 8($sp)\n" );
+		output( "\tlw $t9,%%got(%s)($gp)\n", asm_name("__wine_spec_delay_load") );
+		output( "\tlw $t7,%%lo(%s)($t9)\n", asm_name("__wine_spec_delay_load") );
+		output( "\tandi $t9,$t7,8\n" );
+        /*output( "\tla $t9,1f\n" );*/
+        output( "\tmove $a0,$t8\n" );
+        output( "\tjalr $t9\n" );
+        output( "\tnop\n");
+        output( "\tmove $t9,$v0\n");
+        output( "\tlw $ra, 8($sp)\n" );
+        output( "\tlw $fp,12($sp)\n" );
+        output( "\tlw $a3,16($sp)\n" );
+        output( "\tlw $a2,20($sp)\n" );
+        output( "\tlw $a1,24($sp)\n" );
+        output( "\tlw $a0,28($sp)\n" );
+        output( "\tjr $t9\n");
+        output( "\tnop\n");
+        break;
     case CPU_ARM64:
         output( "\tstp x29, x30, [sp,#-16]!\n" );
         output( "\tmov x29, sp\n" );
@@ -1076,6 +1112,16 @@ static void output_delayed_import_thunks( const DLLSPEC *spec )
                 output( "\tb %s\n", asm_name("__wine_delay_load_asm") );
                 break;
             }
+			case CPU_MIPS:
+				output( "\tli $t8,%d\n", (idx << 16) | j );
+				output( "\tlw $t9,%%got(%s)($gp)\n", asm_name("__wine_delay_load_asm") );
+				output( "\tlw $t7,%%lo(%s)($t9)\n", asm_name("__wine_delay_load_asm") );
+				output( "\tandi $t9,$t7,8\n" );
+				/*output( "\tla $t9,1f\n" );*/
+				output( "\tjr $t9\n" );
+				output( "\tnop\n");
+				/*output( "1:\t.long %s\n", asm_name("__wine_delay_load_asm") );*/
+				break;
             case CPU_ARM64:
                 output( "\tstp x6, x7, [sp,#-80]!\n" );
                 output( "\tstp x4, x5, [sp,#48]\n" );
