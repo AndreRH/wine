@@ -66,6 +66,8 @@ static const struct
     { "arm",     CPU_ARM },
     { "mips",     CPU_MIPS },
     { "mipsel",     CPU_MIPS },
+    { "mips64",     CPU_MIPS },
+    { "mips64el",     CPU_MIPS },
     { "arm64",   CPU_ARM64 },
     { "aarch64", CPU_ARM64 },
 };
@@ -387,7 +389,7 @@ struct strarray *get_as_command(void)
     {
         args = strarray_copy( cc_command );
         strarray_add( args, "-xassembler", "-c", NULL );
-        if (force_pointer_size)
+        if (0)
             strarray_add_one( args, (force_pointer_size == 8) ? "-m64" : "-m32" );
         if (cpu_option) strarray_add_one( args, strmake("-mcpu=%s", cpu_option) );
         return args;
@@ -453,6 +455,9 @@ struct strarray *get_ld_command(void)
             {
             case CPU_POWERPC:
                 strarray_add( args, "-m", (force_pointer_size == 8) ? "elf64ppc" : "elf32ppc", NULL );
+                break;
+            case CPU_MIPS:
+                strarray_add( args, "-m", (force_pointer_size == 8) ? "elf64ltsmip" : "elf64-tradlittlemips", NULL );
                 break;
             default:
                 strarray_add( args, "-m", (force_pointer_size == 8) ? "elf_x86_64" : "elf_i386", NULL );
@@ -954,10 +959,10 @@ unsigned int get_ptr_size(void)
     case CPU_x86:
     case CPU_POWERPC:
     case CPU_ARM:
-case CPU_MIPS:
         return 4;
     case CPU_x86_64:
     case CPU_ARM64:
+case CPU_MIPS:
         return 8;
     }
     /* unreached */

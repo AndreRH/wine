@@ -1150,7 +1150,7 @@ void break_thread( struct thread *thread )
         data.exception.address = thread->context->ctl.arm_regs.pc;
         break;
     case CPU_ARM64:
-        data.exception.address = thread->context->ctl.arm64_regs.pc;
+        data.exception.address = NULL; //thread->context->ctl.arm64_regs.pc;
         break;
     }
     generate_debug_event( thread, EXCEPTION_DEBUG_EVENT, &data );

@@ -57,7 +57,7 @@
  */
 
 #if !defined(_MSC_VER) && !defined(__int64)
-#  if defined(__x86_64__) || defined(__aarch64__) || defined(_WIN64)
+#  if defined(__x86_64__) || defined(__mips64) || defined(_WIN64)
 #    define __int64 long
 #  else
 #    define __int64 long long
@@ -441,7 +441,7 @@ extern __int64 interlocked_cmpxchg64( __int64 *dest, __int64 xchg, __int64 compa
 extern int interlocked_xchg( int *dest, int val );
 extern void *interlocked_xchg_ptr( void **dest, void *val );
 extern int interlocked_xchg_add( int *dest, int incr );
-#if defined(__x86_64__) || defined(__aarch64__) || defined(_WIN64)
+#if defined(__x86_64__) || defined(__mips64) || defined(_WIN64)
 extern unsigned char interlocked_cmpxchg128( __int64 *dest, __int64 xchg_high,
                                              __int64 xchg_low, __int64 *compare );
 #endif

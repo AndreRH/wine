@@ -444,6 +444,7 @@ static void output_asm_constructor( const char *constructor )
             break;
         case CPU_MIPS:
             output( "\n\t.section \".text\",\"ax\"\n" );
+            output( "\tjal %s\n", asm_name(constructor) );
             output( "\tnop\n" );
             //output( "\tjal %s\n", asm_name(constructor) );
             break;
@@ -496,6 +497,7 @@ void output_module( DLLSPEC *spec )
             break;
 		case CPU_MIPS:
             output( "\n\t.section \".text\",\"ax\"\n" );
+            output( "\tj 1f\n" );
             output( "\tnop\n" );
             //output( "\tj 1f\n" );
             break;

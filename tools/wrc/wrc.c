@@ -317,7 +317,7 @@ static void set_target( const char *target )
     /* target specification is in the form CPU-MANUFACTURER-OS or CPU-MANUFACTURER-KERNEL-OS */
     if (!(p = strchr( cpu, '-' ))) error( "Invalid target specification '%s'\n", target );
     *p = 0;
-    if (!strcmp( cpu, "amd64" ) || !strcmp( cpu, "x86_64" ) ||
+    if (!strcmp( cpu, "amd64" ) || !strcmp( cpu, "x86_64" ) || !strcmp( cpu, "mips64" ) || !strcmp( cpu, "mips64el" ) ||
         !strcmp( cpu, "ia64" ) || !strcmp( cpu, "aarch64" ))
         pointer_size = 8;
     else

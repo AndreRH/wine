@@ -229,7 +229,7 @@ static void VIRTUAL_DumpView( struct file_view *view )
 /***********************************************************************
  *           VIRTUAL_Dump
  */
-#ifdef WINE_VM_DEBUG
+#if 1
 static void VIRTUAL_Dump(void)
 {
     sigset_t sigset;
@@ -457,6 +457,8 @@ static NTSTATUS create_view( struct file_view **view_ret, void *base, size_t siz
     struct file_view *view;
     struct list *ptr;
     int unix_prot = VIRTUAL_GetUnixProt( vprot );
+
+    FIXME( "%p  %p-%p  %u\n", view_ret, base, (char *)base + size, vprot );
 
     assert( !((UINT_PTR)base & page_mask) );
     assert( !(size & page_mask) );
@@ -735,6 +737,8 @@ static int alloc_reserved_area_callback( void *start, size_t size, void *arg )
     struct alloc_area *alloc = arg;
     void *end = (char *)start + size;
 
+ERR("START %p %u_0x%x\n", start, size, size);
+
     if (start < address_space_start) start = address_space_start;
     if (is_beyond_limit( start, size, alloc->limit )) end = alloc->limit;
     if (start >= end) return 0;
@@ -839,8 +843,16 @@ static NTSTATUS map_view( struct file_view **view_ret, void *base, size_t size, 
             }
             TRACE( "got mem with anon mmap %p-%p\n", ptr, (char *)ptr + size );
             /* if we got something beyond the user limit, unmap it and retry */
-            if (is_beyond_limit( ptr, view_size, user_space_limit )) add_reserved_area( ptr, view_size );
-            else break;
+            if (is_beyond_limit( ptr, view_size, user_space_limit ))
+            {
+                TRACE( "wtf %p\n", user_space_limit );
+                add_reserved_area( ptr, view_size );
+            }
+            else
+            {
+                TRACE( "last %p\n", user_space_limit );
+                break;
+            }
         }
         ptr = unmap_extra_space( ptr, view_size, size, mask );
     }
@@ -1330,12 +1342,25 @@ static NTSTATUS map_image( HANDLE hmapping, int fd, char *base, SIZE_T total_siz
 static int alloc_virtual_heap( void *base, size_t size, void *arg )
 {
     void **heap_base = arg;
-
-    if (is_beyond_limit( base, size, address_space_limit )) address_space_limit = (char *)base + size;
-    if (size < VIRTUAL_HEAP_SIZE) return 0;
-    if (is_win64 && base < (void *)0x80000000) return 0;
+ERR("START %p %u_0x%x\n", base, size, size);
+    if (is_beyond_limit( base, size, address_space_limit ))
+    {
+ERR("\tadjusting asl\n");
+        address_space_limit = (char *)base + size;
+    }
+    if (size < VIRTUAL_HEAP_SIZE)
+    {
+ERR("\tsize < VIRTUAL_HEAP_SIZE\n");
+        return 0;
+    }
+    if (is_win64 && base < (void *)0x80000000)
+    {
+ERR("\tis_win64 && base < 0x80000000\n");
+        return 0;
+    }
     *heap_base = wine_anon_mmap( (char *)base + size - VIRTUAL_HEAP_SIZE,
                                  VIRTUAL_HEAP_SIZE, PROT_READ|PROT_WRITE, MAP_FIXED );
+ERR("END %p\n", *heap_base);
     return (*heap_base != (void *)-1);
 }
 
@@ -1370,7 +1395,10 @@ void virtual_init(void)
 
     /* try to find space in a reserved area for the virtual heap */
     if (!wine_mmap_enum_reserved_areas( alloc_virtual_heap, &heap_base, 1 ))
+    {
+        ERR( "nope %u\n", page_size );
         heap_base = wine_anon_mmap( NULL, VIRTUAL_HEAP_SIZE, PROT_READ|PROT_WRITE, 0 );
+    }
 
     assert( heap_base != (void *)-1 );
     virtual_heap = RtlCreateHeap( HEAP_NO_SERIALIZE, heap_base, VIRTUAL_HEAP_SIZE,

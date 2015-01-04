@@ -45,7 +45,7 @@ int display_warnings = 0;
 int kill_at = 0;
 int verbose = 0;
 int link_ext_symbols = 0;
-int force_pointer_size = 0;
+int force_pointer_size = 8;
 int unwind_tables = 0;
 
 #ifdef __i386__
@@ -406,6 +406,7 @@ static char **parse_options( int argc, char **argv, DLLSPEC *spec )
             else if (!strcmp( optarg, "64" )) force_pointer_size = 8;
             else if (!strcmp( optarg, "arm" )) thumb_mode = 0;
             else if (!strcmp( optarg, "thumb" )) thumb_mode = 1;
+            else if (!strncmp( optarg, "abi=", 4 )) force_pointer_size = 8;
             else if (!strncmp( optarg, "cpu=", 4 )) cpu_option = xstrdup( optarg + 4 );
             else fatal_error( "Unknown -m option '%s'\n", optarg );
             break;
@@ -545,8 +546,8 @@ static char **parse_options( int argc, char **argv, DLLSPEC *spec )
         if (force_pointer_size == 4) target_cpu = CPU_x86;
         break;
     default:
-        if (force_pointer_size == 8)
-            fatal_error( "Cannot build 64-bit code for this CPU\n" );
+        /*if (force_pointer_size == 8)
+            fatal_error( "Cannot build 64-bit code for this CPU\n" );*/
         break;
     }
 
