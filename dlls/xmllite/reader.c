@@ -85,6 +85,7 @@ typedef enum
 
 static const WCHAR utf16W[] = {'U','T','F','-','1','6',0};
 static const WCHAR utf8W[] = {'U','T','F','-','8',0};
+static const WCHAR unknownW[] = {'U','n','k','n','o','w','n',0};
 
 static const WCHAR dblquoteW[] = {'\"',0};
 static const WCHAR quoteW[] = {'\'',0};
@@ -151,8 +152,9 @@ struct xml_encoding_data
 };
 
 static const struct xml_encoding_data xml_encoding_map[] = {
-    { utf16W, XmlEncoding_UTF16, ~0 },
-    { utf8W,  XmlEncoding_UTF8,  CP_UTF8 }
+    { utf16W,   XmlEncoding_UTF16,      ~0 },
+    { utf8W,    XmlEncoding_UTF8,       CP_UTF8 },
+    { unknownW, XmlEncoding_Unknown,    ~0 },
 };
 
 const WCHAR *get_encoding_name(xml_encoding encoding)
