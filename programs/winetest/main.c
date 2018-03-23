@@ -349,6 +349,8 @@ static void print_version (void)
     static const char platform[] = "arm";
 #elif defined(__aarch64__)
     static const char platform[] = "arm64";
+#elif defined(__riscv)
+    static const char platform[] = "riscv64";
 #else
 # error CPU unknown
 #endif

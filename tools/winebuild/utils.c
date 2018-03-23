@@ -68,6 +68,7 @@ static const struct
     { "armv7",   CPU_ARM },
     { "arm64",   CPU_ARM64 },
     { "aarch64", CPU_ARM64 },
+    { "riscv64", CPU_RISCV64 },
 };
 
 /* atexit handler to clean tmp files */
@@ -896,6 +897,7 @@ unsigned int get_alignment(unsigned int align)
     case CPU_POWERPC:
     case CPU_ARM:
     case CPU_ARM64:
+    case CPU_RISCV64:
         n = 0;
         while ((1u << n) != align) n++;
         return n;
@@ -914,6 +916,7 @@ unsigned int get_page_size(void)
     case CPU_x86_64:
     case CPU_POWERPC:
     case CPU_ARM:
+    case CPU_RISCV64:
         return 0x1000;
     case CPU_ARM64:
         return 0x10000;
@@ -934,6 +937,7 @@ unsigned int get_ptr_size(void)
         return 4;
     case CPU_x86_64:
     case CPU_ARM64:
+    case CPU_RISCV64:
         return 8;
     }
     /* unreached */
@@ -1007,6 +1011,7 @@ const char *func_declaration( const char *func )
         {
         case CPU_ARM:
         case CPU_ARM64:
+        case CPU_RISCV64:
             buffer = strmake( ".type %s,%%function", func );
             break;
         default:
@@ -1058,6 +1063,7 @@ void output_gnu_stack_note(void)
         {
         case CPU_ARM:
         case CPU_ARM64:
+        case CPU_RISCV64:
             output( "\t.section .note.GNU-stack,\"\",%%progbits\n" );
             break;
         default:

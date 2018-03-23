@@ -165,6 +165,7 @@ static const struct
     { "armv7",   CPU_ARM },
     { "arm64",   CPU_ARM64 },
     { "aarch64", CPU_ARM64 },
+    { "riscv64", CPU_RISCV64 },
 };
 
 static const struct
@@ -228,6 +229,8 @@ static const enum target_cpu build_cpu = CPU_POWERPC;
 static const enum target_cpu build_cpu = CPU_ARM;
 #elif defined(__aarch64__)
 static const enum target_cpu build_cpu = CPU_ARM64;
+#elif defined(__riscv)
+static const enum target_cpu build_cpu = CPU_RISCV64;
 #else
 #error Unsupported CPU
 #endif
@@ -576,6 +579,7 @@ static void compile(struct options* opts, const char* lang)
             break;
         case CPU_ARM:
         case CPU_ARM64:
+        case CPU_RISCV64:
         case CPU_POWERPC:
             strarray_add(comp_args, "-D__stdcall=");
             strarray_add(comp_args, "-D__cdecl=");

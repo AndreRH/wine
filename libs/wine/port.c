@@ -187,6 +187,20 @@ __ASM_GLOBAL_FUNC( wine_call_on_stack,
                    "ldr x19, [sp,#16]\n\t"           /* restore register from stack */
                    "ldp x29, x30, [sp],#32\n\t"      /* restore return address */
                    "ret")                            /* return */
+#elif defined(__riscv) && defined(__GNUC__)
+__ASM_GLOBAL_FUNC( wine_call_on_stack,
+                   "addi sp, sp, -16\n\t"           /* reserve space on stack */
+                   "sd ra, 8(sp)\n\t"    /* save return address on stack */
+                   "sd s1, 0(sp)\n\t"    /* save register on stack */
+                   "mv s1, sp\n\t"                 /* store old sp in local var */
+                   "mv sp, a2\n\t"                  /* stack */
+                   "mv a2, a0\n\t"                  /* func -> scratch register */
+                   "mv a0, a1\n\t"                  /* arg */
+                   "jalr a2\n\t"                      /* call func */
+                   "mv sp, s1\n\t"                 /* restore old sp from local var */
+                   "ld s1, 0(sp)\n\t"           /* restore register from stack */
+                   "ld ra, 8(sp)\n\t"           /* restore return address */
+                   "ret")                            /* return */
 #else
 #error You must implement wine_call_on_stack for your platform
 #endif

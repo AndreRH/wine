@@ -66,6 +66,8 @@ static const struct
             IMAGE_FILE_MACHINE_ARMNT, /* Machine */
 #elif defined __aarch64__
             IMAGE_FILE_MACHINE_ARM64, /* Machine */
+#elif defined __riscv
+            IMAGE_FILE_MACHINE_RISCV64, /* Machine */
 #else
 # error You must specify the machine type
 #endif

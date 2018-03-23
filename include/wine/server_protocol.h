@@ -117,7 +117,7 @@ typedef union
 
 enum cpu_type
 {
-    CPU_x86, CPU_x86_64, CPU_POWERPC, CPU_ARM, CPU_ARM64
+    CPU_x86, CPU_x86_64, CPU_POWERPC, CPU_ARM, CPU_ARM64, CPU_RISCV64
 };
 typedef int cpu_type_t;
 
@@ -134,6 +134,7 @@ typedef struct
         struct { unsigned int iar, msr, ctr, lr, dar, dsisr, trap, __pad; } powerpc_regs;
         struct { unsigned int sp, lr, pc, cpsr; } arm_regs;
         struct { unsigned __int64 sp, pc, pstate; } arm64_regs;
+        struct { unsigned __int64 sp, pc; } riscv64_regs;
     } ctl;
     union
     {
@@ -143,6 +144,7 @@ typedef struct
         struct { unsigned int gpr[32], cr, xer; } powerpc_regs;
         struct { unsigned int r[13]; } arm_regs;
         struct { unsigned __int64 x[31]; } arm64_regs;
+        struct { unsigned __int64 x[32]; } riscv64_regs;
     } integer;
     union
     {
@@ -6501,6 +6503,6 @@ union generic_reply
     struct terminate_job_reply terminate_job_reply;
 };
 
-#define SERVER_PROTOCOL_VERSION 548
+#define SERVER_PROTOCOL_VERSION 549
 
 #endif /* __WINE_WINE_SERVER_PROTOCOL_H */

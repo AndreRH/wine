@@ -500,6 +500,11 @@ static struct cpu_register cpu_register_map[] = {
     REG(Sp,  8, CONTEXT_CONTROL),
     REG(Pc,  8, CONTEXT_CONTROL),
 };
+#elif defined(__riscv)
+static const char target_xml[] = "";
+static struct cpu_register cpu_register_map[] = {
+    #warning FIXME
+};
 #else
 # error Define the registers map for your CPU
 #endif

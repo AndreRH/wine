@@ -133,7 +133,7 @@ typedef union
 /* supported CPU types */
 enum cpu_type
 {
-    CPU_x86, CPU_x86_64, CPU_POWERPC, CPU_ARM, CPU_ARM64
+    CPU_x86, CPU_x86_64, CPU_POWERPC, CPU_ARM, CPU_ARM64, CPU_RISCV64
 };
 typedef int cpu_type_t;
 
@@ -150,6 +150,7 @@ typedef struct
         struct { unsigned int iar, msr, ctr, lr, dar, dsisr, trap, __pad; } powerpc_regs;
         struct { unsigned int sp, lr, pc, cpsr; } arm_regs;
         struct { unsigned __int64 sp, pc, pstate; } arm64_regs;
+        struct { unsigned __int64 sp, pc; } riscv64_regs;
     } ctl;  /* selected by SERVER_CTX_CONTROL */
     union
     {
@@ -159,6 +160,7 @@ typedef struct
         struct { unsigned int gpr[32], cr, xer; } powerpc_regs;
         struct { unsigned int r[13]; } arm_regs;
         struct { unsigned __int64 x[31]; } arm64_regs;
+        struct { unsigned __int64 x[32]; } riscv64_regs;
     } integer;  /* selected by SERVER_CTX_INTEGER */
     union
     {

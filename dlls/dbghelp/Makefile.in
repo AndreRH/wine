@@ -10,6 +10,7 @@ C_SRCS = \
 	cpu_arm64.c \
 	cpu_i386.c \
 	cpu_ppc.c \
+	cpu_riscv64.c \
 	cpu_x86_64.c \
 	crc32.c \
 	dbghelp.c \

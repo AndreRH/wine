@@ -106,6 +106,8 @@ static const enum cpu_type client_cpu = CPU_POWERPC;
 static const enum cpu_type client_cpu = CPU_ARM;
 #elif defined(__aarch64__)
 static const enum cpu_type client_cpu = CPU_ARM64;
+#elif defined(__riscv)
+static const enum cpu_type client_cpu = CPU_RISCV64;
 #else
 #error Unsupported CPU
 #endif

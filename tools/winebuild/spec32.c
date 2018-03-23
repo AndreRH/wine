@@ -513,6 +513,10 @@ static void output_asm_constructor( const char *constructor )
             output( "\n\t.section \".text\",\"ax\"\n" );
             output( "\tblx %s\n", asm_name(constructor) );
             break;
+        case CPU_RISCV64:
+            output( "\n\t.section \".text\",\"ax\"\n" );
+            output( "\tjal %s\n", asm_name(constructor) );
+            break;
         case CPU_ARM64:
         case CPU_POWERPC:
             output( "\n\t.section \".init\",\"ax\"\n" );
@@ -559,6 +563,10 @@ void output_module( DLLSPEC *spec )
         case CPU_ARM:
             output( "\n\t.section \".text\",\"ax\"\n" );
             output( "\tb 1f\n" );
+            break;
+        case CPU_RISCV64:
+            output( "\n\t.section \".text\",\"ax\"\n" );
+            output( "\tj 1f\n" );
             break;
         case CPU_ARM64:
         case CPU_POWERPC:

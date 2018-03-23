@@ -142,7 +142,7 @@ typedef struct
 
 enum target_cpu
 {
-    CPU_x86, CPU_x86_64, CPU_POWERPC, CPU_ARM, CPU_ARM64, CPU_LAST = CPU_ARM64
+    CPU_x86, CPU_x86_64, CPU_POWERPC, CPU_ARM, CPU_ARM64, CPU_RISCV64, CPU_LAST = CPU_RISCV64
 };
 
 enum target_platform
@@ -180,7 +180,7 @@ struct strarray
 
 #define FLAG_CPU(cpu)  (0x01000 << (cpu))
 #define FLAG_CPU_MASK  (FLAG_CPU(CPU_LAST + 1) - FLAG_CPU(0))
-#define FLAG_CPU_WIN64 (FLAG_CPU(CPU_x86_64) | FLAG_CPU(CPU_ARM64))
+#define FLAG_CPU_WIN64 (FLAG_CPU(CPU_x86_64) | FLAG_CPU(CPU_ARM64) | FLAG_CPU(CPU_RISCV64))
 #define FLAG_CPU_WIN32 (FLAG_CPU_MASK & ~FLAG_CPU_WIN64)
 
 #define MAX_ORDINALS  65535

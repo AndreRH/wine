@@ -274,7 +274,8 @@ static void set_target( const char *target )
         { "x86_64",  SYS_WIN64 },
         { "powerpc", SYS_WIN32 },
         { "arm",     SYS_WIN32 },
-        { "aarch64", SYS_WIN64 }
+        { "aarch64", SYS_WIN64 },
+        { "riscv64", SYS_WIN64 },
     };
 
     unsigned int i;

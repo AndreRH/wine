@@ -2771,6 +2771,7 @@ case $host_cpu in
   *powerpc*)        WINE_CHECK_DEFINE([__powerpc__]) ;;
   *aarch64*)        WINE_CHECK_DEFINE([__aarch64__]) ;;
   *arm*)            WINE_CHECK_DEFINE([__arm__]) ;;
+  *riscv64*)        WINE_CHECK_DEFINE([__riscv]) ;;
 esac
 
 case $host_vendor in

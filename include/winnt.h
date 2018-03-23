@@ -653,6 +653,7 @@ typedef DWORD FLONG;
 #define PROCESSOR_ARCHITECTURE_IA32_ON_WIN64    10
 #define PROCESSOR_ARCHITECTURE_NEUTRAL          11
 #define PROCESSOR_ARCHITECTURE_ARM64            12
+#define PROCESSOR_ARCHITECTURE_RISCV64          15
 #define PROCESSOR_ARCHITECTURE_UNKNOWN	0xFFFF
 
 /* dwProcessorType */
@@ -1871,6 +1872,109 @@ typedef struct _CONTEXT
 
 #endif /* __aarch64__ */
 
+#ifdef __riscv
+
+#define CONTEXT_RISC64          0x800000
+#define CONTEXT_CONTROL         (CONTEXT_RISC64 | 0x00000001)
+#define CONTEXT_INTEGER         (CONTEXT_RISC64 | 0x00000002)
+#define CONTEXT_FLOATING_POINT  (CONTEXT_RISC64 | 0x00000004)
+#define CONTEXT_DEBUG_REGISTERS (CONTEXT_RISC64 | 0x00000008)
+
+#define CONTEXT_FULL (CONTEXT_CONTROL | CONTEXT_INTEGER)
+#define CONTEXT_ALL  (CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS)
+
+#define EXCEPTION_READ_FAULT    0
+#define EXCEPTION_WRITE_FAULT   1
+#define EXCEPTION_EXECUTE_FAULT 8
+
+typedef struct _CONTEXT
+{
+    ULONG ContextFlags;                 /* 000 */
+    /* CONTEXT_INTEGER */
+    union
+    {
+        struct
+        {
+            DWORD64 X1;                 /* 004 */
+            DWORD64 X2;                 /* 00c */
+            DWORD64 X3;                 /* 014 */
+            DWORD64 X4;                 /* 01c */
+            DWORD64 X5;                 /* 024 */
+            DWORD64 X6;                 /* 02c */
+            DWORD64 X7;                 /* 034 */
+            DWORD64 X8;                 /* 03c */
+            DWORD64 X9;                 /* 044 */
+            DWORD64 X10;                /* 04c */
+            DWORD64 X11;                /* 054 */
+            DWORD64 X12;                /* 05c */
+            DWORD64 X13;                /* 064 */
+            DWORD64 X14;                /* 06c */
+            DWORD64 X15;                /* 074 */
+            DWORD64 X16;                /* 07c */
+            DWORD64 X17;                /* 084 */
+            DWORD64 X18;                /* 08c */
+            DWORD64 X19;                /* 094 */
+            DWORD64 X20;                /* 09c */
+            DWORD64 X21;                /* 0a4 */
+            DWORD64 X22;                /* 0ac */
+            DWORD64 X23;                /* 0b4 */
+            DWORD64 X24;                /* 0bc */
+            DWORD64 X25;                /* 0c4 */
+            DWORD64 X26;                /* 0cc */
+            DWORD64 X27;                /* 0d4 */
+            DWORD64 X28;                /* 0dc */
+            DWORD64 X29;                /* 0e4 */
+            DWORD64 X30;                /* 0ec */
+            DWORD64 X31;                /* 0f4 */
+        } DUMMYSTRUCTNAME;
+        DWORD64 X[31];                  /* 004 */
+    } DUMMYUNIONNAME1;
+    /* CONTEXT_CONTROL */
+    DWORD64 pc;                         /* 0fc */
+    /* CONTEXT_FLOATING_POINT */
+    union
+    {
+        struct
+        {
+            DWORD64 F0;                 /*   */
+            DWORD64 F1;                 /* 104 */
+            DWORD64 F2;                 /*   */
+            DWORD64 F3;                 /* 114 */
+            DWORD64 F4;                 /*   */
+            DWORD64 F5;                 /* 124 */
+            DWORD64 F6;                 /* 12c */
+            DWORD64 F7;                 /* 134 */
+            DWORD64 F8;                 /* 13c */
+            DWORD64 F9;                 /* 144 */
+            DWORD64 F10;                /* 14c */
+            DWORD64 F11;                /* 154 */
+            DWORD64 F12;                /* 15c */
+            DWORD64 F13;                /* 164 */
+            DWORD64 F14;                /* 16c */
+            DWORD64 F15;                /* 174 */
+            DWORD64 F16;                /* 17c */
+            DWORD64 F17;                /* 184 */
+            DWORD64 F18;                /* 18c */
+            DWORD64 F19;                /* 194 */
+            DWORD64 F20;                /* 19c */
+            DWORD64 F21;                /* 1a4 */
+            DWORD64 F22;                /* 1ac */
+            DWORD64 F23;                /* 1b4 */
+            DWORD64 F24;                /* 1bc */
+            DWORD64 F25;                /* 1c4 */
+            DWORD64 F26;                /* 1cc */
+            DWORD64 F27;                /* 1d4 */
+            DWORD64 F28;                /* 1dc */
+            DWORD64 F29;                /* 1e4 */
+            DWORD64 F30;                /* 1ec */
+            DWORD64 F31;                /* 1f4 */
+        } DUMMYSTRUCTNAME;
+        DWORD64 F[32];                  /* 0fc */
+    } DUMMYUNIONNAME2;
+    /* CONTEXT_DEBUG_REGISTERS */
+} CONTEXT;
+
+#endif /* __riscv */
 
 /* Mips context definitions */
 #if defined(_MIPS_) || defined(__MIPS__) || defined(__mips__)
@@ -2608,6 +2712,7 @@ typedef struct _IMAGE_VXD_HEADER {
 #define	IMAGE_FILE_MACHINE_AMD64	0x8664
 #define	IMAGE_FILE_MACHINE_M32R		0x9041
 #define	IMAGE_FILE_MACHINE_CEE		0xc0ee
+#define	IMAGE_FILE_MACHINE_RISCV64	0x15c5
 
 #define	IMAGE_SIZEOF_FILE_HEADER		20
 #define IMAGE_SIZEOF_ROM_OPTIONAL_HEADER	56

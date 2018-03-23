@@ -677,6 +677,12 @@ static void output_import_thunk( const char *name, const char *table, int pos )
         output( "\tldur x9, [x9, #0]\n" );
         output( "\tbr x9\n" );
         break;
+    case CPU_RISCV64:
+        output( "\tla t0, %s\n", table );
+        output( "\tli t0, %u\n", pos );
+        output( "\tld t0, 0(t0)\n" );
+        output( "\tjr t0\n" );
+        break;
     case CPU_POWERPC:
         output( "\tmr %s, %s\n", ppc_reg(0), ppc_reg(31) );
         if (target_platform == PLATFORM_APPLE)
@@ -996,6 +1002,23 @@ static void output_delayed_import_thunks( const DLLSPEC *spec )
         output( "\tldp x6, x7, [sp],#80\n" );
         output( "\tbr x9\n" ); /* or "ret x9" */
         break;
+    case CPU_RISCV64:
+        output( "\taddi sp, sp, -16\n" );
+        output( "\tsd ra, 8(sp)\n" );
+        output( "\tla t0, %s\n", asm_name("__wine_spec_delay_load") );
+        output( "\tjalr t0\n" );
+        output( "\tmv t0, a0\n" );
+        output( "\tld ra, 8(sp)\n" );
+        output( "\tld a0, 16(sp)\n" );
+        output( "\tld a1, 24(sp)\n" );
+        output( "\tld a2, 32(sp)\n" );
+        output( "\tld a3, 40(sp)\n" );
+        output( "\tld a4, 48(sp)\n" );
+        output( "\tld a5, 56(sp)\n" );
+        output( "\tld a6, 64(sp)\n" );
+        output( "\tld a7, 72(sp)\n" );
+        output( "\tjr t0\n" );
+        break;
     case CPU_POWERPC:
         if (target_platform == PLATFORM_APPLE) extra_stack_storage = 56;
 
@@ -1095,6 +1118,20 @@ static void output_delayed_import_thunks( const DLLSPEC *spec )
                 output( "\tadd x0, x0, #%d\n", j );
                 output( "\tadr x9, %s\n", asm_name("__wine_delay_load_asm") );
                 output( "\tbr x9\n" );
+                break;
+            case CPU_RISCV64:
+                output( "\taddi sp, sp, -80\n" );
+                output( "\tsd a7, 72(sp)\n" );
+                output( "\tsd a6, 64(sp)\n" );
+                output( "\tsd a5, 56(sp)\n" );
+                output( "\tsd a4, 48(sp)\n" );
+                output( "\tsd a3, 40(sp)\n" );
+                output( "\tsd a2, 32(sp)\n" );
+                output( "\tsd a1, 24(sp)\n" );
+                output( "\tsd a0, 16(sp)\n" );
+                output( "\tli a0, %d\n", (idx << 16) | j );
+                output( "\tla t0, %s\n", asm_name("__wine_delay_load_asm") );
+                output( "\tjr t0\n" );
                 break;
             case CPU_POWERPC:
                 switch(target_platform)
@@ -1296,6 +1333,18 @@ void output_stubs( DLLSPEC *spec )
             output( "\tadrp x2, %s\n", asm_name("__wine_spec_unimplemented_stub") );
             output( "\tadd x2, x2, #:lo12:%s\n", asm_name("__wine_spec_unimplemented_stub") );
             output( "\tblr x2\n" );
+            break;
+        case CPU_RISCV64:
+            output( "\tla a0, %s\n", asm_name("__wine_spec_file_name") );
+            if (exp_name)
+            {
+                output( "\tla a1, .L%s_string\n", name );
+                count++;
+            }
+            else
+                output( "\tli a1, %u\n", odp->ordinal );
+            output( "\tla a2, %s\n", asm_name("__wine_spec_unimplemented_stub") );
+            output( "\tjalr a2\n" );
             break;
         default:
             assert(0);
