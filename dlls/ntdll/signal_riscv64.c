@@ -105,6 +105,8 @@ static pthread_key_t teb_key;
 
 #endif /* linux */
 
+static const size_t teb_size = 0x2000;  /* we reserve two pages for the TEB */
+static size_t signal_stack_size;
 
 typedef int (*wine_signal_handler)(unsigned int sig);
 
@@ -651,10 +653,12 @@ NTSTATUS signal_alloc_thread( TEB **teb )
 
     if (!sigstack_zero_bits)
     {
-        size_t min_size = page_size;  /* this is just for the TEB, we don't use a signal stack yet */
+        size_t min_size = teb_size + max( MINSIGSTKSZ, 8192 );
         /* find the first power of two not smaller than min_size */
+        sigstack_zero_bits = 12;
         while ((1u << sigstack_zero_bits) < min_size) sigstack_zero_bits++;
-        assert( sizeof(TEB) <= min_size );
+        signal_stack_size = (1 << sigstack_zero_bits) - teb_size;
+        assert( sizeof(TEB) <= teb_size );
     }
 
     size = 1 << sigstack_zero_bits;
