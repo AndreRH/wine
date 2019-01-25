@@ -267,4 +267,32 @@ static inline WCHAR *strdupAtoW(const char *str)
     return ret;
 }
 
+/* Hangover hacks to make the unix shell folder work in a PE build. */
+#if defined(__MINGW32__) || defined(_MSC_VER)
+typedef int uid_t, gid_t;
+
+struct passwd {
+    char   *pw_name;       /* username */
+    char   *pw_passwd;     /* user password */
+    uid_t   pw_uid;        /* user ID */
+    gid_t   pw_gid;        /* group ID */
+    char   *pw_gecos;      /* user information */
+    char   *pw_dir;        /* home directory */
+    char   *pw_shell;      /* shell program */
+};
+
+struct group {
+    char   *gr_name;       /* group name */
+    char   *gr_passwd;     /* group password */
+    gid_t   gr_gid;        /* group ID */
+    char  **gr_mem;        /* group members */
+};
+
+char * (* CDECL p_realpath)(const char *path, char *resolved_path);
+struct passwd * (* CDECL p_getpwuid)(uid_t uid);
+struct group *(* CDECL p_getgrgid)(gid_t gid);
+
+
+#endif
+
 #endif
