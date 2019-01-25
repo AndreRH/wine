@@ -1119,6 +1119,11 @@ HRESULT WINAPI DllGetVersion (DLLVERSIONINFO *pdvi)
  */
 HINSTANCE    shell32_hInstance = 0;
 
+#if defined(__MINGW32__) || defined(_MSC_VER)
+char * (* CDECL p_realpath)(const char *path, char *resolved_path);
+struct passwd * (* CDECL p_getpwuid)(uid_t uid);
+struct group *(* CDECL p_getgrgid)(gid_t gid);
+#endif
 
 /*************************************************************************
  * SHELL32 DllMain
@@ -1133,6 +1138,24 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID fImpLoad)
     switch (fdwReason)
     {
     case DLL_PROCESS_ATTACH:
+#if defined(__MINGW32__) || defined(_MSC_VER)
+        {
+            HMODULE msvcrt = GetModuleHandleA("msvcrt");
+            if (!msvcrt)
+                ERR("Cannot get msvcrt\n");
+
+            p_realpath = (void *)GetProcAddress(msvcrt, "__hangover_realpath");
+            if (!p_realpath)
+                ERR("Cannot get realpath\n");
+            p_getpwuid = (void *)GetProcAddress(msvcrt, "__hangover_getpwuid");
+            if (!p_getpwuid)
+                ERR("Cannot get getpwuid\n");
+            p_getgrgid = (void *)GetProcAddress(msvcrt, "__hangover_getgrgid");
+            if (!p_getgrgid)
+                ERR("Cannot get getgrgid\n");
+        }
+#endif
+
         shell32_hInstance = hinstDLL;
         DisableThreadLibraryCalls(shell32_hInstance);
 

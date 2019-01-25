@@ -240,6 +240,9 @@ HRESULT TRASH_GetDetails(const char *trash_path, const char *name, WIN32_FIND_DA
     path[trash_path_length] = '/';
     memcpy(path+trash_path_length+1, name, name_length+1);
 
+#if defined(__MINGW32__) || defined(_MSC_VER)
+    ERR("This will probably not work.\n");
+#endif
     ret = lstat(path, &stats);
     heap_free(path);
     if(ret == -1) return S_FALSE;
