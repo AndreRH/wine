@@ -1017,6 +1017,10 @@ void wine_init( int argc, char *argv[], char *error, int error_size )
  */
 void *wine_dlopen( const char *filename, int flag, char *error, size_t errorsize )
 {
+#if defined(__MINGW32__) || defined(_MSC_VER)
+    return LoadLibraryA(filename);
+#endif
+
 #ifdef HAVE_DLOPEN
     void *ret;
     const char *s;
@@ -1085,6 +1089,10 @@ void *wine_dlopen( const char *filename, int flag, char *error, size_t errorsize
  */
 void *wine_dlsym( void *handle, const char *symbol, char *error, size_t errorsize )
 {
+#if defined(__MINGW32__) || defined(_MSC_VER)
+    return GetProcAddress(handle, symbol);
+#endif
+
 #ifdef HAVE_DLOPEN
     void *ret;
     const char *s;
@@ -1121,6 +1129,10 @@ void *wine_dlsym( void *handle, const char *symbol, char *error, size_t errorsiz
  */
 int wine_dlclose( void *handle, char *error, size_t errorsize )
 {
+#if defined(__MINGW32__) || defined(_MSC_VER)
+    return FreeLibrary(handle);
+#endif
+
 #ifdef HAVE_DLOPEN
     int ret;
     const char *s;
