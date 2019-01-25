@@ -292,8 +292,22 @@ void thread_init(void)
                                       MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE );
     if (status)
     {
-        MESSAGE( "wine: failed to map the shared user data: %08x\n", status );
+        MESSAGE( "wine: %d: failed to map the shared user data: %08x %p\n", getpid(), status, addr );
+        /* explorer.exe will run in the JVM process on Android, thus the address is not available */
+        /* all other process should be fine */
+    #ifdef __ANDROID__
+        addr = NULL;
+        status = NtAllocateVirtualMemory( NtCurrentProcess(), &addr, 0, &size,
+                                          MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE );
+        if (status)
+        {
+            MESSAGE( "wine: %d: failed to map the fake shared user data: %08x %p\n", getpid(), status, addr );
+            exit(1);
+        }
+        MESSAGE( "wine: %d: fake shared user data is at: %p\n", getpid(), addr );
+    #else
         exit(1);
+    #endif
     }
     user_shared_data = addr;
     memcpy( user_shared_data->NtSystemRoot, default_windirW, sizeof(default_windirW) );
