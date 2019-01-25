@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-package org.winehq.wine;
+package org.andrerh.hangover;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
@@ -177,7 +177,7 @@ public class WineActivity extends Activity
             progress_dialog = new ProgressDialog( WineActivity.this );
             progress_dialog.setProgressStyle( max > 0 ? ProgressDialog.STYLE_HORIZONTAL
                                               : ProgressDialog.STYLE_SPINNER );
-            progress_dialog.setTitle( "Wine" );
+            progress_dialog.setTitle( "Hangover" );
             progress_dialog.setMessage( message );
             progress_dialog.setCancelable( false );
             progress_dialog.setMax( max );

@@ -87,8 +87,8 @@ android
 
     defaultConfig
     {
-        applicationId "org.winehq.wine"
-        minSdkVersion 17
+        applicationId "org.andrerh.hangover"
+        minSdkVersion 22
         versionCode 1
         versionName "@PACKAGE_VERSION@"
         setProperty( "archivesBaseName", "wine" )

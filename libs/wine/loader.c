@@ -829,7 +829,7 @@ static void apple_main_thread( void (*init_func)(void) )
 #ifdef __ANDROID__
 
 #ifndef WINE_JAVA_CLASS
-#define WINE_JAVA_CLASS "org/winehq/wine/WineActivity"
+#define WINE_JAVA_CLASS "org/andrerh/hangover/WineActivity"
 #endif
 
 static JavaVM *java_vm;
