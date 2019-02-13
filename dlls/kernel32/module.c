@@ -1074,6 +1074,8 @@ HMODULE WINAPI DECLSPEC_HOTPATCH LoadLibraryA(LPCSTR libname)
  */
 HMODULE WINAPI DECLSPEC_HOTPATCH LoadLibraryW(LPCWSTR libnameW)
 {
+    /* Make room for a custom hook in qemu_kernel32, otherwise this function has less than 16 bytes */
+    TRACE("Remove this trace when Hangover is fixed\n");
     return LoadLibraryExW(libnameW, 0, 0);
 }
 
