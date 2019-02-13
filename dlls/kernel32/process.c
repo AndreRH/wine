@@ -110,6 +110,7 @@ static const WCHAR pifW[] = {'.','p','i','f',0};
 static WCHAR winevdm[] = {'C',':','\\','w','i','n','d','o','w','s',
                           '\\','s','y','s','t','e','m','3','2',
                           '\\','w','i','n','e','v','d','m','.','e','x','e',0};
+static WCHAR qemu[] = {'C',':','\\','x','8','6','\\','q','e','m','u','-','x','8','6','_','6','4','.','e','x','e','.','s','o',0};
 
 static const char * const cpu_names[] = { "x86", "x86_64", "PowerPC", "ARM", "ARM64" };
 
@@ -2455,6 +2456,55 @@ error:
     return FALSE;
 }
 
+#ifdef __aarch64__
+static RTL_USER_PROCESS_PARAMETERS *get_emu_params( const RTL_USER_PROCESS_PARAMETERS *params,
+                                                    pe_image_info_t *pe_info )
+{
+    static const WCHAR argsW[] = {'%','s',' ','%','s',0};
+
+    WCHAR *new_cmd_line;
+    RTL_USER_PROCESS_PARAMETERS *new_params;
+    UNICODE_STRING imageW, cmdlineW;
+
+    new_cmd_line = HeapAlloc(GetProcessHeap(), 0, (strlenW(params->ImagePathName.Buffer) +
+                                                   strlenW(params->CommandLine.Buffer) +
+                                                   strlenW(winevdm) + 16) * sizeof(WCHAR));
+    if (!new_cmd_line)
+    {
+        SetLastError( ERROR_OUTOFMEMORY );
+        return NULL;
+    }
+    sprintfW( new_cmd_line, argsW, qemu, params->CommandLine.Buffer );
+    RtlInitUnicodeString( &imageW, qemu );
+    RtlInitUnicodeString( &cmdlineW, new_cmd_line );
+    if (RtlCreateProcessParametersEx( &new_params, &imageW, &params->DllPath,
+                                      &params->CurrentDirectory.DosPath, &cmdlineW,
+                                      params->Environment, &params->WindowTitle, &params->Desktop,
+                                      &params->ShellInfo, &params->RuntimeInfo,
+                                      PROCESS_PARAMS_FLAG_NORMALIZED ))
+    {
+        HeapFree( GetProcessHeap(), 0, new_cmd_line );
+        SetLastError( ERROR_OUTOFMEMORY );
+        return NULL;
+    }
+    new_params->hStdInput       = params->hStdInput;
+    new_params->hStdOutput      = params->hStdOutput;
+    new_params->hStdError       = params->hStdError;
+    new_params->dwX             = params->dwX;
+    new_params->dwY             = params->dwY;
+    new_params->dwXSize         = params->dwXSize;
+    new_params->dwYSize         = params->dwYSize;
+    new_params->dwXCountChars   = params->dwXCountChars;
+    new_params->dwYCountChars   = params->dwYCountChars;
+    new_params->dwFillAttribute = params->dwFillAttribute;
+    new_params->dwFlags         = params->dwFlags;
+    new_params->wShowWindow     = params->wShowWindow;
+
+    memset( pe_info, 0, sizeof(*pe_info) );
+    pe_info->cpu = CPU_ARM64;
+    return new_params;
+}
+#endif
 
 /***********************************************************************
  *           get_vdm_params
@@ -2911,6 +2961,7 @@ static void exec_process( LPCWSTR name )
     STARTUPINFOW startup_info = { sizeof(startup_info) };
     RTL_USER_PROCESS_PARAMETERS *params, *new_params;
     pe_image_info_t pe_info;
+    enum binary_type bt;
     BOOL is_64bit;
 
     hFile = open_exe_file( name, &is_64bit );
@@ -2919,9 +2970,22 @@ static void exec_process( LPCWSTR name )
     if (!(params = create_process_params( name, GetCommandLineW(), NULL, NULL, 0, &startup_info )))
         return;
 
-    /* Determine executable type */
+    bt = get_binary_info( hFile, &pe_info );
+#ifdef __aarch64__
+    if ((pe_info.cpu == CPU_x86 || pe_info.cpu == CPU_x86_64) && (p = strrchrW( name, '.' )) && !strcmpiW( p, exeW ))
+    {
+            TRACE( "starting %s with emulator (trying)\n", debugstr_w(name) );
+            new_params = get_emu_params( params, &pe_info );
+            if (new_params)
+            {
+                replace_process( 0, new_params, &pe_info );
+                RtlDestroyProcessParameters( new_params );
+            }
+    }
+#endif
 
-    switch (get_binary_info( hFile, &pe_info ))
+    /* Determine executable type */
+    switch (bt)
     {
     case BINARY_PE:
         if (pe_info.image_charact & IMAGE_FILE_DLL) break;
