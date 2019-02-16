@@ -182,6 +182,8 @@ static HEAP *processHeap;  /* main process heap */
 
 static BOOL HEAP_IsRealArena( HEAP *heapPtr, DWORD flags, LPCVOID block, BOOL quiet );
 
+static BOOL address_firewall = FALSE;
+
 /* mark a block of memory as free for debugging purposes */
 static inline void mark_block_free( void *ptr, SIZE_T size, DWORD flags )
 {
@@ -1654,6 +1656,7 @@ void * WINAPI DECLSPEC_HOTPATCH RtlAllocateHeap( HANDLE heap, ULONG flags, SIZE_
     /* Validate the parameters */
 
     if (!heapPtr) return NULL;
+retry:
     flags &= HEAP_GENERATE_EXCEPTIONS | HEAP_NO_SERIALIZE | HEAP_ZERO_MEMORY;
     flags |= heapPtr->flags;
     rounded_size = ROUND_SIZE(size) + HEAP_TAIL_EXTRA_SIZE( flags );
@@ -1672,6 +1675,8 @@ void * WINAPI DECLSPEC_HOTPATCH RtlAllocateHeap( HANDLE heap, ULONG flags, SIZE_
         if (!(flags & HEAP_NO_SERIALIZE)) RtlLeaveCriticalSection( &heapPtr->critSection );
         if (!ret && (flags & HEAP_GENERATE_EXCEPTIONS)) RtlRaiseStatus( STATUS_NO_MEMORY );
         TRACE("(%p,%08x,%08lx): returning %p\n", heap, flags, size, ret );
+        if (address_firewall && ((ULONG_PTR)ret) > ~0U)
+            goto retry;
         return ret;
     }
 
@@ -1710,9 +1715,15 @@ void * WINAPI DECLSPEC_HOTPATCH RtlAllocateHeap( HANDLE heap, ULONG flags, SIZE_
     if (!(flags & HEAP_NO_SERIALIZE)) RtlLeaveCriticalSection( &heapPtr->critSection );
 
     TRACE("(%p,%08x,%08lx): returning %p\n", heap, flags, size, pInUse + 1 );
+    if (address_firewall && ((ULONG_PTR)pInUse)> ~0U)
+        goto retry;
     return pInUse + 1;
 }
 
+void WINAPI __wine_RtlSetFirewallHeap(BOOL firewall)
+{
+    address_firewall = firewall;
+}
 
 /***********************************************************************
  *           RtlFreeHeap   (NTDLL.@)
@@ -1737,6 +1748,8 @@ BOOLEAN WINAPI DECLSPEC_HOTPATCH RtlFreeHeap( HANDLE heap, ULONG flags, void *pt
     /* Validate the parameters */
 
     if (!ptr) return TRUE;  /* freeing a NULL ptr isn't an error in Win2k */
+
+    if (address_firewall && ((ULONG_PTR)ptr) > ~0U) return TRUE;
 
     heapPtr = HEAP_GetPtr( heap );
     if (!heapPtr)
