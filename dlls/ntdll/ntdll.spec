@@ -1506,6 +1506,7 @@
 
 # Virtual memory
 @ cdecl __wine_locked_recvmsg(long ptr long)
+@ cdecl __wine_RtlSetFirewallHeap(long)
 
 # Version
 @ cdecl wine_get_version() NTDLL_wine_get_version
