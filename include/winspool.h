@@ -114,7 +114,10 @@ extern "C" {
 #define JOB_CONTROL_SENT_TO_PRINTER   6
 #define JOB_CONTROL_LAST_PAGE_EJECTED 7
 
+/*
+HACK: Comment out this define as it is used in Qemu in an enum
 #define JOB_STATUS_PAUSED       0x0001
+*/
 #define JOB_STATUS_ERROR        0x0002
 #define JOB_STATUS_DELETING     0x0004
 #define JOB_STATUS_SPOOLING     0x0008
