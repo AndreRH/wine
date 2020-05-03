@@ -934,13 +934,22 @@ NTSTATUS WINAPI NtGetNlsSectionPtr( ULONG type, ULONG id, void *unknown, void **
     IO_STATUS_BLOCK io;
     HANDLE file;
     NTSTATUS status;
+    SIZE_T filesize;
 
     if ((status = open_nls_data_file( type, id, &file ))) return status;
 
     if ((status = NtQueryInformationFile( file, &io, &info, sizeof(info), FileEndOfFileInformation )))
         goto done;
     /* FIXME: return a heap block instead of a file mapping for now */
-    if (!(*ptr = RtlAllocateHeap( GetProcessHeap(), 0, info.EndOfFile.QuadPart )))
+    filesize = info.EndOfFile.QuadPart;
+    *ptr = NULL;
+    /* Hack: Alloc with MEM_TOP_DOWN. The standard HeadpAlloc allocates bottom up and is very likely to
+     * block the 0x400000 load address hangover will need for the guest .exe file. This is not an issue
+     * for regular Wine because by the time kernelbase.dll calls NtGetNlsSectionPtr the exe file loaded
+     * already. */
+    NtAllocateVirtualMemory(GetCurrentProcess(), ptr, 0, &filesize, MEM_COMMIT | MEM_RESERVE | MEM_TOP_DOWN,
+            PAGE_READWRITE);
+    if (!(*ptr))
     {
         status = STATUS_NO_MEMORY;
         goto done;
