@@ -489,6 +489,7 @@ HMODULE WINAPI DECLSPEC_HOTPATCH LoadLibraryA( LPCSTR name )
  */
 HMODULE WINAPI DECLSPEC_HOTPATCH LoadLibraryW( LPCWSTR name )
 {
+    TRACE("A dummy trace to make the function larger\n");
     return LoadLibraryExW( name, 0, 0 );
 }
 
