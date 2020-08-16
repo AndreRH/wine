@@ -473,6 +473,13 @@ static void get_cpuinfo( SYSTEM_CPU_INFORMATION *info )
     info->Architecture = PROCESSOR_ARCHITECTURE_ARM64;
 }
 
+#elif defined(__powerpc64__)
+
+static void get_cpuinfo( SYSTEM_CPU_INFORMATION *info )
+{
+    FIXME("CPU Feature detection not implemented.\n");
+}
+
 #endif /* End architecture specific feature detection for CPUs */
 
 /******************************************************************
