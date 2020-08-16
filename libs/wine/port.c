@@ -137,6 +137,11 @@ __ASM_GLOBAL_FUNC( wine_call_on_stack_obsolete,
                    "ldr x19, [sp,#16]\n\t"           /* restore register from stack */
                    "ldp x29, x30, [sp],#32\n\t"      /* restore return address */
                    "ret")                            /* return */
+#else
+int wine_call_on_stack_obsolete( int (*func)(void *), void *arg, void *stack )
+{
+    return 0;
+}
 #endif
 
 /***********************************************************************
