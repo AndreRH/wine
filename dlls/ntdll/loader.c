@@ -2032,8 +2032,10 @@ static BOOL is_valid_binary( HMODULE module, const pe_image_info_t *info )
 #elif defined(_WIN64)  /* support 32-bit IL-only images on 64-bit */
 #ifdef __x86_64__
     if (info->machine == IMAGE_FILE_MACHINE_AMD64) return TRUE;
-#else
+#elif defined(__aarch64__)
     if (info->machine == IMAGE_FILE_MACHINE_ARM64) return TRUE;
+#elif defined(__powerpc64__)
+    if (info->machine == IMAGE_FILE_MACHINE_POWERPC64) return TRUE;
 #endif
     if (!info->contains_code) return TRUE;
     if (!(info->image_flags & IMAGE_FLAGS_ComPlusNativeReady))
