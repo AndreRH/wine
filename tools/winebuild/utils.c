@@ -1045,7 +1045,13 @@ unsigned int get_alignment(unsigned int align)
 /* return the page size for the target CPU */
 unsigned int get_page_size(void)
 {
-    return 0x1000;  /* same on all platforms */
+    switch(target_cpu)
+    {
+    case CPU_POWERPC64:
+        return 0x10000;
+    default:
+        return 0x1000;
+    }
 }
 
 /* return the size of a pointer on the target CPU */

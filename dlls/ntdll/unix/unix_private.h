@@ -72,7 +72,11 @@ static inline struct ntdll_thread_data *ntdll_get_thread_data(void)
     return (struct ntdll_thread_data *)&NtCurrentTeb()->GdiTebBatch;
 }
 
+#if defined(__powerpc64__)
+static const SIZE_T page_size = 0x10000;
+#else
 static const SIZE_T page_size = 0x1000;
+#endif
 static const SIZE_T signal_stack_mask = 0xffff;
 #ifdef _WIN64
 static const SIZE_T teb_size = 0x2000;

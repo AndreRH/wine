@@ -573,8 +573,16 @@ static strarray *get_link_args( struct options *opts, const char *output_name )
             else
                 opts->prelink = PRELINK;
         }
-        if (!try_link( opts->prefix, link_args, "-Wl,-z,max-page-size=0x1000"))
-            strarray_add( flags, "-Wl,-z,max-page-size=0x1000");
+        if (opts->target_cpu == CPU_POWERPC64)
+        {
+            if (!try_link(opts->prefix, link_args, "-Wl,-z,max-page-size=0x10000"))
+                strarray_add(flags, "-Wl,-z,max-page-size=0x10000");
+        }
+        else
+        {
+            if (!try_link(opts->prefix, link_args, "-Wl,-z,max-page-size=0x1000"))
+                strarray_add(flags, "-Wl,-z,max-page-size=0x1000");
+        }
         break;
     }
 

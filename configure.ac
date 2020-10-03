@@ -1005,8 +1005,16 @@ case $host_os in
                            then
                                WINE_WARNING([prelink not found and linker does not support relocation, base address of core dlls won't be set correctly.])
                            fi])
+          ;;
+      esac
+      case $host_cpu in
+        *i[[3456789]]86* | x86_64 | *aarch64*)
           WINE_TRY_CFLAGS([-Wl,-z,max-page-size=0x1000],
                           [WINELOADER_LDFLAGS="$WINELOADER_LDFLAGS -Wl,-z,max-page-size=0x1000"])
+          ;;
+        powerpc64*)
+          WINE_TRY_CFLAGS([-Wl,-z,max-page-size=0x10000],
+                          [WINELOADER_LDFLAGS="$WINELOADER_LDFLAGS -Wl,-z,max-page-size=0x10000"])
           ;;
       esac
 
