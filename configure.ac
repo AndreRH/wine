@@ -216,6 +216,8 @@ case $host in
     notice_platform="64-bit "
     CC="$CC -mlongcall"
     CXX="$CXX -mlongcall"
+    WINE_TRY_CFLAGS([-mno-pltseq], [CC="$CC -mno-pltseq"
+                                    CXX="$CXX -mno-pltseq"])
     ;;
 esac
 
