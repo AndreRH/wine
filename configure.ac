@@ -211,6 +211,14 @@ case $host in
     enable_win16=${enable_win16:-yes}
     with_unwind=${with_unwind:-no}
     ;;
+  powerpc64*)
+    host_cpu="powerpc64le"
+    notice_platform="64-bit "
+    WINE_TRY_CFLAGS([-mlongcall], [CC="$CC -mlongcall"
+                                   CXX="$CXX -mlongcall"])
+    WINE_TRY_CFLAGS([-mno-pltseq], [CC="$CC -mno-pltseq"
+                                    CXX="$CXX -mno-pltseq"])
+    ;;
 esac
 
 dnl enable_win16 defaults to yes on x86, to no on other CPUs
@@ -983,7 +991,7 @@ case $host_os in
                       [LDRPATH_INSTALL="$LDRPATH_INSTALL -Wl,--enable-new-dtags"])
 
       case $host_cpu in
-        *i[[3456789]]86* | x86_64 | *aarch64*)
+        *i[[3456789]]86* | x86_64 | *aarch64* | powerpc64*)
           WINE_TRY_CFLAGS([-Wl,-Ttext-segment=0x7bc00000],
                           [case $host_os in
                            freebsd* | kfreebsd*-gnu) WINELOADER_LDFLAGS="$WINELOADER_LDFLAGS -Wl,-Ttext-segment=0x60000000" ;;
