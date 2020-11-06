@@ -54,6 +54,8 @@ int safe_seh = 0;
 enum target_cpu target_cpu = CPU_x86;
 #elif defined(__x86_64__)
 enum target_cpu target_cpu = CPU_x86_64;
+#elif defined(__powerpc64__)
+enum target_cpu target_cpu = CPU_POWERPC64;
 #elif defined(__powerpc__)
 enum target_cpu target_cpu = CPU_POWERPC;
 #elif defined(__arm__)
