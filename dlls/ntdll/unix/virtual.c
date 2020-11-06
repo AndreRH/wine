@@ -2471,6 +2471,8 @@ NTSTATUS virtual_map_ntdll( int fd, void **module )
         nt.FileHeader.Machine != IMAGE_FILE_MACHINE_ARMNT) return STATUS_INVALID_IMAGE_FORMAT;
 #elif defined(__aarch64__)
     if (nt.FileHeader.Machine != IMAGE_FILE_MACHINE_ARM64) return STATUS_INVALID_IMAGE_FORMAT;
+#elif defined(__powerpc64__)
+    if (nt.FileHeader.Machine != IMAGE_FILE_MACHINE_POWERPC64) return STATUS_INVALID_IMAGE_FORMAT;
 #endif
 
     base  = (void *)nt.OptionalHeader.ImageBase;
