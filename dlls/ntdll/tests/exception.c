@@ -5937,6 +5937,8 @@ static const BYTE breakpoint_code[] = { 0xcd, 0x03, 0xc3 };   /* int $0x3; ret *
 static const DWORD breakpoint_code[] = { 0xe1200070, 0xe12fff1e };  /* bkpt #0; bx lr */
 #elif defined(__aarch64__)
 static const DWORD breakpoint_code[] = { 0xd4200000, 0xd65f03c0 };  /* brk #0; ret */
+#elif defined(__powerpc64__)
+static const DWORD breakpoint_code[] = { 0x4e800020 }; /* blr */
 #endif
 
 static void test_breakpoint(DWORD numexc)
@@ -7863,6 +7865,7 @@ START_TEST(exception)
         }
         else skip( "RtlRaiseException not found\n" );
 #endif
+#ifndef __powerpc64__
         test_stage = 3;
         test_outputdebugstring(0, FALSE);
         test_stage = 4;
@@ -7885,7 +7888,7 @@ START_TEST(exception)
         test_closehandle(1, (HANDLE)0xdeadbeef);
         test_stage = 13;
         test_closehandle(0, 0); /* Special case. */
-
+#endif
         /* rest of tests only run in parent */
         return;
     }
@@ -7951,11 +7954,13 @@ START_TEST(exception)
 
 #endif
 
+#ifndef __powerpc64__
     test_debugger();
     test_thread_context();
     test_outputdebugstring(1, FALSE);
     test_ripevent(1);
     test_breakpoint(1);
+#endif
     test_closehandle(0, (HANDLE)0xdeadbeef);
     /* Call of Duty WWII writes to BeingDebugged then closes an invalid handle,
      * crashing the game if an exception is raised. */
