@@ -150,6 +150,9 @@ void WINAPI DECLSPEC_HOTPATCH GetSystemInfo( SYSTEM_INFO *si )
     case PROCESSOR_ARCHITECTURE_ARM64:
         si->dwProcessorType = 0;
         break;
+    case PROCESSOR_ARCHITECTURE_PPC64:
+        si->dwProcessorType = PROCESSOR_PPC64_OP;
+        break;
     default:
         FIXME( "Unknown processor architecture %x\n", cpu_info.Architecture );
         si->dwProcessorType = 0;
