@@ -1324,7 +1324,7 @@
 @ cdecl -arch=x86_64 _o__scalbf(float long) _scalbf
 @ cdecl _o__searchenv(str str ptr) _searchenv
 @ cdecl _o__searchenv_s(str str ptr long) _searchenv_s
-@ cdecl _o__seh_filter_dll(long ptr) __CppXcptFilter
+@ cdecl -arch=i386,x86_64,arm,arm64 _o__seh_filter_dll(long ptr) __CppXcptFilter
 @ cdecl _o__seh_filter_exe(long ptr) _XcptFilter
 @ cdecl _o__set_abort_behavior(long long) _set_abort_behavior
 @ cdecl _o__set_app_type(long) __set_app_type
