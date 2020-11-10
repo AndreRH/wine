@@ -61,6 +61,8 @@ static const unsigned int supported_cpus = CPU_FLAG(CPU_x86_64) | CPU_FLAG(CPU_x
 static const unsigned int supported_cpus = CPU_FLAG(CPU_ARM);
 #elif defined(__aarch64__)
 static const unsigned int supported_cpus = CPU_FLAG(CPU_ARM64) | CPU_FLAG(CPU_ARM);
+#elif defined(__powerpc64__)
+static const unsigned int supported_cpus = CPU_FLAG(CPU_POWERPC64);
 #else
 #error Unsupported CPU
 #endif
@@ -1313,6 +1315,7 @@ static unsigned int get_context_system_regs( enum cpu_type cpu )
     case CPU_x86_64:  return SERVER_CTX_DEBUG_REGISTERS;
     case CPU_ARM:     return SERVER_CTX_DEBUG_REGISTERS;
     case CPU_ARM64:   return SERVER_CTX_DEBUG_REGISTERS;
+    case CPU_POWERPC64: return SERVER_CTX_DEBUG_REGISTERS;
     }
     return 0;
 }
