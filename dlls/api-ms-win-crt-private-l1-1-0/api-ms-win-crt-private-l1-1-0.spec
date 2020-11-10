@@ -660,7 +660,7 @@
 @ cdecl -arch=x86_64 _o__scalbf(float long) ucrtbase._o__scalbf
 @ cdecl _o__searchenv(str str ptr) ucrtbase._o__searchenv
 @ cdecl _o__searchenv_s(str str ptr long) ucrtbase._o__searchenv_s
-@ cdecl _o__seh_filter_dll(long ptr) ucrtbase._o__seh_filter_dll
+@ cdecl -arch=i386,x86_64,arm,arm64 _o__seh_filter_dll(long ptr) ucrtbase._o__seh_filter_dll
 @ cdecl _o__seh_filter_exe(long ptr) ucrtbase._o__seh_filter_exe
 @ cdecl _o__set_abort_behavior(long long) ucrtbase._o__set_abort_behavior
 @ cdecl _o__set_app_type(long) ucrtbase._o__set_app_type
