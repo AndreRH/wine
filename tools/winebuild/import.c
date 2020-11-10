@@ -3,6 +3,8 @@
  *
  * Copyright 2000, 2004 Alexandre Julliard
  * Copyright 2000 Eric Pouech
+ * Copyright 2009-2013, 2015, 2017, 2020 André Hentschel
+ * Copyright 2019 Timothy Pearson <tpearson@raptorengineering.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -787,6 +789,20 @@ static void output_import_thunk( const char *name, const char *table, int pos )
         output( "\tmr    %s, %s\n", ppc_reg(31), ppc_reg(0) );
         output( "\tbctr\n" );
         break;
+    case CPU_POWERPC64:
+        /*
+         * The ppc64 ABIv2 expects r12 to be set to ctr before bctr for PLT-like calls.
+         * ABIv2-compatible functions attempt to rebuild the TOC pointer (r2) from r12 under this assumption.
+         */
+        output( "\tlis %s, (%s+%d)@highest\n", ppc_reg(12), table, pos );
+        output( "\tori %s, %s, (%s+%d)@higher\n", ppc_reg(12), ppc_reg(12), table, pos );
+        output( "\trldicr %s, %s, 32, 31\n", ppc_reg(12), ppc_reg(12) );
+        output( "\toris %s, %s, (%s+%d)@high\n", ppc_reg(12), ppc_reg(12), table, pos );
+        output( "\tori %s, %s, (%s+%d)@l\n", ppc_reg(12), ppc_reg(12), table, pos );
+        output( "\tld %s, 0(%s)\n", ppc_reg(12), ppc_reg(12) );
+        output( "\tmtctr %s\n", ppc_reg(12) );
+        output( "\tbctr\n" );
+        break;
     }
     output_cfi( ".cfi_endproc" );
     output_function_size( name );
@@ -1141,6 +1157,54 @@ static void output_delayed_import_thunks( const DLLSPEC *spec )
         /* branch to ctr register. */
         output( "\tbctr\n");
         break;
+    case CPU_POWERPC64:
+        /* Save all callee saved registers into a stackframe. */
+        output( "\tstdu %s, -%d(%s)\n",ppc_reg(1), 176, ppc_reg(1));
+        output( "\tstd  %s, %d(%s)\n", ppc_reg(2),  24, ppc_reg(1));
+        output( "\tstd  %s, %d(%s)\n", ppc_reg(3),  48, ppc_reg(1));
+        output( "\tstd  %s, %d(%s)\n", ppc_reg(4),  56, ppc_reg(1));
+        output( "\tstd  %s, %d(%s)\n", ppc_reg(5),  64, ppc_reg(1));
+        output( "\tstd  %s, %d(%s)\n", ppc_reg(6),  72, ppc_reg(1));
+        output( "\tstd  %s, %d(%s)\n", ppc_reg(7),  80, ppc_reg(1));
+        output( "\tstd  %s, %d(%s)\n", ppc_reg(8),  88, ppc_reg(1));
+        output( "\tstd  %s, %d(%s)\n", ppc_reg(9),  96, ppc_reg(1));
+        output( "\tstd  %s, %d(%s)\n", ppc_reg(10),104, ppc_reg(1));
+        output( "\tstd  %s, %d(%s)\n", ppc_reg(11),112, ppc_reg(1));
+        output( "\tstd  %s, %d(%s)\n", ppc_reg(12),120, ppc_reg(1));
+        /* r0 -> r3 (arg1) */
+        output( "\tmr %s, %s\n", ppc_reg(3), ppc_reg(0));
+        /* Call the __wine_delay_load function, arg1 is arg1. */
+        output( "\tlis %s, %s@highest\n", ppc_reg(12), asm_name("__wine_spec_delay_load") );
+        output( "\tori %s, %s, %s@higher\n", ppc_reg(12), ppc_reg(12), asm_name("__wine_spec_delay_load") );
+        output( "\trldicr %s, %s, 32, 31\n", ppc_reg(12), ppc_reg(12) );
+        output( "\toris %s, %s, %s@high\n", ppc_reg(12), ppc_reg(12), asm_name("__wine_spec_delay_load") );
+        output( "\tori %s, %s, %s@l\n", ppc_reg(12), ppc_reg(12), asm_name("__wine_spec_delay_load") );
+        output( "\tmtctr %s\n", ppc_reg(12) );
+        output( "\tbctrl\n" );
+        output( "\tld %s, %d(%s)\n", ppc_reg(2),  24, ppc_reg(1));
+        /* r3 (return value) -> r12 (branch / ctr) */
+        output( "\tmr %s, %s\n", ppc_reg(12), ppc_reg(3));
+        /* Load return value from call into ctr register */
+        output( "\tmtctr %s\n", ppc_reg(12));
+        /* restore all saved registers and drop stackframe. */
+        output( "\tld %s, %d(%s)\n", ppc_reg(2),  24, ppc_reg(1));
+        output( "\tld %s, %d(%s)\n", ppc_reg(3),  48, ppc_reg(1));
+        output( "\tld %s, %d(%s)\n", ppc_reg(4),  56, ppc_reg(1));
+        output( "\tld %s, %d(%s)\n", ppc_reg(5),  64, ppc_reg(1));
+        output( "\tld %s, %d(%s)\n", ppc_reg(6),  72, ppc_reg(1));
+        output( "\tld %s, %d(%s)\n", ppc_reg(7),  80, ppc_reg(1));
+        output( "\tld %s, %d(%s)\n", ppc_reg(8),  88, ppc_reg(1));
+        output( "\tld %s, %d(%s)\n", ppc_reg(9),  96, ppc_reg(1));
+        output( "\tld %s, %d(%s)\n", ppc_reg(10),104, ppc_reg(1));
+        output( "\tld %s, %d(%s)\n", ppc_reg(11),112, ppc_reg(1));
+        /* don't restore r12!  restoring r12 here would corrupt the computed TOC post-bctr. */
+        /* Load return value from call into return register */
+        output( "\tld %s, 0(%s)\n", ppc_reg(1), ppc_reg(1));
+        output( "\tld %s, %d(%s)\n", ppc_reg(0), 16, ppc_reg(1));
+        output( "\tmtlr %s\n", ppc_reg(0));
+        /* branch to ctr register. */
+        output( "\tbctr\n");
+        break;
     }
     output_cfi( ".cfi_endproc" );
     output_function_size( "__wine_delay_load_asm" );
@@ -1218,6 +1282,23 @@ static void output_delayed_import_thunks( const DLLSPEC *spec )
                     output( "\tb %s\n", asm_name("__wine_delay_load_asm") );
                     break;
                 }
+                break;
+            case CPU_POWERPC64:
+                output( "\tmflr %s\n", ppc_reg(0));
+                output( "\tstd  %s, %d(%s)\n", ppc_reg(0), 16, ppc_reg(1)); /* save return address */
+                output( "\tlis %s, %d@highest\n", ppc_reg(12), (idx << 16) | j );
+                output( "\tori %s, %s, %d@higher\n", ppc_reg(12), ppc_reg(12), (idx << 16) | j );
+                output( "\trldicr %s, %s, 32, 31\n", ppc_reg(12), ppc_reg(12) );
+                output( "\toris %s, %s, %d@high\n", ppc_reg(12), ppc_reg(12), (idx << 16) | j );
+                output( "\tori %s, %s, %d@l\n", ppc_reg(12), ppc_reg(12), (idx << 16) | j );
+                output( "\tmr %s, %s\n", ppc_reg(0), ppc_reg(12) );
+                output( "\tlis %s, %s@highest\n", ppc_reg(12), asm_name("__wine_delay_load_asm") );
+                output( "\tori %s, %s, %s@higher\n", ppc_reg(12), ppc_reg(12), asm_name("__wine_delay_load_asm") );
+                output( "\trldicr %s, %s, 32, 31\n", ppc_reg(12), ppc_reg(12) );
+                output( "\toris %s, %s, %s@high\n", ppc_reg(12), ppc_reg(12), asm_name("__wine_delay_load_asm") );
+                output( "\tori %s, %s, %s@l\n", ppc_reg(12), ppc_reg(12), asm_name("__wine_delay_load_asm") );
+                output( "\tmtctr %s\n", ppc_reg(12) );
+                output( "\tbctr\n" );
                 break;
             }
             output_cfi( ".cfi_endproc" );
@@ -1382,6 +1463,37 @@ void output_stubs( DLLSPEC *spec )
             output( "\tadrp x2, %s\n", arm64_page( asm_name("__wine_spec_unimplemented_stub") ) );
             output( "\tadd x2, x2, #%s\n", arm64_pageoff( asm_name("__wine_spec_unimplemented_stub") ) );
             output( "\tblr x2\n" );
+            break;
+        case CPU_POWERPC64:
+            /* Clobbers r3, r4, and r12 */
+            output( "\tlis %s, .L__wine_spec_file_name@highest\n", ppc_reg(3) );
+            output( "\tori %s, %s, .L__wine_spec_file_name@higher\n", ppc_reg(3), ppc_reg(3) );
+            output( "\trldicr %s, %s, 32, 31\n", ppc_reg(3), ppc_reg(3) );
+            output( "\toris %s, %s, .L__wine_spec_file_name@high\n", ppc_reg(3), ppc_reg(3) );
+            output( "\tori %s, %s, .L__wine_spec_file_name@l\n", ppc_reg(3), ppc_reg(3) );
+            if (exp_name)
+            {
+                output( "\tlis %s, .L%s_string@highest\n", ppc_reg(4), name );
+                output( "\tori %s, %s, .L%s_string@higher\n", ppc_reg(4), ppc_reg(4), name );
+                output( "\trldicr %s, %s, 32, 31\n", ppc_reg(4), ppc_reg(4) );
+                output( "\toris %s, %s, .L%s_string@high\n", ppc_reg(4), ppc_reg(4), name );
+                output( "\tori %s, %s, .L%s_string@l\n", ppc_reg(4), ppc_reg(4), name );
+            }
+            else
+            {
+                output( "\tlis %s, %u@highest\n", ppc_reg(4), odp->ordinal );
+                output( "\tori %s, %s, %u@higher\n", ppc_reg(4), ppc_reg(4), odp->ordinal );
+                output( "\trldicr %s, %s, 32, 31\n", ppc_reg(4), ppc_reg(4) );
+                output( "\toris %s, %s, %u@high\n", ppc_reg(4), ppc_reg(4), odp->ordinal );
+                output( "\tori %s, %s, %u@l\n", ppc_reg(4), ppc_reg(4), odp->ordinal );
+            }
+            output( "\tlis %s, __wine_spec_unimplemented_stub@highest\n", ppc_reg(12) );
+            output( "\tori %s, %s, __wine_spec_unimplemented_stub@higher\n", ppc_reg(12), ppc_reg(12) );
+            output( "\trldicr %s, %s, 32, 31\n", ppc_reg(12), ppc_reg(12) );
+            output( "\toris %s, %s, __wine_spec_unimplemented_stub@high\n", ppc_reg(12), ppc_reg(12) );
+            output( "\tori %s, %s, __wine_spec_unimplemented_stub@l\n", ppc_reg(12), ppc_reg(12) );
+            output( "\tmtctr %s\n", ppc_reg(12) );
+            output( "\tbctr\n" );
             break;
         default:
             assert(0);
@@ -1667,6 +1779,136 @@ void output_syscalls( DLLSPEC *spec )
             output( "\tmovk x0, #0x%x\n", invalid_param & 0x0000ffff );
             output( "\tret\n" );
             break;
+        case CPU_POWERPC64:
+            output( "\tlis %s, %u@highest\n", ppc_reg(12), count );
+            output( "\tori %s, %s, %u@higher\n", ppc_reg(12), ppc_reg(12), count );
+            output( "\trldicr %s, %s, 32, 31\n", ppc_reg(12), ppc_reg(12) );
+            output( "\toris %s, %s, %u@high\n", ppc_reg(12), ppc_reg(12), count );
+            output( "\tori %s, %s, %u@l\n", ppc_reg(12), ppc_reg(12), count );
+            output( "\tcmpw cr7, %s, %s\n", ppc_reg(11), ppc_reg(12) );
+            output( "\tbgt cr7, 3f\n" );
+            /* save return address (thunk_addr) */
+            output( "\tmflr %s\n", ppc_reg(0) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(0), 16, ppc_reg(1) );
+            /* Save all callee saved registers into the syscall_frame. */
+            output( "\tstdu %s, -%d(%s)\n",ppc_reg(1),  240, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(2),   24, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(3),   32, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(4),   40, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(5),   48, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(6),   56, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(7),   64, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(8),   72, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(9),   80, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(10),  88, ppc_reg(1) );
+            /* Save all nonvolatile registers into the syscall_frame. */
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(14),  96, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(15), 104, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(16), 112, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(17), 120, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(18), 128, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(19), 136, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(20), 144, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(21), 152, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(22), 160, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(23), 168, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(24), 176, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(25), 184, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(26), 192, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(27), 200, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(28), 208, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(29), 216, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(30), 224, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(31), 232, ppc_reg(1) );
+            output( "\tmr %s, %s\n", ppc_reg(15), ppc_reg(11) );
+            output( "\tmr %s, %s\n", ppc_reg(18), ppc_reg(1) );
+            output( "\tld  %s, %d(%s)\n", ppc_reg(11),  240 + 40, ppc_reg(1) );
+            output( "\tlis %s, %s@highest\n", ppc_reg(12), asm_name("NtCurrentTeb") );
+            output( "\tori %s, %s, %s@higher\n", ppc_reg(12), ppc_reg(12), asm_name("NtCurrentTeb") );
+            output( "\trldicr %s, %s, 32, 31\n", ppc_reg(12), ppc_reg(12) );
+            output( "\toris %s, %s, %s@high\n", ppc_reg(12), ppc_reg(12), asm_name("NtCurrentTeb") );
+            output( "\tori %s, %s, %s@l\n", ppc_reg(12), ppc_reg(12), asm_name("NtCurrentTeb") );
+            output( "\tmtctr %s\n", ppc_reg(12) );
+            output( "\tbctrl\n" );
+            /* ppc64_thread_data()->syscall_frame */
+            output( "\taddi %s, %s, 0x200\n", ppc_reg(3),  ppc_reg(3) );
+            output( "\taddi %s, %s, 0x0f0\n", ppc_reg(3),  ppc_reg(3) );
+            output( "\taddi %s, %s, 0x008\n", ppc_reg(19), ppc_reg(3) );
+            output( "\tstd %s, 0(%s)\n", ppc_reg(1), ppc_reg(19) );  /* syscall frame */
+            output( "\tld %s, %d(%s)\n", ppc_reg(3),  32, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(4),  40, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(5),  48, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(6),  56, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(7),  64, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(8),  72, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(9),  80, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(10), 88, ppc_reg(1) );
+            output( "\tlis %s, %s@highest\n", ppc_reg(12), asm_name(".Lsyscall_args") );
+            output( "\tori %s, %s, %s@higher\n", ppc_reg(12), ppc_reg(12), asm_name(".Lsyscall_args") );
+            output( "\trldicr %s, %s, 32, 31\n", ppc_reg(12), ppc_reg(12) );
+            output( "\toris %s, %s, %s@high\n", ppc_reg(12), ppc_reg(12), asm_name(".Lsyscall_args") );
+            output( "\tori %s, %s, %s@l\n", ppc_reg(12), ppc_reg(12), asm_name(".Lsyscall_args") );
+            output( "\tadd %s, %s, %s\n", ppc_reg(12), ppc_reg(12), ppc_reg(15) );
+            output( "\tlbz %s, 0(%s)\n", ppc_reg(16), ppc_reg(12) );
+            output( "\taddi %s, %s, -64\n", ppc_reg(16), ppc_reg(16) );
+            output( "\tcmpwi cr7, %s, 0\n", ppc_reg(16) );
+            output( "\textsw %s, %s\n", ppc_reg(16), ppc_reg(16) );
+            output( "\tble cr7, 2f\n" );
+            output( "\taddi %s, %s, %d\n", ppc_reg(17), ppc_reg(1), 240 + 64 + 96); /* this function + prev function (thunk) + parameter save area */
+            output( "\tsub %s, %s, %s\n", ppc_reg(1), ppc_reg(1), ppc_reg(16) );
+            output( "\taddi %s, %s, -%d\n", ppc_reg(1), ppc_reg(1), 96 );
+            output( "\trldicr %s, %s, 0, 59\n", ppc_reg(1), ppc_reg(1) ); /* align sp */
+            output( "\tstd %s, %d(%s)\n", ppc_reg(18),  0, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(2), 24, ppc_reg(1) );
+            output( "\taddi %s, %s, %d\n", ppc_reg(20), ppc_reg(1), 96 ); /* new parameter save area */
+            output( "1:\taddi %s, %s, -%d\n", ppc_reg(16), ppc_reg(16), 8 );
+            output( "\tldx  %s, %s, %s\n", ppc_reg(0), ppc_reg(17), ppc_reg(16) );
+            output( "\tstdx %s, %s, %s\n", ppc_reg(0), ppc_reg(20), ppc_reg(16) );
+            output( "\tcmpwi cr7, %s, 0\n", ppc_reg(16) );
+            output( "\tbne cr7, 1b\n" );
+            output( "2:\tlis %s, %s@highest\n", ppc_reg(12), asm_name(".Lsyscall_table") );
+            output( "\tori %s, %s, %s@higher\n", ppc_reg(12), ppc_reg(12), asm_name(".Lsyscall_table") );
+            output( "\trldicr %s, %s, 32, 31\n", ppc_reg(12), ppc_reg(12) );
+            output( "\toris %s, %s, %s@high\n", ppc_reg(12), ppc_reg(12), asm_name(".Lsyscall_table") );
+            output( "\tori %s, %s, %s@l\n", ppc_reg(12), ppc_reg(12), asm_name(".Lsyscall_table") );
+            output( "\trldicr %s, %s, 3, 60\n", ppc_reg(17), ppc_reg(15) );
+            output( "\tadd %s, %s, %s\n", ppc_reg(17), ppc_reg(17), ppc_reg(12) );
+            output( "\tld %s, 0(%s)\n", ppc_reg(12), ppc_reg(17) );
+            output( "\tmtctr %s\n", ppc_reg(12) );
+            output( "\tbctrl\n" );
+            output( "\tmr %s, %s\n", ppc_reg(1), ppc_reg(18) );
+            output( "\tli %s, 0\n", ppc_reg(0) );
+            output( "\tstd %s, 0(%s)\n", ppc_reg(0), ppc_reg(19) );
+            output( "\tld  %s, %d(%s)\n", ppc_reg(2),  24, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(14),  96, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(15), 104, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(16), 112, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(17), 120, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(18), 128, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(19), 136, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(20), 144, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(21), 152, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(22), 160, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(23), 168, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(24), 176, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(25), 184, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(26), 192, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(27), 200, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(28), 208, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(29), 216, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(30), 224, ppc_reg(1) );
+            output( "\tld %s, %d(%s)\n", ppc_reg(31), 232, ppc_reg(1) );
+            output( "\taddi %s, %s, %d\n", ppc_reg(1), ppc_reg(1), 240 ); /* restore sp */
+            output( "\tld %s, %d(%s)\n", ppc_reg(0), 16, ppc_reg(1) );
+            output( "\tmtlr %s\n", ppc_reg(0) );
+            output( "\tblr\n" );
+            output( "3:\tlis %s, %u@highest\n", ppc_reg(3), invalid_param );
+            output( "\tori %s, %s, %u@higher\n", ppc_reg(3), ppc_reg(3), invalid_param );
+            output( "\trldicr %s, %s, 32, 31\n", ppc_reg(3), ppc_reg(3) );
+            output( "\toris %s, %s, %u@high\n", ppc_reg(3), ppc_reg(3), invalid_param );
+            output( "\tori %s, %s, %u@l\n", ppc_reg(3), ppc_reg(3), invalid_param );
+            output( "\tblr\n" );
+            break;
         default:
             assert(0);
         }
@@ -1759,6 +2001,35 @@ void output_syscalls( DLLSPEC *spec )
             output( "\tblr x16\n");
             output( "\tldp x29, x30, [sp], #16\n" );
             output( "\tret\n" );
+            break;
+        case CPU_POWERPC64:
+            output( "\tmflr %s\n", ppc_reg(0) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(0), 16, ppc_reg(1) ); /* save lr */
+            output( "\tstdu %s, -%d(%s)\n",ppc_reg(1),  64, ppc_reg(1) );
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(2),  24, ppc_reg(1) ); /* save r2 */
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(0),  32, ppc_reg(1) ); /* save lr again */
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(11), 40, ppc_reg(1) ); /* save r11 */
+            output( "\tstd  %s, %d(%s)\n", ppc_reg(12), 48, ppc_reg(1) ); /* save r12 */
+            output( "\tlis %s, %s@highest\n", ppc_reg(12), asm_name("__wine_syscall_dispatcher") );
+            output( "\tori %s, %s, %s@higher\n", ppc_reg(12), ppc_reg(12), asm_name("__wine_syscall_dispatcher") );
+            output( "\trldicr %s, %s, 32, 31\n", ppc_reg(12), ppc_reg(12) );
+            output( "\toris %s, %s, %s@high\n", ppc_reg(12), ppc_reg(12), asm_name("__wine_syscall_dispatcher") );
+            output( "\tori %s, %s, %s@l\n", ppc_reg(12), ppc_reg(12), asm_name("__wine_syscall_dispatcher") );
+            output( "\tld %s, 0(%s)\n", ppc_reg(12), ppc_reg(12) );
+            output( "\tlis %s, %u@highest\n", ppc_reg(11), i );
+            output( "\tori %s, %s, %u@higher\n", ppc_reg(11), ppc_reg(11), i );
+            output( "\trldicr %s, %s, 32, 31\n", ppc_reg(11), ppc_reg(11) );
+            output( "\toris %s, %s, %u@high\n", ppc_reg(11), ppc_reg(11), i );
+            output( "\tori %s, %s, %u@l\n", ppc_reg(11), ppc_reg(11), i );
+            output( "\tmtctr %s\n", ppc_reg(12) );
+            output( "\tbctrl\n" );
+            output( "\tld %s, %d(%s)\n", ppc_reg(12), 48, ppc_reg(1) ); /* restore r12 */
+            output( "\tld %s, %d(%s)\n", ppc_reg(11), 40, ppc_reg(1) ); /* restore r11 */
+            output( "\tld %s, %d(%s)\n", ppc_reg(2),  24, ppc_reg(1) ); /* restore r2 */
+            output( "\taddi %s, %s, %d\n", ppc_reg(1), ppc_reg(1), 64 ); /* restore sp */
+            output( "\tld %s, %d(%s)\n", ppc_reg(0), 16, ppc_reg(1) ); /* restore lr */
+            output( "\tmtlr %s\n", ppc_reg(0) );
+            output( "\tblr\n" );
             break;
         default:
             assert(0);
