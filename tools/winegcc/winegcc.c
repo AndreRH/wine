@@ -160,21 +160,23 @@ static const struct
     enum target_cpu cpu;
 } cpu_names[] =
 {
-    { "i386",    CPU_x86 },
-    { "i486",    CPU_x86 },
-    { "i586",    CPU_x86 },
-    { "i686",    CPU_x86 },
-    { "i786",    CPU_x86 },
-    { "amd64",   CPU_x86_64 },
-    { "x86_64",  CPU_x86_64 },
-    { "powerpc", CPU_POWERPC },
-    { "arm",     CPU_ARM },
-    { "armv5",   CPU_ARM },
-    { "armv6",   CPU_ARM },
-    { "armv7",   CPU_ARM },
-    { "armv7a",  CPU_ARM },
-    { "arm64",   CPU_ARM64 },
-    { "aarch64", CPU_ARM64 },
+    { "i386",           CPU_x86 },
+    { "i486",           CPU_x86 },
+    { "i586",           CPU_x86 },
+    { "i686",           CPU_x86 },
+    { "i786",           CPU_x86 },
+    { "amd64",          CPU_x86_64 },
+    { "x86_64",         CPU_x86_64 },
+    { "powerpc",        CPU_POWERPC },
+    { "powerpc64",      CPU_POWERPC64 },
+    { "powerpc64le",    CPU_POWERPC64 },
+    { "arm",            CPU_ARM },
+    { "armv5",          CPU_ARM },
+    { "armv6",          CPU_ARM },
+    { "armv7",          CPU_ARM },
+    { "armv7a",         CPU_ARM },
+    { "arm64",          CPU_ARM64 },
+    { "aarch64",        CPU_ARM64 },
 };
 
 static const struct
@@ -247,6 +249,8 @@ struct options
 static const enum target_cpu build_cpu = CPU_x86;
 #elif defined(__x86_64__)
 static const enum target_cpu build_cpu = CPU_x86_64;
+#elif defined(__powerpc64__)
+static const enum target_cpu build_cpu = CPU_POWERPC64;
 #elif defined(__powerpc__)
 static const enum target_cpu build_cpu = CPU_POWERPC;
 #elif defined(__arm__)
@@ -610,9 +614,9 @@ static int check_platform( struct options *opts, const char *file )
             if (!memcmp( header, "\177ELF", 4 ))
             {
                 if (header[4] == 2)  /* 64-bit */
-                    ret = (opts->target_cpu == CPU_x86_64 || opts->target_cpu == CPU_ARM64);
+                    ret = (opts->target_cpu == CPU_x86_64 || opts->target_cpu == CPU_ARM64 || opts->target_cpu == CPU_POWERPC64);
                 else
-                    ret = (opts->target_cpu != CPU_x86_64 && opts->target_cpu != CPU_ARM64);
+                    ret = (opts->target_cpu != CPU_x86_64 && opts->target_cpu != CPU_ARM64 && opts->target_cpu != CPU_POWERPC64);
             }
         }
         close( fd );
@@ -624,11 +628,12 @@ static const char *get_multiarch_dir( enum target_cpu cpu )
 {
    switch(cpu)
    {
-   case CPU_x86:     return "/i386-linux-gnu";
-   case CPU_x86_64:  return "/x86_64-linux-gnu";
-   case CPU_ARM:     return "/arm-linux-gnueabi";
-   case CPU_ARM64:   return "/aarch64-linux-gnu";
-   case CPU_POWERPC: return "/powerpc-linux-gnu";
+   case CPU_x86:        return "/i386-linux-gnu";
+   case CPU_x86_64:     return "/x86_64-linux-gnu";
+   case CPU_ARM:        return "/arm-linux-gnueabi";
+   case CPU_ARM64:      return "/aarch64-linux-gnu";
+   case CPU_POWERPC:    return "/powerpc-linux-gnu";
+   case CPU_POWERPC64:  return "/powerpc64le-linux-gnu";
    default:
        assert(0);
        return NULL;
@@ -644,8 +649,8 @@ static char *get_lib_dir( struct options *opts )
     unsigned int i;
     size_t build_len, target_len;
 
-    bit_suffix = opts->target_cpu == CPU_x86_64 || opts->target_cpu == CPU_ARM64 ? "64" : "32";
-    other_bit_suffix = opts->target_cpu == CPU_x86_64 || opts->target_cpu == CPU_ARM64 ? "32" : "64";
+    bit_suffix = opts->target_cpu == CPU_x86_64 || opts->target_cpu == CPU_ARM64 || opts->target_cpu == CPU_POWERPC64 ? "64" : "32";
+    other_bit_suffix = opts->target_cpu == CPU_x86_64 || opts->target_cpu == CPU_ARM64 || opts->target_cpu == CPU_POWERPC64 ? "32" : "64";
     build_multiarch = get_multiarch_dir( build_cpu );
     target_multiarch = get_multiarch_dir( opts->target_cpu );
     build_len = strlen( build_multiarch );
@@ -804,7 +809,7 @@ static void compile(struct options* opts, const char* lang)
             strarray_add(comp_args, "-fno-PIC");
     }
 
-    if (opts->target_cpu == CPU_x86_64 || opts->target_cpu == CPU_ARM64)
+    if (opts->target_cpu == CPU_x86_64 || opts->target_cpu == CPU_ARM64 || opts->target_cpu == CPU_POWERPC64)
     {
         strarray_add(comp_args, "-DWIN64");
         strarray_add(comp_args, "-D_WIN64");
@@ -839,6 +844,11 @@ static void compile(struct options* opts, const char* lang)
             strarray_add(comp_args, "-D__cdecl=__stdcall");
             strarray_add(comp_args, "-D__fastcall=__stdcall");
             break;
+        case CPU_POWERPC64:
+            strarray_add(comp_args, "-D__stdcall=__attribute__((__longcall__))");
+            strarray_add(comp_args, "-D__cdecl=__stdcall");
+            strarray_add(comp_args, "-D__fastcall=__stdcall");
+            break;
         case CPU_POWERPC:
             strarray_add(comp_args, "-D__stdcall=");
             strarray_add(comp_args, "-D__cdecl=");
@@ -866,7 +876,7 @@ static void compile(struct options* opts, const char* lang)
     strarray_add(comp_args, "-D__int8=char");
     strarray_add(comp_args, "-D__int16=short");
     strarray_add(comp_args, "-D__int32=int");
-    if (opts->target_cpu == CPU_x86_64 || opts->target_cpu == CPU_ARM64)
+    if (opts->target_cpu == CPU_x86_64 || opts->target_cpu == CPU_ARM64 || opts->target_cpu == CPU_POWERPC64)
         strarray_add(comp_args, "-D__int64=long");
     else
         strarray_add(comp_args, "-D__int64=long long");
