@@ -756,6 +756,8 @@ static void output_system_info(void)
     static const char platform[] = "i386";
 #elif defined(__x86_64__)
     static const char platform[] = "x86_64";
+#elif defined(__powerpc64__)
+    static const char platform[] = "powerpc64";
 #elif defined(__arm__)
     static const char platform[] = "arm";
 #elif defined(__aarch64__)
