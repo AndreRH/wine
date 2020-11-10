@@ -88,7 +88,7 @@ struct process
 };
 
 #define CPU_FLAG(cpu) (1 << (cpu))
-#define CPU_64BIT_MASK (CPU_FLAG(CPU_x86_64) | CPU_FLAG(CPU_ARM64))
+#define CPU_64BIT_MASK (CPU_FLAG(CPU_x86_64) | CPU_FLAG(CPU_ARM64) | CPU_FLAG(CPU_POWERPC64))
 
 /* process functions */
 
