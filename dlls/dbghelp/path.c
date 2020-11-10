@@ -43,6 +43,9 @@ static const WCHAR so_dir[] = L"\\arm-unix";
 #elif defined __aarch64__
 static const WCHAR pe_dir[] = L"\\aarch64-windows";
 static const WCHAR so_dir[] = L"\\aarch64-unix";
+#elif defined __powerpc64__
+static const WCHAR pe_dir[] = L"\\ppc64-windows";
+static const WCHAR so_dir[] = L"\\ppc64-unix";
 #else
 static const WCHAR pe_dir[] = L"";
 static const WCHAR so_dir[] = L"";
