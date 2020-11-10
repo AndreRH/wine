@@ -1639,6 +1639,124 @@ typedef struct _KNONVOLATILE_CONTEXT_POINTERS
 
 #endif /* __aarch64__ */
 
+#define CONTEXT_PPC64           0x00800000
+#define CONTEXT_PPC64_CONTROL         (CONTEXT_PPC64 | 0x00000001)
+#define CONTEXT_PPC64_INTEGER         (CONTEXT_PPC64 | 0x00000002)
+#define CONTEXT_PPC64_FLOATING_POINT  (CONTEXT_PPC64 | 0x00000004)
+#define CONTEXT_PPC64_DEBUG_REGISTERS (CONTEXT_PPC64 | 0x00000008)
+#define CONTEXT_PPC64_FULL (CONTEXT_PPC64_CONTROL | CONTEXT_PPC64_INTEGER | CONTEXT_PPC64_FLOATING_POINT)
+#define CONTEXT_PPC64_ALL  (CONTEXT_PPC64_FULL | CONTEXT_PPC64_DEBUG_REGISTERS)
+
+typedef struct DECLSPEC_ALIGN(16) _PPC64_NT_CONTEXT
+{
+    /* These are selected by CONTEXT_FLOATING_POINT */
+    double Fpr0;
+    double Fpr1;
+    double Fpr2;
+    double Fpr3;
+    double Fpr4;
+    double Fpr5;
+    double Fpr6;
+    double Fpr7;
+    double Fpr8;
+    double Fpr9;
+    double Fpr10;
+    double Fpr11;
+    double Fpr12;
+    double Fpr13;
+    double Fpr14;
+    double Fpr15;
+    double Fpr16;
+    double Fpr17;
+    double Fpr18;
+    double Fpr19;
+    double Fpr20;
+    double Fpr21;
+    double Fpr22;
+    double Fpr23;
+    double Fpr24;
+    double Fpr25;
+    double Fpr26;
+    double Fpr27;
+    double Fpr28;
+    double Fpr29;
+    double Fpr30;
+    double Fpr31;
+    double Fpscr;
+
+    /* These are selected by CONTEXT_INTEGER */
+    DWORD64 Gpr0;
+    DWORD64 Gpr1;
+    DWORD64 Gpr2;
+    DWORD64 Gpr3;
+    DWORD64 Gpr4;
+    DWORD64 Gpr5;
+    DWORD64 Gpr6;
+    DWORD64 Gpr7;
+    DWORD64 Gpr8;
+    DWORD64 Gpr9;
+    DWORD64 Gpr10;
+    DWORD64 Gpr11;
+    DWORD64 Gpr12;
+    DWORD64 Gpr13;
+    DWORD64 Gpr14;
+    DWORD64 Gpr15;
+    DWORD64 Gpr16;
+    DWORD64 Gpr17;
+    DWORD64 Gpr18;
+    DWORD64 Gpr19;
+    DWORD64 Gpr20;
+    DWORD64 Gpr21;
+    DWORD64 Gpr22;
+    DWORD64 Gpr23;
+    DWORD64 Gpr24;
+    DWORD64 Gpr25;
+    DWORD64 Gpr26;
+    DWORD64 Gpr27;
+    DWORD64 Gpr28;
+    DWORD64 Gpr29;
+    DWORD64 Gpr30;
+    DWORD64 Gpr31;
+
+    DWORD64 Cr;
+    DWORD64 Xer;
+
+    /* These are selected by CONTEXT_CONTROL */
+    DWORD64 Msr;
+    DWORD64 Iar; /* Instruction Address Register , aka PC ... */
+    DWORD64 Lr;
+    DWORD64 Ctr;
+
+    DWORD64 ContextFlags;
+
+    DWORD64 Dar;   /* Fault registers for coredump */
+    DWORD64 Dsisr;
+    DWORD64 Trap;  /* number of powerpc exception taken */
+
+    /* These are selected by CONTEXT_DEBUG_REGISTERS */
+    DWORD64 Dr0;
+    DWORD64 Dr1;
+    DWORD64 Dr2;
+    DWORD64 Dr3;
+    DWORD64 Dr4;
+    DWORD64 Dr5;
+    DWORD64 Dr6;
+    DWORD64 Dr7;
+} PPC64_NT_CONTEXT, *PPPC64_NT_CONTEXT;
+
+#ifdef __powerpc64__
+
+#define CONTEXT_CONTROL CONTEXT_PPC64_CONTROL
+#define CONTEXT_INTEGER CONTEXT_PPC64_INTEGER
+#define CONTEXT_FLOATING_POINT CONTEXT_PPC64_FLOATING_POINT
+#define CONTEXT_DEBUG_REGISTERS CONTEXT_PPC64_DEBUG_REGISTERS
+#define CONTEXT_FULL CONTEXT_PPC64_FULL
+#define CONTEXT_ALL CONTEXT_PPC64_ALL
+
+typedef PPC64_NT_CONTEXT CONTEXT, *PCONTEXT;
+
+#endif /* __powerpc64__ */
+
 #if !defined(CONTEXT_FULL) && !defined(RC_INVOKED)
 #error You need to define a CONTEXT for your CPU
 #endif
