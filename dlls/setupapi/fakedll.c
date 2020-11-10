@@ -281,6 +281,8 @@ static BOOL build_fake_dll( HANDLE file, const WCHAR *name )
     nt->FileHeader.Machine = IMAGE_FILE_MACHINE_ARM64;
 #elif defined __arm__
     nt->FileHeader.Machine = IMAGE_FILE_MACHINE_ARMNT;
+#elif defined __powerpc64__
+    nt->FileHeader.Machine = IMAGE_FILE_MACHINE_POWERPC64;
 #else
     nt->FileHeader.Machine = IMAGE_FILE_MACHINE_I386;
 #endif
@@ -711,6 +713,8 @@ static BOOL CALLBACK register_manifest( HMODULE module, const WCHAR *type, WCHAR
     static const char current_arch[] = "arm";
 #elif defined __aarch64__
     static const char current_arch[] = "arm64";
+#elif defined __powerpc64__
+    static const char current_arch[] = "ppc64";
 #else
     static const char current_arch[] = "none";
 #endif
