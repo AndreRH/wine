@@ -201,6 +201,101 @@ __ASM_GLOBAL_FUNC( __wine_longjmp,
                    "mov x0, x1\n\t"                /* retval */
                    "ret" )
 
+#elif defined(__powerpc64__)
+
+__ASM_GLOBAL_FUNC( __wine_setjmpex,
+                   "std  4, 0(3)\n\t"       /* Frame */
+                   "std 14, 8(3)\n\t"       /* GPR14 */
+                   "std 15, 16(3)\n\t"      /* GPR15 */
+                   "std 16, 24(3)\n\t"      /* GPR16 */
+                   "std 17, 32(3)\n\t"      /* GPR17 */
+                   "std 18, 40(3)\n\t"      /* GPR18 */
+                   "std 19, 48(3)\n\t"      /* GPR19 */
+                   "std 20, 56(3)\n\t"      /* GPR20 */
+                   "std 21, 64(3)\n\t"      /* GPR21 */
+                   "std 22, 72(3)\n\t"      /* GPR22 */
+                   "std 23, 80(3)\n\t"      /* GPR23 */
+                   "std 24, 88(3)\n\t"      /* GPR24 */
+                   "std 25, 96(3)\n\t"      /* GPR25 */
+                   "std 26, 104(3)\n\t"     /* GPR26 */
+                   "std 27, 112(3)\n\t"     /* GPR27 */
+                   "std 28, 120(3)\n\t"     /* GPR28 */
+                   "std 29, 128(3)\n\t"     /* GPR29 */
+                   "std 30, 136(3)\n\t"     /* GPR30 */
+                   "std 31, 144(3)\n\t"     /* GPR31 */
+                   "std  1, 152(3)\n\t"     /* SP */
+                   "std  2, 160(3)\n\t"     /* TOC */
+                   "mfcr 0\n\t"
+                   "stw  0, 168(3)\n\t"     /* CR (32-Bit) */
+                   "mflr 0\n\t"
+                   "std  0, 176(3)\n\t"     /* LR */
+                   "stfd 14, 184(3)\n\t"    /* FP14 */
+                   "stfd 15, 192(3)\n\t"    /* FP15 */
+                   "stfd 16, 200(3)\n\t"    /* FP16 */
+                   "stfd 17, 208(3)\n\t"    /* FP17 */
+                   "stfd 18, 216(3)\n\t"    /* FP18 */
+                   "stfd 19, 224(3)\n\t"    /* FP19 */
+                   "stfd 20, 232(3)\n\t"    /* FP20 */
+                   "stfd 21, 240(3)\n\t"    /* FP21 */
+                   "stfd 22, 248(3)\n\t"    /* FP22 */
+                   "stfd 23, 256(3)\n\t"    /* FP23 */
+                   "stfd 24, 264(3)\n\t"    /* FP24 */
+                   "stfd 25, 272(3)\n\t"    /* FP25 */
+                   "stfd 26, 280(3)\n\t"    /* FP26 */
+                   "stfd 27, 288(3)\n\t"    /* FP27 */
+                   "stfd 28, 296(3)\n\t"    /* FP28 */
+                   "stfd 29, 304(3)\n\t"    /* FP29 */
+                   "stfd 30, 312(3)\n\t"    /* FP30 */
+                   "stfd 31, 320(3)\n\t"    /* FP31 */
+                   "li 3, 0\n\t"            /* return 0 */
+                   "blr" )
+
+__ASM_GLOBAL_FUNC( __wine_longjmp,
+                   "ld 14, 8(3)\n\t"    /* GPR14 */
+                   "ld 15, 16(3)\n\t"   /* GPR15 */
+                   "ld 16, 24(3)\n\t"   /* GPR16 */
+                   "ld 17, 32(3)\n\t"   /* GPR17 */
+                   "ld 18, 40(3)\n\t"   /* GPR18 */
+                   "ld 19, 48(3)\n\t"   /* GPR19 */
+                   "ld 20, 56(3)\n\t"   /* GPR20 */
+                   "ld 21, 64(3)\n\t"   /* GPR21 */
+                   "ld 22, 72(3)\n\t"   /* GPR22 */
+                   "ld 23, 80(3)\n\t"   /* GPR23 */
+                   "ld 24, 88(3)\n\t"   /* GPR24 */
+                   "ld 25, 96(3)\n\t"   /* GPR25 */
+                   "ld 26, 104(3)\n\t"  /* GPR26 */
+                   "ld 27, 112(3)\n\t"  /* GPR27 */
+                   "ld 28, 120(3)\n\t"  /* GPR28 */
+                   "ld 29, 128(3)\n\t"  /* GPR29 */
+                   "ld 30, 136(3)\n\t"  /* GPR30 */
+                   "ld 31, 144(3)\n\t"  /* GPR31 */
+                   "ld  1, 152(3)\n\t"  /* SP */
+                   "ld  2, 160(3)\n\t"  /* TOC */
+                   "lwz  0, 168(3)\n\t" /* CR (32-Bit) */
+                   "mtcr 0\n\t"
+                   "ld  0, 176(3)\n\t"  /* LR */
+                   "mtlr 0\n\t"
+                   "lfd 14, 184(3)\n\t" /* FP14 */
+                   "lfd 15, 192(3)\n\t" /* FP15 */
+                   "lfd 16, 200(3)\n\t" /* FP16 */
+                   "lfd 17, 208(3)\n\t" /* FP17 */
+                   "lfd 18, 216(3)\n\t" /* FP18 */
+                   "lfd 19, 224(3)\n\t" /* FP19 */
+                   "lfd 20, 232(3)\n\t" /* FP20 */
+                   "lfd 21, 240(3)\n\t" /* FP21 */
+                   "lfd 22, 248(3)\n\t" /* FP22 */
+                   "lfd 23, 256(3)\n\t" /* FP23 */
+                   "lfd 24, 264(3)\n\t" /* FP24 */
+                   "lfd 25, 272(3)\n\t" /* FP25 */
+                   "lfd 26, 280(3)\n\t" /* FP26 */
+                   "lfd 27, 288(3)\n\t" /* FP27 */
+                   "lfd 28, 296(3)\n\t" /* FP28 */
+                   "lfd 29, 304(3)\n\t" /* FP29 */
+                   "lfd 30, 312(3)\n\t" /* FP30 */
+                   "lfd 31, 320(3)\n\t" /* FP31 */
+                   "mr 3, 4\n\t"        /* return retval */
+                   "blr" )
+
 #else
 
 int __cdecl __wine_setjmpex( __wine_jmp_buf *buf, EXCEPTION_REGISTRATION_RECORD *frame )
