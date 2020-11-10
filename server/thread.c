@@ -1309,6 +1309,7 @@ static unsigned int get_context_system_regs( unsigned short machine )
     case IMAGE_FILE_MACHINE_AMD64: return SERVER_CTX_DEBUG_REGISTERS;
     case IMAGE_FILE_MACHINE_ARMNT: return SERVER_CTX_DEBUG_REGISTERS;
     case IMAGE_FILE_MACHINE_ARM64: return SERVER_CTX_DEBUG_REGISTERS;
+    case IMAGE_FILE_MACHINE_POWERPC64: return SERVER_CTX_DEBUG_REGISTERS;
     }
     return 0;
 }
