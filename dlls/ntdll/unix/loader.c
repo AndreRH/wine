@@ -480,7 +480,7 @@ static NTSTATUS loader_exec( const char *loader, char **argv, client_cpu_t cpu )
  */
 NTSTATUS exec_wineloader( char **argv, int socketfd, const pe_image_info_t *pe_info )
 {
-    int is_child_64bit = (pe_info->cpu == CPU_x86_64 || pe_info->cpu == CPU_ARM64);
+    int is_child_64bit = (pe_info->cpu == CPU_x86_64 || pe_info->cpu == CPU_ARM64 || pe_info->cpu == CPU_POWERPC64);
     ULONGLONG res_start = pe_info->base;
     ULONGLONG res_end = pe_info->base + pe_info->map_size;
     const char *loader = argv0;
