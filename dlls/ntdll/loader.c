@@ -2039,8 +2039,10 @@ static BOOL is_valid_binary( HMODULE module, const SECTION_IMAGE_INFORMATION *in
 #elif defined(_WIN64)  /* support 32-bit IL-only images on 64-bit */
 #ifdef __x86_64__
     if (info->Machine == IMAGE_FILE_MACHINE_AMD64) return TRUE;
-#else
+#elif defined(__aarch64__)
     if (info->Machine == IMAGE_FILE_MACHINE_ARM64) return TRUE;
+#elif defined(__powerpc64__)
+    if (info->Machine == IMAGE_FILE_MACHINE_POWERPC64) return TRUE;
 #endif
     if (!info->ImageContainsCode) return TRUE;
     if (!(info->u.ImageFlags & IMAGE_FLAGS_ComPlusNativeReady))
@@ -3487,6 +3489,8 @@ void WINAPI LdrInitializeThunk( CONTEXT *context, ULONG_PTR unknown2, ULONG_PTR 
     entry = (void **)&context->R0;
 #elif defined(__aarch64__)
     entry = (void **)&context->u.s.X0;
+#elif defined(__powerpc64__)
+    entry = (void **)&context->Gpr3;
 #endif
 
     if (process_detaching) NtTerminateThread( GetCurrentThread(), 0 );
