@@ -14,5 +14,5 @@
 @ cdecl exit(long) msvcrt.exit
 @ stub hgets
 @ stub hwprintf
-@ cdecl time(ptr) msvcrt.time
+@ cdecl -arch=win32 time(ptr) msvcrt.time
 @ varargs wprintf(wstr) msvcrt.wprintf
