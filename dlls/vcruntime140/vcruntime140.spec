@@ -33,7 +33,7 @@
 @ cdecl __current_exception() ucrtbase.__current_exception
 @ cdecl __current_exception_context() ucrtbase.__current_exception_context
 @ cdecl -arch=i386,x86_64,arm,arm64 -norelay __intrinsic_setjmp(ptr) ucrtbase.__intrinsic_setjmp
-@ cdecl -arch=x86_64,arm64 -norelay __intrinsic_setjmpex(ptr ptr) ucrtbase.__intrinsic_setjmpex
+@ cdecl -arch=x86_64,arm64,powerpc64 -norelay __intrinsic_setjmpex(ptr ptr) ucrtbase.__intrinsic_setjmpex
 @ cdecl __processing_throw() ucrtbase.__processing_throw
 @ stub __report_gsfailure
 @ cdecl __std_exception_copy(ptr ptr) ucrtbase.__std_exception_copy
