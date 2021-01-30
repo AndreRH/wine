@@ -5720,6 +5720,20 @@ static void test_debug_service(DWORD numexc)
     /* not supported */
 }
 
+#else
+
+static void test_debug_service(DWORD numexc)
+{
+    /* not supported */
+}
+static void test_debugger(DWORD cont_status)
+{
+    /* not supported */
+}
+static void test_thread_context(void)
+{
+    /* not supported */
+}
 #endif  /* __aarch64__ */
 
 #if defined(__i386__) || defined(__x86_64__)
@@ -6243,6 +6257,7 @@ static const DWORD breakpoint_code[] = { 0xd4200000, 0xd65f03c0 };  /* brk #0; r
 
 static void test_breakpoint(DWORD numexc)
 {
+#ifndef __powerpc64__
     DWORD (CDECL *func)(void) = code_mem;
     void *vectored_handler;
 
@@ -6257,6 +6272,7 @@ static void test_breakpoint(DWORD numexc)
        breakpoint_exceptions, numexc);
 
     pRtlRemoveVectoredExceptionHandler(vectored_handler);
+#endif
 }
 
 #if defined(__i386__) || defined(__x86_64__)
