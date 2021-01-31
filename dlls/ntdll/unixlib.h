@@ -32,7 +32,7 @@ struct _DISPATCHER_CONTEXT;
 struct unix_funcs
 {
     /* Nt* functions */
-#ifdef __aarch64__
+#if defined(__aarch64__) || defined(__powerpc64__)
     TEB *         (WINAPI *NtCurrentTeb)(void);
 #endif
 
