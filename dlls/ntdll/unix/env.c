@@ -2074,8 +2074,12 @@ NTSTATUS WINAPI NtGetNlsSectionPtr( ULONG type, ULONG id, void *unknown, void **
     {
         *ptr = NULL;
         *size = 0;
+        /* Hack: Alloc with MEM_TOP_DOWN. The standard alloc allocates bottom up and is very likely to
+         * block the 0x400000 load address hangover will need for the guest .exe file. This is not an issue
+         * for regular Wine because by the time kernelbase.dll calls NtGetNlsSectionPtr the exe file loaded
+         * already. */
         status = NtMapViewOfSection( handle, GetCurrentProcess(), ptr, 0, 0, NULL, size,
-                                     ViewShare, 0, PAGE_READONLY );
+                                     ViewShare, MEM_TOP_DOWN, PAGE_READONLY );
     }
     NtClose( handle );
     return status;
