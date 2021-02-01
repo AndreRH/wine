@@ -1621,6 +1621,7 @@
 
 # Virtual memory
 @ cdecl -syscall __wine_locked_recvmsg(long ptr long)
+@ cdecl __wine_RtlSetFirewallHeap(long)
 
 # Version
 @ cdecl -syscall wine_get_version()
