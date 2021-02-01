@@ -165,8 +165,6 @@
 #include "pidl.h"
 #include "debughlp.h"
 
-#if !defined(__MINGW32__) && !defined(_MSC_VER)
-
 WINE_DEFAULT_DEBUG_CHANNEL(shell);
 
 #define LEN_SHITEMID_FIXED_PART ((USHORT) \
@@ -404,7 +402,11 @@ static BOOL UNIXFS_get_unix_path(LPCWSTR pszDosPath, char *pszCanonicalPath)
     pszUnixPath = wine_get_unix_file_name(wszDrive);
     if (!pszUnixPath) return FALSE;
     cDriveSymlinkLen = strlen(pszUnixPath);
+#if !defined(__MINGW32__) && !defined(_MSC_VER)
     pElement = realpath(pszUnixPath, szPath);
+#else
+    pElement = p_realpath(pszUnixPath, szPath);
+#endif
     heap_free(pszUnixPath);
     if (!pElement) return FALSE;
     if (szPath[strlen(szPath)-1] != '/') strcat(szPath, "/");
@@ -1539,11 +1541,21 @@ static HRESULT WINAPI ShellFolder2_GetDetailsOf(IShellFolder2* iface,
             psd->str.u.cStr[10] = '\0';
             break;
         case 5:
+#if !defined(__MINGW32__) && !defined(_MSC_VER)
             pPasswd = getpwuid(statItem.st_uid);
+#else
+            ERR("Calling pw stuff.\n");
+            pPasswd = p_getpwuid(statItem.st_uid);
+#endif
             if (pPasswd) strcpy(psd->str.u.cStr, pPasswd->pw_name);
             break;
         case 6:
+#if !defined(__MINGW32__) && !defined(_MSC_VER)
             pGroup = getgrgid(statItem.st_gid);
+#else
+            ERR("Calling group stuff.\n");
+            pGroup = p_getgrgid(statItem.st_gid);
+#endif
             if (pGroup) strcpy(psd->str.u.cStr, pGroup->gr_name);
             break;
     }
@@ -2540,30 +2552,6 @@ static IEnumIDList *UnixSubFolderIterator_Constructor(UnixFolder *pUnixFolder, S
 
     return &iterator->IEnumIDList_iface;
 }
-
-#else /* __MINGW32__ || _MSC_VER */
-
-HRESULT WINAPI UnixFolder_Constructor(IUnknown *pUnkOuter, REFIID riid, LPVOID *ppv)
-{
-    return E_NOTIMPL;
-}
-
-HRESULT WINAPI UnixDosFolder_Constructor(IUnknown *pUnkOuter, REFIID riid, LPVOID *ppv)
-{
-    return E_NOTIMPL;
-}
-
-HRESULT WINAPI FolderShortcut_Constructor(IUnknown *pUnkOuter, REFIID riid, LPVOID *ppv)
-{
-    return E_NOTIMPL;
-}
-
-HRESULT WINAPI MyDocuments_Constructor(IUnknown *pUnkOuter, REFIID riid, LPVOID *ppv)
-{
-    return E_NOTIMPL;
-}
-
-#endif /* __MINGW32__ || _MSC_VER */
 
 /******************************************************************************
  * UNIXFS_is_rooted_at_desktop [Internal]
