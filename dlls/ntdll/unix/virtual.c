@@ -3552,7 +3552,10 @@ void CDECL virtual_release_address_space(void)
     struct free_range range;
     sigset_t sigset;
 
+    /* Always free low memory for hangover. It is a 64 bit process which might have a 2GB
+     * address space limit for a non-LAA 32 bit app.
     if (is_win64) return;
+    */
 
     server_enter_uninterrupted_section( &virtual_mutex, &sigset );
 
