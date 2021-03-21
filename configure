@@ -5847,6 +5847,62 @@ $as_echo "$wine_cv_builtin_ms_va_list" >&6; }
     enable_win16=${enable_win16:-yes}
     with_unwind=${with_unwind:-no}
     ;;
+  powerpc64*)
+    host_cpu="powerpc64le"
+    notice_platform="64-bit "
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports -mlongcall" >&5
+$as_echo_n "checking whether the compiler supports -mlongcall... " >&6; }
+if ${ac_cv_cflags__mlongcall+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_wine_try_cflags_saved=$CFLAGS
+CFLAGS="$CFLAGS -mlongcall"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+int main(int argc, char **argv) { return 0; }
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_cflags__mlongcall=yes
+else
+  ac_cv_cflags__mlongcall=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+CFLAGS=$ac_wine_try_cflags_saved
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_cflags__mlongcall" >&5
+$as_echo "$ac_cv_cflags__mlongcall" >&6; }
+if test "x$ac_cv_cflags__mlongcall" = xyes; then :
+  CC="$CC -mlongcall"
+                                   CXX="$CXX -mlongcall"
+fi
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports -mno-pltseq" >&5
+$as_echo_n "checking whether the compiler supports -mno-pltseq... " >&6; }
+if ${ac_cv_cflags__mno_pltseq+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_wine_try_cflags_saved=$CFLAGS
+CFLAGS="$CFLAGS -mno-pltseq"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+int main(int argc, char **argv) { return 0; }
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_cflags__mno_pltseq=yes
+else
+  ac_cv_cflags__mno_pltseq=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+CFLAGS=$ac_wine_try_cflags_saved
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_cflags__mno_pltseq" >&5
+$as_echo "$ac_cv_cflags__mno_pltseq" >&6; }
+if test "x$ac_cv_cflags__mno_pltseq" = xyes; then :
+  CC="$CC -mno-pltseq"
+                                    CXX="$CXX -mno-pltseq"
+fi
+    ;;
 esac
 
 enable_win16=${enable_win16:-no}
@@ -9457,7 +9513,7 @@ fi
       WINEPRELOADER_LDFLAGS="-static -nostartfiles -nodefaultlibs -Wl,-Ttext=0x7d400000"
 
       case $host_cpu in
-        *i[3456789]86* | x86_64 | *aarch64*)
+        *i[3456789]86* | x86_64 | *aarch64* | powerpc64*)
           { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler supports -Wl,-Ttext-segment=0x7bc00000" >&5
 $as_echo_n "checking whether the compiler supports -Wl,-Ttext-segment=0x7bc00000... " >&6; }
 if ${ac_cv_cflags__Wl__Ttext_segment_0x7bc00000+:} false; then :
