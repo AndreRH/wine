@@ -52,21 +52,23 @@ static const struct
     enum target_cpu cpu;
 } cpu_names[] =
 {
-    { "i386",    CPU_x86 },
-    { "i486",    CPU_x86 },
-    { "i586",    CPU_x86 },
-    { "i686",    CPU_x86 },
-    { "i786",    CPU_x86 },
-    { "amd64",   CPU_x86_64 },
-    { "x86_64",  CPU_x86_64 },
-    { "powerpc", CPU_POWERPC },
-    { "arm",     CPU_ARM },
-    { "armv5",   CPU_ARM },
-    { "armv6",   CPU_ARM },
-    { "armv7",   CPU_ARM },
-    { "armv7a",  CPU_ARM },
-    { "arm64",   CPU_ARM64 },
-    { "aarch64", CPU_ARM64 },
+    { "i386",           CPU_x86 },
+    { "i486",           CPU_x86 },
+    { "i586",           CPU_x86 },
+    { "i686",           CPU_x86 },
+    { "i786",           CPU_x86 },
+    { "amd64",          CPU_x86_64 },
+    { "x86_64",         CPU_x86_64 },
+    { "powerpc",        CPU_POWERPC },
+    { "powerpc64",      CPU_POWERPC64 },
+    { "powerpc64le",    CPU_POWERPC64 },
+    { "arm",            CPU_ARM },
+    { "armv5",          CPU_ARM },
+    { "armv6",          CPU_ARM },
+    { "armv7",          CPU_ARM },
+    { "armv7a",         CPU_ARM },
+    { "arm64",          CPU_ARM64 },
+    { "aarch64",        CPU_ARM64 },
 };
 
 /* atexit handler to clean tmp files */
@@ -436,6 +438,7 @@ struct strarray get_as_command(void)
             switch(target_cpu)
             {
             case CPU_POWERPC:
+            case CPU_POWERPC64:
                 strarray_add_one( &args, (force_pointer_size == 8) ? "-a64" : "-a32" );
                 break;
             default:
@@ -482,6 +485,10 @@ struct strarray get_ld_command(void)
             {
             case CPU_POWERPC:
                 strarray_add( &args, "-m", (force_pointer_size == 8) ? "elf64ppc" : "elf32ppc", NULL );
+                break;
+            case CPU_POWERPC64:
+                /* We only respect the little endian version for now */
+                strarray_add( &args, "-m", (force_pointer_size == 8) ? "elf64lppc" : "elf32lppc", NULL );
                 break;
             default:
                 strarray_add( &args, "-m", (force_pointer_size == 8) ? "elf_x86_64" : "elf_i386", NULL );
@@ -1040,6 +1047,7 @@ unsigned int get_alignment(unsigned int align)
         if (target_platform != PLATFORM_APPLE) return align;
         /* fall through */
     case CPU_POWERPC:
+    case CPU_POWERPC64:
     case CPU_ARM:
     case CPU_ARM64:
         n = 0;
@@ -1067,6 +1075,7 @@ unsigned int get_ptr_size(void)
     case CPU_ARM:
         return 4;
     case CPU_x86_64:
+    case CPU_POWERPC64:
     case CPU_ARM64:
         return 8;
     }
