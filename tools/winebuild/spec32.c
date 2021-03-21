@@ -32,12 +32,13 @@
 
 #include "build.h"
 
-#define IMAGE_FILE_MACHINE_UNKNOWN 0
-#define IMAGE_FILE_MACHINE_I386    0x014c
-#define IMAGE_FILE_MACHINE_POWERPC 0x01f0
-#define IMAGE_FILE_MACHINE_AMD64   0x8664
-#define IMAGE_FILE_MACHINE_ARMNT   0x01C4
-#define IMAGE_FILE_MACHINE_ARM64   0xaa64
+#define IMAGE_FILE_MACHINE_UNKNOWN   0
+#define IMAGE_FILE_MACHINE_I386      0x014c
+#define IMAGE_FILE_MACHINE_POWERPC   0x01f0
+#define IMAGE_FILE_MACHINE_POWERPC64 0x01f2
+#define IMAGE_FILE_MACHINE_AMD64     0x8664
+#define IMAGE_FILE_MACHINE_ARMNT     0x01C4
+#define IMAGE_FILE_MACHINE_ARM64     0xaa64
 
 #define IMAGE_SIZEOF_NT_OPTIONAL32_HEADER 224
 #define IMAGE_SIZEOF_NT_OPTIONAL64_HEADER 240
@@ -613,7 +614,6 @@ void output_exports( DLLSPEC *spec )
     }
 }
 
-
 /*******************************************************************
  *         output_module
  *
@@ -658,6 +658,7 @@ void output_module( DLLSPEC *spec )
             break;
         case CPU_ARM64:
         case CPU_POWERPC:
+        case CPU_POWERPC64:
             output( "\n\t.section \".init\",\"ax\"\n" );
             output( "\tb 1f\n" );
             break;
@@ -679,11 +680,12 @@ void output_module( DLLSPEC *spec )
     output( "\t.long 0x4550\n" );         /* Signature */
     switch(target_cpu)
     {
-    case CPU_x86:     machine = IMAGE_FILE_MACHINE_I386; break;
-    case CPU_x86_64:  machine = IMAGE_FILE_MACHINE_AMD64; break;
-    case CPU_POWERPC: machine = IMAGE_FILE_MACHINE_POWERPC; break;
-    case CPU_ARM:     machine = IMAGE_FILE_MACHINE_ARMNT; break;
-    case CPU_ARM64:   machine = IMAGE_FILE_MACHINE_ARM64; break;
+    case CPU_x86:       machine = IMAGE_FILE_MACHINE_I386; break;
+    case CPU_x86_64:    machine = IMAGE_FILE_MACHINE_AMD64; break;
+    case CPU_POWERPC:   machine = IMAGE_FILE_MACHINE_POWERPC; break;
+    case CPU_POWERPC64: machine = IMAGE_FILE_MACHINE_POWERPC64; break;
+    case CPU_ARM:       machine = IMAGE_FILE_MACHINE_ARMNT; break;
+    case CPU_ARM64:     machine = IMAGE_FILE_MACHINE_ARM64; break;
     }
     output( "\t.short 0x%04x\n",          /* Machine */
              machine );
@@ -836,11 +838,12 @@ void output_fake_module( DLLSPEC *spec )
     put_dword( 0x4550 );                             /* Signature */
     switch(target_cpu)
     {
-    case CPU_x86:     put_word( IMAGE_FILE_MACHINE_I386 ); break;
-    case CPU_x86_64:  put_word( IMAGE_FILE_MACHINE_AMD64 ); break;
-    case CPU_POWERPC: put_word( IMAGE_FILE_MACHINE_POWERPC ); break;
-    case CPU_ARM:     put_word( IMAGE_FILE_MACHINE_ARMNT ); break;
-    case CPU_ARM64:   put_word( IMAGE_FILE_MACHINE_ARM64 ); break;
+    case CPU_x86:       put_word( IMAGE_FILE_MACHINE_I386 ); break;
+    case CPU_x86_64:    put_word( IMAGE_FILE_MACHINE_AMD64 ); break;
+    case CPU_POWERPC:   put_word( IMAGE_FILE_MACHINE_POWERPC ); break;
+    case CPU_POWERPC64: put_word( IMAGE_FILE_MACHINE_POWERPC64 ); break;
+    case CPU_ARM:       put_word( IMAGE_FILE_MACHINE_ARMNT ); break;
+    case CPU_ARM64:     put_word( IMAGE_FILE_MACHINE_ARM64 ); break;
     }
     put_word( nb_sections );                         /* NumberOfSections */
     put_dword( hash_filename(spec->file_name) );     /* TimeDateStamp */
