@@ -1583,6 +1583,7 @@ size_t server_init_process(void)
     {
     case IMAGE_FILE_MACHINE_AMD64:
     case IMAGE_FILE_MACHINE_ARM64:
+    case IMAGE_FILE_MACHINE_POWERPC64:
         if (arch && !strcmp( arch, "win32" ))
             fatal_error( "WINEARCH set to win32 but '%s' is a 64-bit installation.\n", config_dir );
         if (!is_win64)
