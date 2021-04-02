@@ -39,6 +39,9 @@ static const WORD current_machine = IMAGE_FILE_MACHINE_ARMNT;
 #elif defined(__aarch64__)
 static const enum cpu_type client_cpu = CPU_ARM64;
 static const WORD current_machine = IMAGE_FILE_MACHINE_ARM64;
+#elif defined(__powerpc64__)
+static const enum cpu_type client_cpu = CPU_POWERPC64;
+static const WORD current_machine = IMAGE_FILE_MACHINE_POWERPC64;
 #endif
 
 static const BOOL is_win64 = (sizeof(void *) > sizeof(int));

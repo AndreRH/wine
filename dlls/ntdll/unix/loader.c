@@ -449,7 +449,7 @@ static NTSTATUS loader_exec( const char *loader, char **argv, WORD machine )
 NTSTATUS exec_wineloader( char **argv, int socketfd, const pe_image_info_t *pe_info )
 {
     WORD machine = pe_info->machine;
-    int is_child_64bit = (machine == IMAGE_FILE_MACHINE_AMD64 || machine == IMAGE_FILE_MACHINE_ARM64);
+    int is_child_64bit = (machine == IMAGE_FILE_MACHINE_AMD64 || machine == IMAGE_FILE_MACHINE_ARM64 || machine == IMAGE_FILE_MACHINE_POWERPC64);
     ULONGLONG res_start = pe_info->base;
     ULONGLONG res_end = pe_info->base + pe_info->map_size;
     const char *loader = argv0;
@@ -1752,7 +1752,7 @@ static double CDECL ntdll_tan( double d )   { return tan( d ); }
  */
 static struct unix_funcs unix_funcs =
 {
-#ifdef __aarch64__
+#if defined(__aarch64__) || defined(__powerpc64__)
     NtCurrentTeb,
 #endif
     DbgUiIssueRemoteBreakin,
