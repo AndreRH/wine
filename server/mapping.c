@@ -721,6 +721,9 @@ static unsigned int get_image_params( struct mapping *mapping, file_pos_t file_s
         case IMAGE_FILE_MACHINE_ARM64:
             if (cpu_mask & (CPU_FLAG(CPU_ARM) | CPU_FLAG(CPU_ARM64))) break;
             return STATUS_INVALID_IMAGE_FORMAT;
+        case IMAGE_FILE_MACHINE_POWERPC64:
+            if (cpu_mask & CPU_FLAG(CPU_POWERPC64)) break;
+            return STATUS_INVALID_IMAGE_FORMAT;
         default:
             return STATUS_INVALID_IMAGE_FORMAT;
         }

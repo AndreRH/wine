@@ -40,7 +40,7 @@
 @ stub __dcrt_initial_narrow_environment
 @ cdecl __intrinsic_abnormal_termination() ucrtbase.__intrinsic_abnormal_termination
 @ cdecl -arch=i386,x86_64,arm,arm64 -norelay __intrinsic_setjmp(ptr) ucrtbase.__intrinsic_setjmp
-@ cdecl -arch=x86_64,arm64 -norelay __intrinsic_setjmpex(ptr ptr) ucrtbase.__intrinsic_setjmpex
+@ cdecl -arch=x86_64,arm64,powerpc64 -norelay __intrinsic_setjmpex(ptr ptr) ucrtbase.__intrinsic_setjmpex
 @ cdecl __processing_throw() ucrtbase.__processing_throw
 @ stub __report_gsfailure
 @ cdecl __std_exception_copy(ptr ptr) ucrtbase.__std_exception_copy
@@ -660,7 +660,7 @@
 @ cdecl -arch=x86_64 _o__scalbf(float long) ucrtbase._o__scalbf
 @ cdecl _o__searchenv(str str ptr) ucrtbase._o__searchenv
 @ cdecl _o__searchenv_s(str str ptr long) ucrtbase._o__searchenv_s
-@ cdecl _o__seh_filter_dll(long ptr) ucrtbase._o__seh_filter_dll
+@ cdecl -arch=i386,x86_64,arm,arm64 _o__seh_filter_dll(long ptr) ucrtbase._o__seh_filter_dll
 @ cdecl _o__seh_filter_exe(long ptr) ucrtbase._o__seh_filter_exe
 @ cdecl _o__set_abort_behavior(long long) ucrtbase._o__set_abort_behavior
 @ cdecl _o__set_app_type(long) ucrtbase._o__set_app_type

@@ -85,6 +85,7 @@ static client_cpu_t get_machine_cpu( pe_image_info_t *pe_info )
     case IMAGE_FILE_MACHINE_AMD64: return CPU_x86_64;
     case IMAGE_FILE_MACHINE_ARMNT: return CPU_ARM;
     case IMAGE_FILE_MACHINE_ARM64: return CPU_ARM64;
+    case IMAGE_FILE_MACHINE_POWERPC64: return CPU_POWERPC64;
     default: return 0;
     }
 }
@@ -289,6 +290,7 @@ static BOOL get_so_file_info( HANDLE handle, pe_image_info_t *info )
         switch (header.elf.machine)
         {
         case 3:   info->machine = IMAGE_FILE_MACHINE_I386; break;
+        case 21:  info->machine = IMAGE_FILE_MACHINE_POWERPC64; break;
         case 40:  info->machine = IMAGE_FILE_MACHINE_ARMNT; break;
         case 62:  info->machine = IMAGE_FILE_MACHINE_AMD64; break;
         case 183: info->machine = IMAGE_FILE_MACHINE_ARM64; break;
@@ -321,6 +323,7 @@ static BOOL get_so_file_info( HANDLE handle, pe_image_info_t *info )
         case 0x01000007: info->machine = IMAGE_FILE_MACHINE_AMD64; break;
         case 0x0000000c: info->machine = IMAGE_FILE_MACHINE_ARMNT; break;
         case 0x0100000c: info->machine = IMAGE_FILE_MACHINE_ARM64; break;
+        case 0x01000012: info->machine = IMAGE_FILE_MACHINE_POWERPC64; break;
         }
         if (header.macho.filetype == 8) return TRUE;
     }

@@ -447,6 +447,53 @@ static void get_cpuinfo( SYSTEM_CPU_INFORMATION *info )
     info->Architecture = PROCESSOR_ARCHITECTURE_ARM64;
 }
 
+#elif defined(__powerpc64__)
+
+static void get_cpuinfo( SYSTEM_CPU_INFORMATION *info )
+{
+#ifdef linux
+    char line[512];
+    char *s, *value;
+    FILE *f = fopen("/proc/cpuinfo", "r");
+    if (f)
+    {
+        while (fgets(line, sizeof(line), f) != NULL)
+        {
+            /* NOTE: the ':' is the only character we can rely on */
+            if (!(value = strchr(line,':')))
+                continue;
+            /* terminate the valuename */
+            s = value - 1;
+            while ((s >= line) && isspace(*s)) s--;
+            *(s + 1) = '\0';
+            /* and strip leading spaces from value */
+            value += 1;
+            while (isspace(*value)) value++;
+            if ((s = strchr(value,'\n')))
+                *s='\0';
+            if (!strcasecmp(line, "cpu"))
+            {
+                if (isdigit(value[5]))
+                    info->Level = atoi(value+5);
+                continue;
+            }
+            if (!strcasecmp(line, "revision"))
+            {
+                if (isdigit(value[0]))
+                    info->Revision = (atof(value) * 100);
+                continue;
+            }
+        }
+        fclose(f);
+    }
+#else
+    FIXME("CPU Feature detection not implemented.\n");
+#endif
+    info->Level = max(info->Level, 8); /* Default to POWER8 if unable to detect CPU series */
+    info->Architecture = PROCESSOR_ARCHITECTURE_PPC64;
+
+}
+
 #endif /* End architecture specific feature detection for CPUs */
 
 /******************************************************************

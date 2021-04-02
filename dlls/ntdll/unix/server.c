@@ -1477,7 +1477,7 @@ static void init_teb64( TEB *teb )
  */
 size_t server_init_process(void)
 {
-    static const char *cpu_names[] = { "x86", "x86_64", "PowerPC", "ARM", "ARM64" };
+    static const char *cpu_names[] = { "x86", "x86_64", "PowerPC", "ARM", "ARM64", "PowerPC64" };
     const char *arch = getenv( "WINEARCH" );
     const char *env_socket = getenv( "WINESERVERSOCKET" );
     obj_handle_t version;

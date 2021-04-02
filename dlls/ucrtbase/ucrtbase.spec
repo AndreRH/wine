@@ -94,7 +94,7 @@
 @ cdecl __initialize_lconv_for_unsigned_char() __lconv_init
 @ cdecl __intrinsic_abnormal_termination()
 @ cdecl -arch=i386,x86_64,arm,arm64 -norelay __intrinsic_setjmp(ptr) MSVCRT__setjmp
-@ cdecl -arch=x86_64,arm64 -norelay __intrinsic_setjmpex(ptr ptr) __wine_setjmpex
+@ cdecl -arch=x86_64,arm64,powerpc64 -norelay __intrinsic_setjmpex(ptr ptr) __wine_setjmpex
 @ cdecl __isascii(long)
 @ cdecl __iscsym(long)
 @ cdecl __iscsymf(long)
@@ -1324,7 +1324,7 @@
 @ cdecl -arch=x86_64 _o__scalbf(float long) _scalbf
 @ cdecl _o__searchenv(str str ptr) _searchenv
 @ cdecl _o__searchenv_s(str str ptr long) _searchenv_s
-@ cdecl _o__seh_filter_dll(long ptr) __CppXcptFilter
+@ cdecl -arch=i386,x86_64,arm,arm64 _o__seh_filter_dll(long ptr) __CppXcptFilter
 @ cdecl _o__seh_filter_exe(long ptr) _XcptFilter
 @ cdecl _o__set_abort_behavior(long long) _set_abort_behavior
 @ cdecl _o__set_app_type(long) __set_app_type
