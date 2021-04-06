@@ -331,6 +331,72 @@ static NTSTATUS create_nt_process( HANDLE token, HANDLE debug, SECURITY_ATTRIBUT
 }
 
 
+static BOOL WINAPI is_binary_type( LPCWSTR name ) /* adapted from kernel32:GetBinaryTypeW */
+{
+    HANDLE hfile, mapping;
+    NTSTATUS status;
+    const WCHAR *ptr;
+
+    hfile = CreateFileW( name, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, 0 );
+    if ( hfile == INVALID_HANDLE_VALUE )
+        return FALSE;
+
+    status = NtCreateSection( &mapping, STANDARD_RIGHTS_REQUIRED | SECTION_QUERY,
+                              NULL, NULL, PAGE_READONLY, SEC_IMAGE, hfile );
+    CloseHandle( hfile );
+
+    switch (status)
+    {
+    case STATUS_SUCCESS:
+        {
+            SECTION_IMAGE_INFORMATION info;
+
+            status = NtQuerySection( mapping, SectionImageInformation, &info, sizeof(info), NULL );
+            CloseHandle( mapping );
+            if (status) return FALSE;
+            switch (info.Machine)
+            {
+            case IMAGE_FILE_MACHINE_I386:
+            case IMAGE_FILE_MACHINE_AMD64:
+                return TRUE;
+            }
+            return FALSE;
+        }
+    case STATUS_INVALID_IMAGE_NOT_MZ:
+        if ((ptr = wcsrchr( name, '.' )))
+        {
+            if (!wcsicmp( ptr, L".com" ))
+                return TRUE;
+        }
+        return FALSE;
+    default:
+        return FALSE;
+    }
+}
+static NTSTATUS create_hangover_process( HANDLE token, HANDLE debug, SECURITY_ATTRIBUTES *psa,
+                                    SECURITY_ATTRIBUTES *tsa, BOOL inherit, DWORD flags,
+                                    RTL_USER_PROCESS_PARAMETERS *params,
+                                    RTL_USER_PROCESS_INFORMATION *info )
+{
+    const WCHAR *hangover = L"C:\\windows\\system32\\hangover.exe";
+    WCHAR *newcmdline;
+    NTSTATUS status;
+    UINT len;
+
+    len = lstrlenW(params->CommandLine.Buffer) + lstrlenW(hangover) + 2;
+
+    if (!(newcmdline = RtlAllocateHeap( GetProcessHeap(), 0, len * sizeof(WCHAR) )))
+        return STATUS_NO_MEMORY;
+
+    swprintf( newcmdline, len, L"%s %s", hangover, params->CommandLine.Buffer );
+    RtlInitUnicodeString( &params->ImagePathName, hangover );
+    RtlInitUnicodeString( &params->CommandLine, newcmdline );
+    status = create_nt_process( token, debug, psa, tsa, inherit, flags, params, info, NULL, NULL );
+    HeapFree( GetProcessHeap(), 0, newcmdline );
+    return status;
+}
+
+
 /***********************************************************************
  *           create_vdm_process
  */
@@ -619,6 +685,17 @@ BOOL WINAPI DECLSPEC_HOTPATCH CreateProcessInternalW( HANDLE token, const WCHAR 
                                          inherit, flags, params, &rtl_info );
         }
         break;
+    case STATUS_INVALID_IMAGE_FORMAT:
+        {
+            if (!is_binary_type(params->ImagePathName.Buffer))
+                break;
+
+            /* might be an executable for Hangover */
+            MESSAGE( "\nstarting %s binary with Hangover\n\n", debugstr_w(app_name) );
+            status = create_hangover_process( token, debug, process_attr, thread_attr,
+                                              inherit, flags, params, &rtl_info );
+            break;
+        }
     }
 
     if (!status)

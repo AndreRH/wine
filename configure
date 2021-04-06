@@ -1789,6 +1789,7 @@ enable_findstr
 enable_fsutil
 enable_hh
 enable_hostname
+enable_hangover
 enable_icacls
 enable_icinfo
 enable_iexplore
@@ -21347,6 +21348,7 @@ wine_fn_config_makefile programs/fsutil enable_fsutil
 wine_fn_config_makefile programs/fsutil/tests enable_tests
 wine_fn_config_makefile programs/hh enable_hh
 wine_fn_config_makefile programs/hostname enable_hostname
+wine_fn_config_makefile programs/hangover enable_hangover
 wine_fn_config_makefile programs/icacls enable_icacls
 wine_fn_config_makefile programs/icinfo enable_icinfo
 wine_fn_config_makefile programs/iexplore enable_iexplore

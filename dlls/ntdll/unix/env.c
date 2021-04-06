@@ -1872,7 +1872,19 @@ static RTL_USER_PROCESS_PARAMETERS *build_initial_params(void)
     env[env_pos++] = 0;
 
     status = load_main_exe( main_wargv[0], main_argv[0], curdir, &image, &module, &image_info );
-    if (!status && image_info.Machine != current_machine)  /* need to restart for Wow64 */
+    if (!status && (image_info.Machine == IMAGE_FILE_MACHINE_AMD64 || image_info.Machine == IMAGE_FILE_MACHINE_I386) && getenv("HOQEMU"))
+    {
+        const WCHAR *args[] = { NULL };
+        void *old = module;
+
+        MESSAGE( "\nstarting %s with Hangover\n\n", debugstr_w(main_wargv[0]) );
+
+        free( image );
+        prepend_main_wargv( args, 1 );
+        load_qemu_exe( &image, &module );
+        NtUnmapViewOfSection( GetCurrentProcess(), old );
+    }
+    else if (!status && image_info.Machine != current_machine)  /* need to restart for Wow64 */
     {
         NtUnmapViewOfSection( GetCurrentProcess(), module );
         status = STATUS_INVALID_IMAGE_FORMAT;

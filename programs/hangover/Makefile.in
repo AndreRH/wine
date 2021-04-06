@@ -1,0 +1,6 @@
+MODULE    = hangover.exe
+APPMODE   = -mwindows -municode
+IMPORTS   =
+
+C_SRCS = \
+	callqemu.c

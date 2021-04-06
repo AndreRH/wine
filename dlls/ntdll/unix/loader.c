@@ -1598,6 +1598,44 @@ NTSTATUS load_start_exe( WCHAR **image, void **module, SECTION_IMAGE_INFORMATION
 }
 
 
+/***********************************************************************
+ *           load_qemu_exe
+ *
+ * Load qemu.exe.so as main image.
+ */
+NTSTATUS load_qemu_exe( WCHAR **image, void **module )
+{
+    UNICODE_STRING nt_name;
+    WCHAR *qemu = NULL;
+    NTSTATUS status;
+    char *hoqemu = realpath(getenv("HOQEMU"), NULL);
+
+    if (!hoqemu)
+        return STATUS_NOT_FOUND;
+
+    status = unix_to_nt_file_name(hoqemu, &qemu);
+    if (status)
+    {
+        MESSAGE( "wine: failed to find %s: %x\n", hoqemu, status );
+        NtTerminateProcess( GetCurrentProcess(), status );
+    }
+    free(hoqemu);
+
+    init_unicode_string( &nt_name, qemu );
+    status = load_so_dll( &nt_name, module );
+    if (status)
+    {
+        MESSAGE( "wine: failed to load %s: %x\n", debugstr_us(&nt_name), status );
+        NtTerminateProcess( GetCurrentProcess(), status );
+    }
+
+    *image = malloc( (wcslen(qemu) + 1) * sizeof(WCHAR) );
+    memcpy( *image, qemu, (wcslen(qemu) + 1) * sizeof(WCHAR) );
+    free(qemu);
+    return status;
+}
+
+
 #ifdef __FreeBSD__
 /* The PT_LOAD segments are sorted in increasing order, and the first
  * starts at the beginning of the ELF file. By parsing the file, we can

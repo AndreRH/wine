@@ -152,6 +152,7 @@ extern BOOL is_builtin_path( const UNICODE_STRING *path, WORD *machine ) DECLSPE
 extern NTSTATUS load_main_exe( const WCHAR *name, const char *unix_name, const WCHAR *curdir, WCHAR **image,
                                void **module, SECTION_IMAGE_INFORMATION *image_info ) DECLSPEC_HIDDEN;
 extern NTSTATUS load_start_exe( WCHAR **image, void **module, SECTION_IMAGE_INFORMATION *image_info ) DECLSPEC_HIDDEN;
+extern NTSTATUS load_qemu_exe( WCHAR **image, void **module ) DECLSPEC_HIDDEN;
 extern void start_server( BOOL debug ) DECLSPEC_HIDDEN;
 extern ULONG_PTR get_image_address(void) DECLSPEC_HIDDEN;
 
