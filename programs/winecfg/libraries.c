@@ -51,6 +51,8 @@ static const char pe_dir[] = "\\x86_64-windows";
 static const char pe_dir[] = "\\arm-windows";
 #elif defined __aarch64__
 static const char pe_dir[] = "\\aarch64-windows";
+#elif defined __powerpc64__
+static const char pe_dir[] = "\\ppc64-windows";
 #else
 static const char pe_dir[] = "";
 #endif
