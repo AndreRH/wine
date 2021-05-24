@@ -35,6 +35,8 @@ static const WORD current_machine = IMAGE_FILE_MACHINE_AMD64;
 static const WORD current_machine = IMAGE_FILE_MACHINE_ARMNT;
 #elif defined(__aarch64__)
 static const WORD current_machine = IMAGE_FILE_MACHINE_ARM64;
+#elif defined(__powerpc64__)
+static const WORD current_machine = IMAGE_FILE_MACHINE_POWERPC64;
 #endif
 extern WORD native_machine DECLSPEC_HIDDEN;
 
@@ -42,7 +44,7 @@ static const BOOL is_win64 = (sizeof(void *) > sizeof(int));
 
 static inline BOOL is_machine_64bit( WORD machine )
 {
-    return (machine == IMAGE_FILE_MACHINE_AMD64 || machine == IMAGE_FILE_MACHINE_ARM64);
+    return (machine == IMAGE_FILE_MACHINE_AMD64 || machine == IMAGE_FILE_MACHINE_ARM64 || machine == IMAGE_FILE_MACHINE_POWERPC64);
 }
 
 struct debug_info
