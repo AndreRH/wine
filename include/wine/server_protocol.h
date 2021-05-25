@@ -121,6 +121,7 @@ typedef struct
                  unsigned int cs, ss, flags, __pad; } x86_64_regs;
         struct { unsigned int sp, lr, pc, cpsr; } arm_regs;
         struct { unsigned __int64 sp, pc, pstate; } arm64_regs;
+        struct { unsigned __int64 iar, msr, ctr, lr, dar, dsisr, trap, __pad; } powerpc64_regs;
     } ctl;
     union
     {
@@ -129,6 +130,7 @@ typedef struct
                                   r8, r9, r10, r11, r12, r13, r14, r15; } x86_64_regs;
         struct { unsigned int r[13]; } arm_regs;
         struct { unsigned __int64 x[31]; } arm64_regs;
+        struct { unsigned __int64 gpr[32], cr, xer; } powerpc64_regs;
     } integer;
     union
     {
@@ -142,6 +144,7 @@ typedef struct
         struct { struct { unsigned __int64 low, high; } fpregs[32]; } x86_64_regs;
         struct { unsigned __int64 d[32]; unsigned int fpscr; } arm_regs;
         struct { struct { unsigned __int64 low, high; } q[32]; unsigned int fpcr, fpsr; } arm64_regs;
+        struct { double fpr[32]; unsigned __int64 fpscr; } powerpc64_regs;
     } fp;
     union
     {
@@ -149,6 +152,7 @@ typedef struct
         struct { unsigned __int64 dr0, dr1, dr2, dr3, dr6, dr7; } x86_64_regs;
         struct { unsigned int bvr[8], bcr[8], wvr[1], wcr[1]; } arm_regs;
         struct { unsigned __int64 bvr[8], wvr[2]; unsigned int bcr[8], wcr[2]; } arm64_regs;
+        struct { unsigned __int64 dr[8]; } powerpc64_regs;
     } debug;
     union
     {
@@ -6247,7 +6251,7 @@ union generic_reply
 
 /* ### protocol_version begin ### */
 
-#define SERVER_PROTOCOL_VERSION 702
+#define SERVER_PROTOCOL_VERSION 703
 
 /* ### protocol_version end ### */
 
