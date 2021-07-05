@@ -55,11 +55,6 @@
 
 #define mkdir(path,mode) mkdir(path)
 
-static inline void *dlopen(const char *name, int flags) { return NULL; }
-static inline void *dlsym(void *handle, const char *name) { return NULL; }
-static inline int dlclose(void *handle) { return 0; }
-static inline const char *dlerror(void) { return "No dlopen support on Windows"; }
-
 #ifdef _MSC_VER
 
 #define popen _popen
@@ -111,12 +106,21 @@ extern int _spawnvp(int mode, const char *cmdname, const char * const argv[]);
  */
 
 #ifdef HAVE_DLFCN_H
+
 #include <dlfcn.h>
+
 #else
+
+static inline void *dlopen(const char *name, int flags) { return NULL; }
+static inline void *dlsym(void *handle, const char *name) { return NULL; }
+static inline int dlclose(void *handle) { return 0; }
+static inline const char *dlerror(void) { return "No dlopen support on Windows"; }
+
 #define RTLD_LAZY    0x001
 #define RTLD_NOW     0x002
 #define RTLD_GLOBAL  0x100
-#endif
+
+#endif  /* HAVE_DLFCN_H */
 
 #ifndef S_ISLNK
 # define S_ISLNK(mod) (0)
