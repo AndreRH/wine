@@ -99,6 +99,8 @@ static const char so_dir[] = "/x86_64-unix";
 static const char so_dir[] = "/arm-unix";
 #elif defined(__aarch64__)
 static const char so_dir[] = "/aarch64-unix";
+#elif defined(__powerpc64__)
+static const char so_dir[] = "/ppc64-unix";
 #else
 static const char so_dir[] = "";
 #endif
@@ -1814,7 +1816,7 @@ static double CDECL ntdll_tan( double d )   { return tan( d ); }
  */
 static struct unix_funcs unix_funcs =
 {
-#ifdef __aarch64__
+#if defined(__aarch64__) || defined(__powerpc64__)
     NtCurrentTeb,
 #endif
     DbgUiIssueRemoteBreakin,
