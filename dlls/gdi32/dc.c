@@ -147,6 +147,9 @@ static driver_entry_point load_driver( LPCWSTR name )
     HMODULE module;
     struct graphics_driver *driver, *new_driver;
 
+    FIXME( "%s not supported\n", debugstr_w( name ));
+    return NULL;
+
     if ((module = GetModuleHandleW( name )))
     {
         EnterCriticalSection( &driver_section );
