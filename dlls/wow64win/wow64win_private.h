@@ -54,6 +54,7 @@ typedef struct
 static inline ULONG get_ulong( UINT **args ) { return *(*args)++; }
 static inline HANDLE get_handle( UINT **args ) { return LongToHandle( *(*args)++ ); }
 static inline void *get_ptr( UINT **args ) { return ULongToPtr( *(*args)++ ); }
+static inline float get_float( UINT **args ) { return *(*(float **)args)++; }
 
 static inline void **addr_32to64( void **addr, ULONG *addr32 )
 {
