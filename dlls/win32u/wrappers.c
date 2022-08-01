@@ -21,38 +21,21 @@
 #include "ntstatus.h"
 #define WIN32_NO_STATUS
 #include "win32u_private.h"
+#include "wine/debug.h"
+
+WINE_DEFAULT_DEBUG_CHANNEL(wow);
+
 
 static const struct unix_funcs *unix_funcs;
 
-INT WINAPI SetDIBits( HDC hdc, HBITMAP hbitmap, UINT startscan,
-                      UINT lines, const void *bits, const BITMAPINFO *info,
-                      UINT coloruse )
-{
-    if (!unix_funcs) return 0;
-    return unix_funcs->pSetDIBits( hdc, hbitmap, startscan, lines, bits, info, coloruse );
-}
-
-BOOL CDECL __wine_get_icm_profile( HDC hdc, BOOL allow_default, DWORD *size, WCHAR *filename )
-{
-    if (!unix_funcs) return FALSE;
-    return unix_funcs->get_icm_profile( hdc, allow_default, size, filename );
-}
-
-BOOL CDECL __wine_get_brush_bitmap_info( HBRUSH handle, BITMAPINFO *info, void *bits, UINT *usage )
-{
-    if (!unix_funcs) return FALSE;
-    return unix_funcs->get_brush_bitmap_info( handle, info, bits, usage );
-}
-
-BOOL CDECL __wine_get_file_outline_text_metric( const WCHAR *path, OUTLINETEXTMETRICW *otm )
-{
-    if (!unix_funcs) return FALSE;
-    return unix_funcs->get_file_outline_text_metric( path, otm );
-}
 
 BOOL CDECL __wine_send_input( HWND hwnd, const INPUT *input, const RAWINPUT *rawinput )
 {
-    if (!unix_funcs) return FALSE;
+    if (!unix_funcs)
+    {
+        ERR( "should not be used in wow64\n" );
+        return FALSE;
+    }
     return unix_funcs->wine_send_input( hwnd, input, rawinput );
 }
 

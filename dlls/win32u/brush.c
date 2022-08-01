@@ -147,7 +147,7 @@ void free_brush_pattern( struct brush_pattern *pattern )
 /**********************************************************************
  *           __wine_get_brush_bitmap_info    (win32u.@)
  */
-BOOL CDECL __wine_get_brush_bitmap_info( HBRUSH handle, BITMAPINFO *info, void *bits, UINT *usage )
+BOOL WINAPI __wine_get_brush_bitmap_info( HBRUSH handle, BITMAPINFO *info, void *bits, UINT *usage )
 {
     BRUSHOBJ *brush;
     BOOL ret = FALSE;
