@@ -597,6 +597,7 @@
 @ stdcall -syscall NtGdiSetBrushOrg(long long long ptr)
 @ stdcall -syscall NtGdiSetColorAdjustment(long ptr)
 @ stub NtGdiSetColorSpace
+@ stdcall -syscall NtGdiSetDIBits(long long long long ptr ptr long) # not present on Windows
 @ stdcall -syscall NtGdiSetDIBitsToDeviceInternal(long long long long long long long long long ptr ptr long long long long long)
 @ stdcall -syscall NtGdiSetDeviceGammaRamp(ptr ptr)
 @ stub NtGdiSetFontEnumeration
@@ -1324,7 +1325,6 @@
 @ cdecl __wine_send_input(long ptr ptr)
 
 # gdi32
-@ stdcall SetDIBits(long long long long ptr ptr long)
-@ cdecl __wine_get_brush_bitmap_info(long ptr ptr ptr)
-@ cdecl __wine_get_icm_profile(long long ptr ptr)
-@ cdecl __wine_get_file_outline_text_metric(wstr ptr)
+@ stdcall -syscall __wine_get_brush_bitmap_info(long ptr ptr ptr)
+@ stdcall -syscall __wine_get_icm_profile(long long ptr ptr)
+@ stdcall -syscall __wine_get_file_outline_text_metric(wstr ptr ptr ptr)

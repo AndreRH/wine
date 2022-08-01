@@ -1894,7 +1894,7 @@ BOOL WINAPI PlayEnhMetaFileRecord(
           LONG height = pbi->bmiHeader.biHeight;
 
           hBmp = CreateBitmap(pbi->bmiHeader.biWidth, abs(height), 1, 1, NULL);
-          SetDIBits(hdc, hBmp, 0, pbi->bmiHeader.biHeight,
+          NtGdiSetDIBits(hdc, hBmp, 0, pbi->bmiHeader.biHeight,
               (const BYTE *)mr + pCreateMonoBrush->offBits, pbi, pCreateMonoBrush->iUsage);
         }
         else
@@ -2049,7 +2049,7 @@ BOOL WINAPI PlayEnhMetaFileRecord(
 	pbi = (const BITMAPINFO *)((const BYTE *)mr + pMaskBlt->offBmiMask);
 	hBmpMask = CreateBitmap(pbi->bmiHeader.biWidth, pbi->bmiHeader.biHeight,
 	             1, 1, NULL);
-	SetDIBits(hdc, hBmpMask, 0, pbi->bmiHeader.biHeight,
+	NtGdiSetDIBits(hdc, hBmpMask, 0, pbi->bmiHeader.biHeight,
 	  (const BYTE *)mr + pMaskBlt->offBitsMask, pbi, pMaskBlt->iUsageMask);
 
 	pbi = (const BITMAPINFO *)((const BYTE *)mr + pMaskBlt->offBmiSrc);
@@ -2102,7 +2102,7 @@ BOOL WINAPI PlayEnhMetaFileRecord(
 	pbi = (const BITMAPINFO *)((const BYTE *)mr + pPlgBlt->offBmiMask);
 	hBmpMask = CreateBitmap(pbi->bmiHeader.biWidth, pbi->bmiHeader.biHeight,
 	             1, 1, NULL);
-	SetDIBits(hdc, hBmpMask, 0, pbi->bmiHeader.biHeight,
+	NtGdiSetDIBits(hdc, hBmpMask, 0, pbi->bmiHeader.biHeight,
 	  (const BYTE *)mr + pPlgBlt->offBitsMask, pbi, pPlgBlt->iUsageMask);
 
 	pbi = (const BITMAPINFO *)((const BYTE *)mr + pPlgBlt->offBmiSrc);
