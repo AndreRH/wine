@@ -482,7 +482,7 @@
 @ stdcall SetDCBrushColor(long long)
 @ stdcall SetDCPenColor(long long)
 @ stdcall SetDIBColorTable(long long long ptr)
-@ stdcall SetDIBits(long long long long ptr ptr long)
+@ stdcall SetDIBits(long long long long ptr ptr long) NtGdiSetDIBits
 @ stdcall SetDIBitsToDevice(long long long long long long long long long ptr ptr long)
 @ stdcall SetDeviceGammaRamp(long ptr) NtGdiSetDeviceGammaRamp
 @ stdcall SetEnhMetaFileBits(long ptr)
