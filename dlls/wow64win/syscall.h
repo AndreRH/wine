@@ -170,6 +170,7 @@
     SYSCALL_ENTRY( NtGdiSetBoundsRect ) \
     SYSCALL_ENTRY( NtGdiSetBrushOrg ) \
     SYSCALL_ENTRY( NtGdiSetColorAdjustment ) \
+    SYSCALL_ENTRY( NtGdiSetDIBits ) \
     SYSCALL_ENTRY( NtGdiSetDIBitsToDeviceInternal ) \
     SYSCALL_ENTRY( NtGdiSetDeviceGammaRamp ) \
     SYSCALL_ENTRY( NtGdiSetLayout ) \
@@ -416,6 +417,9 @@
     SYSCALL_ENTRY( NtUserWaitForInputIdle ) \
     SYSCALL_ENTRY( NtUserWaitMessage ) \
     SYSCALL_ENTRY( NtUserWindowFromDC ) \
-    SYSCALL_ENTRY( NtUserWindowFromPoint )
+    SYSCALL_ENTRY( NtUserWindowFromPoint ) \
+    SYSCALL_ENTRY( __wine_get_brush_bitmap_info ) \
+    SYSCALL_ENTRY( __wine_get_file_outline_text_metric ) \
+    SYSCALL_ENTRY( __wine_get_icm_profile )
 
 #endif /* __WOW64WIN_SYSCALL_H */
