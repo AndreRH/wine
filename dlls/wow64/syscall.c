@@ -761,6 +761,7 @@ static DWORD WINAPI process_init( RTL_RUN_ONCE *once, void *param, void **contex
     NtQuerySystemInformation( SystemEmulationBasicInformation, &info, sizeof(info), NULL );
     highest_user_address = (ULONG_PTR)info.HighestUserAddress;
     default_zero_bits = (ULONG_PTR)info.HighestUserAddress | 0x7fffffff;
+    RtlSetBits( NtCurrentTeb()->Peb->TlsBitmap, 1, WOW64_TLS_MAX_NUMBER );
 
 #define GET_PTR(name) p ## name = RtlFindExportedRoutineByName( module, #name )
 
