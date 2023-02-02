@@ -690,8 +690,9 @@ NTSTATUS WINAPI NtGetContextThread( HANDLE handle, CONTEXT *context )
  */
 NTSTATUS set_thread_wow64_context( HANDLE handle, const void *ctx, ULONG size )
 {
-    BOOL self;
+    BOOL self = (handle == GetCurrentThread());
     USHORT machine;
+    void *frame;
 
     switch (size)
     {
@@ -699,7 +700,124 @@ NTSTATUS set_thread_wow64_context( HANDLE handle, const void *ctx, ULONG size )
     case sizeof(ARM_CONTEXT): machine = IMAGE_FILE_MACHINE_ARMNT; break;
     default: return STATUS_INFO_LENGTH_MISMATCH;
     }
-    return set_thread_context( handle, ctx, &self, machine );
+
+    if (!self)
+    {
+        NTSTATUS ret = set_thread_context( handle, ctx, &self, machine );
+        if (ret || !self) return ret;
+    }
+
+    if (!(frame = get_cpu_area( machine ))) return STATUS_INVALID_PARAMETER;
+
+    switch (machine)
+    {
+    case IMAGE_FILE_MACHINE_I386:
+    {
+        I386_CONTEXT *wow_frame = frame;
+        const I386_CONTEXT *context = ctx;
+        DWORD flags = context->ContextFlags & ~CONTEXT_i386;
+
+        if (flags & CONTEXT_I386_INTEGER)
+        {
+            wow_frame->Eax = context->Eax;
+            wow_frame->Ebx = context->Ebx;
+            wow_frame->Ecx = context->Ecx;
+            wow_frame->Edx = context->Edx;
+            wow_frame->Esi = context->Esi;
+            wow_frame->Edi = context->Edi;
+        }
+        if (flags & CONTEXT_I386_CONTROL)
+        {
+            WOW64_CPURESERVED *cpu = NtCurrentTeb()->TlsSlots[WOW64_TLS_CPURESERVED];
+
+            wow_frame->Esp    = context->Esp;
+            wow_frame->Ebp    = context->Ebp;
+            wow_frame->Eip    = context->Eip;
+            wow_frame->EFlags = context->EFlags;
+            wow_frame->SegCs  = context->SegCs;
+            wow_frame->SegSs  = context->SegSs;
+            cpu->Flags |= WOW64_CPURESERVED_FLAG_RESET_STATE;
+        }
+        if (flags & CONTEXT_I386_SEGMENTS)
+        {
+            wow_frame->SegDs = context->SegDs;
+            wow_frame->SegEs = context->SegEs;
+            wow_frame->SegFs = context->SegFs;
+            wow_frame->SegGs = context->SegGs;
+        }
+        if (flags & CONTEXT_I386_DEBUG_REGISTERS)
+        {
+            wow_frame->Dr0 = context->Dr0;
+            wow_frame->Dr1 = context->Dr1;
+            wow_frame->Dr2 = context->Dr2;
+            wow_frame->Dr3 = context->Dr3;
+            wow_frame->Dr6 = context->Dr6;
+            wow_frame->Dr7 = context->Dr7;
+        }
+        if (flags & CONTEXT_I386_EXTENDED_REGISTERS)
+        {
+            memcpy( &wow_frame->ExtendedRegisters, context->ExtendedRegisters, sizeof(context->ExtendedRegisters) );
+        }
+        if (flags & CONTEXT_I386_FLOATING_POINT)
+        {
+            memcpy( &wow_frame->FloatSave, &context->FloatSave, sizeof(context->FloatSave) );
+        }
+#if 0
+        if (flags & CONTEXT_I386_XSTATE)
+        {
+            CONTEXT_EX *context_ex = (CONTEXT_EX *)(context + 1);
+            XSTATE *xs = (XSTATE *)((char *)context_ex + context_ex->XState.Offset);
+
+            if (xs->Mask & XSTATE_MASK_GSSE)
+            {
+                frame->xstate.Mask |= XSTATE_MASK_GSSE;
+                memcpy( &frame->xstate.YmmContext, &xs->YmmContext, sizeof(xs->YmmContext) );
+            }
+            else frame->xstate.Mask &= ~XSTATE_MASK_GSSE;
+        }
+#endif
+        break;
+    }
+
+    case IMAGE_FILE_MACHINE_ARMNT:
+    {
+        ARM_CONTEXT *wow_frame = frame;
+        const ARM_CONTEXT *context = ctx;
+        DWORD flags = context->ContextFlags & ~CONTEXT_ARM;
+
+        if (flags & CONTEXT_INTEGER)
+        {
+            wow_frame->R0  = context->R0;
+            wow_frame->R1  = context->R1;
+            wow_frame->R2  = context->R2;
+            wow_frame->R3  = context->R3;
+            wow_frame->R4  = context->R4;
+            wow_frame->R5  = context->R5;
+            wow_frame->R6  = context->R6;
+            wow_frame->R7  = context->R7;
+            wow_frame->R8  = context->R8;
+            wow_frame->R9  = context->R9;
+            wow_frame->R10 = context->R10;
+            wow_frame->R11 = context->R11;
+            wow_frame->R12 = context->R12;
+        }
+        if (flags & CONTEXT_CONTROL)
+        {
+            wow_frame->Sp = context->Sp;
+            wow_frame->Lr = context->Lr;
+            wow_frame->Pc = context->Pc & ~1;
+            wow_frame->Cpsr = context->Cpsr;
+            if (context->Cpsr & 0x20) wow_frame->Pc |= 1; /* thumb */
+        }
+        if (flags & CONTEXT_FLOATING_POINT)
+        {
+            wow_frame->Fpscr = context->Fpscr;
+            memcpy( wow_frame->u.D, context->u.D, sizeof(context->u.D) );
+        }
+        break;
+    }
+    }
+    return STATUS_SUCCESS;
 }
 
 
@@ -708,8 +826,9 @@ NTSTATUS set_thread_wow64_context( HANDLE handle, const void *ctx, ULONG size )
  */
 NTSTATUS get_thread_wow64_context( HANDLE handle, void *ctx, ULONG size )
 {
-    BOOL self;
+    BOOL self = (handle == GetCurrentThread());
     USHORT machine;
+    void *frame;
 
     switch (size)
     {
@@ -717,7 +836,125 @@ NTSTATUS get_thread_wow64_context( HANDLE handle, void *ctx, ULONG size )
     case sizeof(ARM_CONTEXT): machine = IMAGE_FILE_MACHINE_ARMNT; break;
     default: return STATUS_INFO_LENGTH_MISMATCH;
     }
-    return get_thread_context( handle, ctx, &self, machine );
+
+    if (!self)
+    {
+        NTSTATUS ret = get_thread_context( handle, ctx, &self, machine );
+        if (ret || !self) return ret;
+    }
+
+    if (!(frame = get_cpu_area( machine ))) return STATUS_INVALID_PARAMETER;
+
+    switch (machine)
+    {
+    case IMAGE_FILE_MACHINE_I386:
+    {
+        I386_CONTEXT *wow_frame = frame, *context = ctx;
+        DWORD needed_flags = context->ContextFlags & ~CONTEXT_i386;
+
+        if (needed_flags & CONTEXT_I386_INTEGER)
+        {
+            context->Eax = wow_frame->Eax;
+            context->Ebx = wow_frame->Ebx;
+            context->Ecx = wow_frame->Ecx;
+            context->Edx = wow_frame->Edx;
+            context->Esi = wow_frame->Esi;
+            context->Edi = wow_frame->Edi;
+            context->ContextFlags |= CONTEXT_I386_INTEGER;
+        }
+        if (needed_flags & CONTEXT_I386_CONTROL)
+        {
+            context->Esp    = wow_frame->Esp;
+            context->Ebp    = wow_frame->Ebp;
+            context->Eip    = wow_frame->Eip;
+            context->EFlags = wow_frame->EFlags;
+            context->SegCs  = wow_frame->SegCs;
+            context->SegSs  = wow_frame->SegSs;
+            context->ContextFlags |= CONTEXT_I386_CONTROL;
+        }
+        if (needed_flags & CONTEXT_I386_SEGMENTS)
+        {
+            context->SegDs = wow_frame->SegDs;
+            context->SegEs = wow_frame->SegEs;
+            context->SegFs = wow_frame->SegFs;
+            context->SegGs = wow_frame->SegGs;
+            context->ContextFlags |= CONTEXT_I386_SEGMENTS;
+        }
+        if (needed_flags & CONTEXT_I386_EXTENDED_REGISTERS)
+        {
+            memcpy( context->ExtendedRegisters, &wow_frame->ExtendedRegisters, sizeof(context->ExtendedRegisters) );
+            context->ContextFlags |= CONTEXT_I386_EXTENDED_REGISTERS;
+        }
+        if (needed_flags & CONTEXT_I386_FLOATING_POINT)
+        {
+            memcpy( &context->FloatSave, &wow_frame->FloatSave, sizeof(context->FloatSave) );
+            context->ContextFlags |= CONTEXT_I386_FLOATING_POINT;
+        }
+#if 0
+        if ((needed_flags & CONTEXT_I386_XSTATE) && (cpu_info.ProcessorFeatureBits & CPU_FEATURE_AVX))
+        {
+            CONTEXT_EX *context_ex = (CONTEXT_EX *)(context + 1);
+            XSTATE *xstate = (XSTATE *)((char *)context_ex + context_ex->XState.Offset);
+            unsigned int mask;
+
+            if (context_ex->XState.Length < offsetof(XSTATE, YmmContext) ||
+                context_ex->XState.Length > sizeof(XSTATE))
+                return STATUS_INVALID_PARAMETER;
+
+            mask = (xstate_compaction_enabled ? xstate->CompactionMask : xstate->Mask) & XSTATE_MASK_GSSE;
+            xstate->Mask = frame->xstate.Mask & mask;
+            xstate->CompactionMask = xstate_compaction_enabled ? (0x8000000000000000 | mask) : 0;
+            memset( xstate->Reserved, 0, sizeof(xstate->Reserved) );
+            if (xstate->Mask)
+            {
+                if (context_ex->XState.Length < sizeof(XSTATE)) return STATUS_BUFFER_OVERFLOW;
+                memcpy( &xstate->YmmContext, &frame->xstate.YmmContext, sizeof(xstate->YmmContext) );
+            }
+        }
+#endif
+        break;
+    }
+
+    case IMAGE_FILE_MACHINE_ARMNT:
+    {
+        ARM_CONTEXT *wow_frame = frame, *context = ctx;
+        DWORD needed_flags = context->ContextFlags & ~CONTEXT_ARM;
+
+        if (needed_flags & CONTEXT_INTEGER)
+        {
+            context->R0  = wow_frame->R0;
+            context->R1  = wow_frame->R1;
+            context->R2  = wow_frame->R2;
+            context->R3  = wow_frame->R3;
+            context->R4  = wow_frame->R4;
+            context->R5  = wow_frame->R5;
+            context->R6  = wow_frame->R6;
+            context->R7  = wow_frame->R7;
+            context->R8  = wow_frame->R8;
+            context->R9  = wow_frame->R9;
+            context->R10 = wow_frame->R10;
+            context->R11 = wow_frame->R11;
+            context->R12 = wow_frame->R12;
+            context->ContextFlags |= CONTEXT_INTEGER;
+        }
+        if (needed_flags & CONTEXT_CONTROL)
+        {
+            context->Sp   = wow_frame->Sp;
+            context->Lr   = wow_frame->Lr;
+            context->Pc   = wow_frame->Pc;
+            context->Cpsr = wow_frame->Cpsr;
+            context->ContextFlags |= CONTEXT_CONTROL;
+        }
+        if (needed_flags & CONTEXT_FLOATING_POINT)
+        {
+            context->Fpscr = wow_frame->Fpscr;
+            memcpy( context->u.D, wow_frame->u.D, sizeof(wow_frame->u.D) );
+            context->ContextFlags |= CONTEXT_FLOATING_POINT;
+        }
+        break;
+    }
+    }
+    return STATUS_SUCCESS;
 }
 
 
@@ -1390,12 +1627,31 @@ void DECLSPEC_HIDDEN call_init_thunk( LPTHREAD_START_ROUTINE entry, void *arg, B
     struct arm64_thread_data *thread_data = (struct arm64_thread_data *)&teb->GdiTebBatch;
     struct syscall_frame *frame = thread_data->syscall_frame;
     CONTEXT *ctx, context = { CONTEXT_ALL };
+    I386_CONTEXT *i386_context;
 
     context.u.s.X0  = (DWORD64)entry;
     context.u.s.X1  = (DWORD64)arg;
     context.u.s.X18 = (DWORD64)teb;
     context.Sp      = (DWORD64)teb->Tib.StackBase;
     context.Pc      = (DWORD64)pRtlUserThreadStart;
+
+    if ((i386_context = get_cpu_area( IMAGE_FILE_MACHINE_I386 )))
+    {
+        i386_context->ContextFlags = CONTEXT_I386_ALL;
+        i386_context->Eax = (ULONG_PTR)entry;
+        i386_context->Ebx = (arg == peb ? get_wow_teb( teb )->Peb : (ULONG_PTR)arg);
+        i386_context->Esp = get_wow_teb( teb )->Tib.StackBase - 16;
+        i386_context->Eip = pLdrSystemDllInitBlock->pRtlUserThreadStart;
+        i386_context->SegCs = 0x23;
+        i386_context->SegDs = 0x2b;
+        i386_context->SegEs = 0x2b;
+        i386_context->SegFs = 0x53;
+        i386_context->SegGs = 0x2b;
+        i386_context->SegSs = 0x2b;
+        i386_context->EFlags = 0x202;
+        i386_context->FloatSave.ControlWord = 0x27f;
+        ((XSAVE_FORMAT *)i386_context->ExtendedRegisters)->MxCsr = 0x1f80;
+    }
 
     if (suspend) wait_suspend( &context );
 
