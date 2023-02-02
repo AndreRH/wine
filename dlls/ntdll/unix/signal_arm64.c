@@ -761,6 +761,20 @@ NTSTATUS set_thread_wow64_context( HANDLE handle, const void *ctx, ULONG size )
             memcpy( &wow_frame->FloatSave, &context->FloatSave, sizeof(context->FloatSave) );
         }
         /* FIXME: CONTEXT_I386_XSTATE */
+#if 0
+        if (flags & CONTEXT_I386_XSTATE)
+        {
+            CONTEXT_EX *context_ex = (CONTEXT_EX *)(context + 1);
+            XSTATE *xs = (XSTATE *)((char *)context_ex + context_ex->XState.Offset);
+
+            if (xs->Mask & XSTATE_MASK_GSSE)
+            {
+                frame->xstate.Mask |= XSTATE_MASK_GSSE;
+                memcpy( &frame->xstate.YmmContext, &xs->YmmContext, sizeof(xs->YmmContext) );
+            }
+            else frame->xstate.Mask &= ~XSTATE_MASK_GSSE;
+        }
+#endif
         break;
     }
 
@@ -886,6 +900,28 @@ NTSTATUS get_thread_wow64_context( HANDLE handle, void *ctx, ULONG size )
             context->Dr7 = wow_frame->Dr7;
         }
         /* FIXME: CONTEXT_I386_XSTATE */
+#if 0
+        if ((needed_flags & CONTEXT_I386_XSTATE) && (cpu_info.ProcessorFeatureBits & CPU_FEATURE_AVX))
+        {
+            CONTEXT_EX *context_ex = (CONTEXT_EX *)(context + 1);
+            XSTATE *xstate = (XSTATE *)((char *)context_ex + context_ex->XState.Offset);
+            unsigned int mask;
+
+            if (context_ex->XState.Length < offsetof(XSTATE, YmmContext) ||
+                context_ex->XState.Length > sizeof(XSTATE))
+                return STATUS_INVALID_PARAMETER;
+
+            mask = (xstate_compaction_enabled ? xstate->CompactionMask : xstate->Mask) & XSTATE_MASK_GSSE;
+            xstate->Mask = frame->xstate.Mask & mask;
+            xstate->CompactionMask = xstate_compaction_enabled ? (0x8000000000000000 | mask) : 0;
+            memset( xstate->Reserved, 0, sizeof(xstate->Reserved) );
+            if (xstate->Mask)
+            {
+                if (context_ex->XState.Length < sizeof(XSTATE)) return STATUS_BUFFER_OVERFLOW;
+                memcpy( &xstate->YmmContext, &frame->xstate.YmmContext, sizeof(xstate->YmmContext) );
+            }
+        }
+#endif
         break;
     }
 
