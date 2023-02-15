@@ -356,6 +356,14 @@ void MSACM_RegisterAllDrivers(void)
     /* FIXME: What if the user edits system.ini while the program is running?
      * Does Windows handle that?  */
     if (MSACM_pFirstACMDriverID) return;
+#if defined(__i386__) || defined(__arm__)
+    else
+    {
+        MESSAGE( "Hangover currently has issues with some ACM modules, disabling\n" );
+        /* Otherwise we have a Qemu crash when calling the DriverProc via SendMessage */
+        return;
+    }
+#endif
 
     lRet = RegOpenKeyExW(HKEY_LOCAL_MACHINE, drvkey, 0, KEY_QUERY_VALUE, &hKey);
     if (lRet == ERROR_SUCCESS) {
