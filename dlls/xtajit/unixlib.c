@@ -68,6 +68,7 @@ static void *emuapi_handle;
 
 static NTSTATUS attach( void *args )
 {
+    char *qemu_log;
     int log_mask;
 
     MESSAGE("starting Qemu based xtajit.dll\n");
@@ -105,11 +106,14 @@ static NTSTATUS attach( void *args )
     pqemu_init_cpu_list();
     pmodule_call_init(MODULE_INIT_QOM);
 
-    log_mask = pqemu_str_to_log_mask("");
-    if (log_mask) {
-        if (pqemu_log_needs_buffers)
-            pqemu_log_needs_buffers();
-        pqemu_set_log(log_mask);
+    qemu_log = getenv("QEMU_LOG");
+    if (qemu_log && (log_mask = pqemu_str_to_log_mask(qemu_log)))
+    {
+        if (log_mask) {
+            if (pqemu_log_needs_buffers)
+                pqemu_log_needs_buffers();
+            pqemu_set_log(log_mask);
+        }
     }
 
     if (ptcg_exec_init)
