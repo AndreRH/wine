@@ -33,6 +33,7 @@
 #include "wine/debug.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(wow);
+WINE_DECLARE_DEBUG_CHANNEL(wow_syscall);
 
 USHORT native_machine = 0;
 USHORT current_machine = 0;
@@ -891,6 +892,11 @@ NTSTATUS WINAPI Wow64SystemServiceEx( UINT num, UINT *args )
     UINT id = num & 0xfff;
     const SYSTEM_SERVICE_TABLE *table = &syscall_tables[(num >> 12) & 3];
 
+	if (((num >> 12) & 3) == 0)
+		TRACE_(wow_syscall)("%d = %s table %d\n", id, syscall_names[id], (num >> 12) & 3);
+	else
+		TRACE_(wow_syscall)("UNKNOWN table for %08x\n", num);
+
     if (id >= table->ServiceLimit || !table->ServiceTable[id])
     {
         ERR( "unsupported syscall %04x\n", num );
@@ -907,6 +913,7 @@ NTSTATUS WINAPI Wow64SystemServiceEx( UINT num, UINT *args )
     }
     __ENDTRY;
     free_temp_data();
+    TRACE_(wow_syscall)("status %08lx\n", status);
     return status;
 }
 
