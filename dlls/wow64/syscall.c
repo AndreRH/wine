@@ -728,16 +728,42 @@ static HMODULE load_64bit_module( const WCHAR *name )
     return module;
 }
 
+DWORD WINAPI DECLSPEC_HOTPATCH wow64GetEnvironmentVariableW( LPCWSTR name, LPWSTR val, DWORD size )
+{
+    UNICODE_STRING us_name, us_value;
+    NTSTATUS status;
+    DWORD len;
+
+    RtlInitUnicodeString( &us_name, name );
+    us_value.Length = 0;
+    us_value.MaximumLength = (size ? size - 1 : 0) * sizeof(WCHAR);
+    us_value.Buffer = val;
+
+    status = RtlQueryEnvironmentVariable_U( NULL, &us_name, &us_value );
+    len = us_value.Length / sizeof(WCHAR);
+    if (status == STATUS_BUFFER_TOO_SMALL) return len + 1;
+    if (status) return 0;
+    if (!size) return len + 1;
+    val[len] = 0;
+    return len;
+}
 
 /**********************************************************************
  *           get_cpu_dll_name
  */
 static const WCHAR *get_cpu_dll_name(void)
 {
+    static WCHAR cpu_dll[32];
+    UINT ret;
+
+    if ((ret = wow64GetEnvironmentVariableW( L"HODLL", cpu_dll, sizeof(cpu_dll)/sizeof(WCHAR) )) &&
+        ret < sizeof(cpu_dll)/sizeof(WCHAR))
+        return cpu_dll;
+
     switch (current_machine)
     {
     case IMAGE_FILE_MACHINE_I386:
-        return (native_machine == IMAGE_FILE_MACHINE_ARM64 ? L"xtajit.dll" : L"wow64cpu.dll");
+        return L"xtajit.dll";
     case IMAGE_FILE_MACHINE_ARMNT:
         return L"wowarmhw.dll";
     default:
