@@ -1036,7 +1036,7 @@ static void contexts_to_server( context_t server_contexts[2], CONTEXT *context )
 {
     unsigned int count = 0;
     void *native_context = get_native_context( context );
-    void *wow_context = get_wow_context( context );
+    void *wow_context = get_wow_context( context, main_image_info.Machine );
 
     if (native_context)
     {
@@ -1061,7 +1061,7 @@ static void contexts_to_server( context_t server_contexts[2], CONTEXT *context )
 static void contexts_from_server( CONTEXT *context, context_t server_contexts[2] )
 {
     void *native_context = get_native_context( context );
-    void *wow_context = get_wow_context( context );
+    void *wow_context = get_wow_context( context, main_image_info.Machine );
 
     if (native_context)
     {
