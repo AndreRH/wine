@@ -329,6 +329,17 @@ static void create_user_shared_data(void)
         features[PF_ARM_V8_INSTRUCTIONS_AVAILABLE]        = TRUE;
         features[PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE]  = !!(sci.ProcessorFeatureBits & CPU_FEATURE_ARM_V8_CRC32);
         features[PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE] = !!(sci.ProcessorFeatureBits & CPU_FEATURE_ARM_V8_CRYPTO);
+
+        features[PF_COMPARE_EXCHANGE_DOUBLE]              = TRUE;
+        features[PF_MMX_INSTRUCTIONS_AVAILABLE]           = TRUE;
+        features[PF_XMMI_INSTRUCTIONS_AVAILABLE]          = TRUE;
+        features[PF_3DNOW_INSTRUCTIONS_AVAILABLE]         = TRUE;
+        features[PF_RDTSC_INSTRUCTION_AVAILABLE]          = TRUE;
+        features[PF_PAE_ENABLED]                          = TRUE;
+        features[PF_XMMI64_INSTRUCTIONS_AVAILABLE]        = TRUE;
+        features[PF_SSE3_INSTRUCTIONS_AVAILABLE]          = TRUE;
+        features[PF_SSSE3_INSTRUCTIONS_AVAILABLE]         = TRUE;
+
         break;
     }
     data->ActiveProcessorCount = NtCurrentTeb()->Peb->NumberOfProcessors;
