@@ -894,7 +894,7 @@ void *get_native_context( CONTEXT *context )
 /***********************************************************************
  *              get_wow_context
  */
-void *get_wow_context( CONTEXT *context )
+void *get_wow_context( CONTEXT *context, USHORT machine )
 {
     return NULL;
 }
