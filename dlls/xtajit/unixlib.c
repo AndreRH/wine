@@ -68,10 +68,14 @@ static void *emuapi_handle;
 
 static NTSTATUS attach( void *args )
 {
-    char *qemu_log;
+    static char default_lib[] = "/opt/libqemu-i386.so";
+    char *holib, *qemu_log;
     int log_mask;
 
-    if (!(emuapi_handle = dlopen( "/opt/libqemu-i386.so", RTLD_NOW ))) return STATUS_DLL_NOT_FOUND;
+    holib = getenv("HOLIB");
+    if (!holib)
+        holib = default_lib;
+    if (!(emuapi_handle = dlopen( holib, RTLD_NOW ))) return STATUS_DLL_NOT_FOUND;
 
 #define LOAD_FUNCPTR(f) if((p##f = dlsym(emuapi_handle, #f)) == NULL) {ERR(#f " %p\n", p##f);return STATUS_ENTRYPOINT_NOT_FOUND;}
 #define LOAD_FUNCPTR_OPT(f) if((p##f = dlsym(emuapi_handle, #f)) == NULL) {ERR(#f " %p\n", p##f);}
