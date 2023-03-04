@@ -827,6 +827,25 @@ static HMODULE load_64bit_module( const WCHAR *name )
     return module;
 }
 
+DWORD WINAPI DECLSPEC_HOTPATCH wow64GetEnvironmentVariableW( LPCWSTR name, LPWSTR val, DWORD size )
+{
+    UNICODE_STRING us_name, us_value;
+    NTSTATUS status;
+    DWORD len;
+
+    RtlInitUnicodeString( &us_name, name );
+    us_value.Length = 0;
+    us_value.MaximumLength = (size ? size - 1 : 0) * sizeof(WCHAR);
+    us_value.Buffer = val;
+
+    status = RtlQueryEnvironmentVariable_U( NULL, &us_name, &us_value );
+    len = us_value.Length / sizeof(WCHAR);
+    if (status == STATUS_BUFFER_TOO_SMALL) return len + 1;
+    if (status) return 0;
+    if (!size) return len + 1;
+    val[len] = 0;
+    return len;
+}
 
 /**********************************************************************
  *           get_cpu_dll_name
@@ -835,18 +854,22 @@ static const WCHAR *get_cpu_dll_name(void)
 {
     static ULONG buffer[32];
     KEY_VALUE_PARTIAL_INFORMATION *info = (KEY_VALUE_PARTIAL_INFORMATION *)buffer;
+    WCHAR *cpu_dll = (WCHAR*)buffer;
     OBJECT_ATTRIBUTES attr;
     UNICODE_STRING nameW;
     const WCHAR *ret;
     HANDLE key;
     ULONG size;
+    UINT res;
+
+    if ((res = wow64GetEnvironmentVariableW( L"HODLL", cpu_dll, ARRAY_SIZE(buffer))) &&
+        res < ARRAY_SIZE(buffer))
+        return cpu_dll;
 
     switch (current_machine)
     {
     case IMAGE_FILE_MACHINE_I386:
-        RtlInitUnicodeString( &nameW, L"\\Registry\\Machine\\Software\\Microsoft\\Wow64\\x86" );
-        ret = (native_machine == IMAGE_FILE_MACHINE_ARM64 ? L"xtajit.dll" : L"wow64cpu.dll");
-        break;
+        return L"xtajit.dll";
     case IMAGE_FILE_MACHINE_ARMNT:
         RtlInitUnicodeString( &nameW, L"\\Registry\\Machine\\Software\\Microsoft\\Wow64\\arm" );
         ret = L"wowarmhw.dll";
