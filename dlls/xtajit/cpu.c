@@ -42,19 +42,6 @@ NTSTATUS WINAPI emu_run(I386_CONTEXT *c)
     return EMUAPI_CALL( emu_run, &params );
 }
 
-USHORT get_flags( USHORT machine )
-{
-    WOW64_CPURESERVED *cpu;
-    USHORT ret;
-
-    if (!NtCurrentTeb()->WowTebOffset) return 0;
-    cpu = NtCurrentTeb()->TlsSlots[WOW64_TLS_CPURESERVED];
-    if (cpu->Machine != machine) return 0;
-    ret = cpu->Flags;
-    cpu->Flags = 0;
-    return ret;
-}
-
 NTSTATUS WINAPI Wow64SystemServiceEx( UINT num, UINT *args );
 
 static const UINT16 bopcode = 0x040f;
@@ -96,16 +83,16 @@ void WINAPI handle_syscall(I386_CONTEXT *c)
 
     ret = Wow64SystemServiceEx(wow_context->Eax, ULongToPtr(wow_context->Esp+8));
 
-    if (!(get_flags(IMAGE_FILE_MACHINE_I386) & WOW64_CPURESERVED_FLAG_RESET_STATE))
+    if (ULongToPtr(wow_context->Eip) == &bopcode)
     {
-        TRACE("ADAPTING %x\n", get_flags(IMAGE_FILE_MACHINE_I386));
+        TRACE("ADAPTING\n");
         wow_context->Eip=*(DWORD*)ULongToPtr(wow_context->Esp);
         wow_context->Esp+=4;
         wow_context->Eax=ret;
     }
     else
     {
-        TRACE("NOT ADAPTING !!! %x\n", get_flags(IMAGE_FILE_MACHINE_I386));
+        TRACE("NOT ADAPTING !!!\n");
     }
 }
 
