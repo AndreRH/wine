@@ -649,6 +649,7 @@ NTSTATUS WINAPI wow64_NtWow64IsProcessorFeaturePresent( UINT *args )
 static DWORD get_syscall_num( const BYTE *syscall )
 {
     DWORD id = ~0u;
+    void *mysyscall = (BYTE*)((ULONG_PTR)syscall & ~1);
 
     if (!syscall) return id;
     switch (current_machine)
@@ -659,9 +660,9 @@ static DWORD get_syscall_num( const BYTE *syscall )
         break;
 
     case IMAGE_FILE_MACHINE_ARMNT:
-        if (*(WORD *)syscall == 0xb40f)
+        if (*(WORD *)mysyscall == 0xb40f)
         {
-            DWORD inst = *(DWORD *)((WORD *)syscall + 1);
+            DWORD inst = *(DWORD *)((WORD *)mysyscall + 1);
             id = ((inst << 1) & 0x0800) + ((inst << 12) & 0xf000) +
                 ((inst >> 20) & 0x0700) + ((inst >> 16) & 0x00ff);
         }
@@ -883,6 +884,7 @@ static DWORD WINAPI process_init( RTL_RUN_ONCE *once, void *param, void **contex
     pBTCpuProcessInit();
 
     module = (HMODULE)(ULONG_PTR)pLdrSystemDllInitBlock->ntdll_handle;
+
     init_image_mapping( module );
     init_syscall_table( module, 0, &ntdll_syscall_table );
     *(void **)RtlFindExportedRoutineByName( module, "__wine_syscall_dispatcher" ) = pBTCpuGetBopCode();
