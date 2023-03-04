@@ -955,8 +955,11 @@ void *get_native_context( CONTEXT *context )
 /***********************************************************************
  *              get_wow_context
  */
-void *get_wow_context( CONTEXT *context )
+void *get_wow_context( CONTEXT *context, USHORT machine )
 {
+    if (machine == IMAGE_FILE_MACHINE_ARMNT)
+        return get_cpu_area( IMAGE_FILE_MACHINE_ARMNT );
+
     if (context->SegCs != cs64_sel) return NULL;
     return get_cpu_area( IMAGE_FILE_MACHINE_I386 );
 }
@@ -1193,6 +1196,52 @@ NTSTATUS WINAPI NtGetContextThread( HANDLE handle, CONTEXT *context )
     return STATUS_SUCCESS;
 }
 
+NTSTATUS set_thread_wow64_context_arm( HANDLE handle, const void *ctx, ULONG size )
+{
+    BOOL self = (handle == GetCurrentThread());
+    ARM_CONTEXT *wow_frame;
+    const ARM_CONTEXT *context = ctx;
+    DWORD flags = context->ContextFlags & ~CONTEXT_ARM;
+
+    if (!self)
+    {
+        NTSTATUS ret = set_thread_context( handle, context, &self, IMAGE_FILE_MACHINE_ARMNT );
+        if (ret || !self) return ret;
+    }
+
+    if (!(wow_frame = get_cpu_area( IMAGE_FILE_MACHINE_ARMNT ))) return STATUS_INVALID_PARAMETER;
+
+    if (flags & CONTEXT_ARM_INTEGER)
+    {
+        wow_frame->R0  = context->R0;
+        wow_frame->R1  = context->R1;
+        wow_frame->R2  = context->R2;
+        wow_frame->R3  = context->R3;
+        wow_frame->R4  = context->R4;
+        wow_frame->R5  = context->R5;
+        wow_frame->R6  = context->R6;
+        wow_frame->R7  = context->R7;
+        wow_frame->R8  = context->R8;
+        wow_frame->R9  = context->R9;
+        wow_frame->R10 = context->R10;
+        wow_frame->R11 = context->R11;
+        wow_frame->R12 = context->R12;
+    }
+    if (flags & CONTEXT_ARM_CONTROL)
+    {
+        wow_frame->Sp = context->Sp;
+        wow_frame->Lr = context->Lr;
+        wow_frame->Pc = context->Pc & ~1;
+        wow_frame->Cpsr = context->Cpsr;
+        if (context->Cpsr & 0x20) wow_frame->Pc |= 1; /* thumb */
+    }
+    if (flags & CONTEXT_FLOATING_POINT)
+    {
+        wow_frame->Fpscr = context->Fpscr;
+        memcpy( wow_frame->D, context->D, sizeof(context->D) );
+    }
+    return STATUS_SUCCESS;
+}
 
 /***********************************************************************
  *              set_thread_wow64_context
@@ -1204,6 +1253,9 @@ NTSTATUS set_thread_wow64_context( HANDLE handle, const void *ctx, ULONG size )
     I386_CONTEXT *wow_frame;
     const I386_CONTEXT *context = ctx;
     DWORD flags = context->ContextFlags & ~CONTEXT_i386;
+
+    if (size == sizeof(ARM_CONTEXT))
+        return set_thread_wow64_context_arm(handle, ctx, size);
 
     if (size != sizeof(I386_CONTEXT)) return STATUS_INFO_LENGTH_MISMATCH;
 
@@ -1297,6 +1349,51 @@ NTSTATUS set_thread_wow64_context( HANDLE handle, const void *ctx, ULONG size )
     return STATUS_SUCCESS;
 }
 
+/***********************************************************************
+ *              get_thread_wow64_context
+ */
+NTSTATUS get_thread_wow64_context_arm( HANDLE handle, void *ctx, ULONG size )
+{
+    DWORD needed_flags;
+    ARM_CONTEXT *wow_frame, *context = ctx;
+    BOOL self = (handle == GetCurrentThread());
+
+    needed_flags = context->ContextFlags & ~CONTEXT_ARM;
+    if (!(wow_frame = get_cpu_area( IMAGE_FILE_MACHINE_ARMNT ))) return STATUS_INVALID_PARAMETER;
+
+    if (needed_flags & CONTEXT_ARM_INTEGER)
+    {
+        context->R0  = wow_frame->R0;
+        context->R1  = wow_frame->R1;
+        context->R2  = wow_frame->R2;
+        context->R3  = wow_frame->R3;
+        context->R4  = wow_frame->R4;
+        context->R5  = wow_frame->R5;
+        context->R6  = wow_frame->R6;
+        context->R7  = wow_frame->R7;
+        context->R8  = wow_frame->R8;
+        context->R9  = wow_frame->R9;
+        context->R10 = wow_frame->R10;
+        context->R11 = wow_frame->R11;
+        context->R12 = wow_frame->R12;
+        context->ContextFlags |= CONTEXT_ARM_INTEGER;
+    }
+    if (needed_flags & CONTEXT_ARM_CONTROL)
+    {
+        context->Sp  = wow_frame->Sp;
+        context->Lr  = wow_frame->Lr;
+        context->Pc  = wow_frame->Pc & ~1;
+        context->Cpsr  = wow_frame->Cpsr;
+        if (wow_frame->Cpsr & 0x20) context->Pc |= 1; /* thumb */
+        context->ContextFlags |= CONTEXT_ARM_INTEGER;
+    }
+    if (needed_flags & CONTEXT_FLOATING_POINT)
+    {
+        context->Fpscr = wow_frame->Fpscr;
+        memcpy( context->D, wow_frame->D, sizeof(wow_frame->D) );
+        context->ContextFlags |= CONTEXT_FLOATING_POINT;
+    }
+}
 
 /***********************************************************************
  *              get_thread_wow64_context
@@ -1307,6 +1404,9 @@ NTSTATUS get_thread_wow64_context( HANDLE handle, void *ctx, ULONG size )
     struct syscall_frame *frame = amd64_thread_data()->syscall_frame;
     I386_CONTEXT *wow_frame, *context = ctx;
     BOOL self = (handle == GetCurrentThread());
+
+    if (size == sizeof(ARM_CONTEXT))
+        return get_thread_wow64_context_arm(handle, ctx, size);
 
     if (size != sizeof(I386_CONTEXT)) return STATUS_INFO_LENGTH_MISMATCH;
 
@@ -2465,6 +2565,7 @@ void DECLSPEC_HIDDEN call_init_thunk( LPTHREAD_START_ROUTINE entry, void *arg, B
     struct syscall_frame *frame = thread_data->syscall_frame;
     CONTEXT *ctx, context = { 0 };
     I386_CONTEXT *wow_context;
+    ARM_CONTEXT *wow_context_arm;
 
 #if defined __linux__
     arch_prctl( ARCH_SET_GS, teb );
@@ -2517,6 +2618,15 @@ void DECLSPEC_HIDDEN call_init_thunk( LPTHREAD_START_ROUTINE entry, void *arg, B
         wow_context->EFlags = 0x202;
         wow_context->FloatSave.ControlWord = context.FltSave.ControlWord;
         *(XSAVE_FORMAT *)wow_context->ExtendedRegisters = context.FltSave;
+    }
+    if ((wow_context_arm = get_cpu_area( IMAGE_FILE_MACHINE_ARMNT )))
+    {
+        wow_context_arm->ContextFlags = CONTEXT_ARM_ALL;
+        wow_context_arm->R0 = (ULONG_PTR)entry;
+        wow_context_arm->R1 = (arg == peb ? get_wow_teb( teb )->Peb : (ULONG_PTR)arg);
+        wow_context_arm->Sp = get_wow_teb( teb )->Tib.StackBase - 16; // -16?
+        wow_context_arm->Pc = pLdrSystemDllInitBlock->pRtlUserThreadStart;
+        if (wow_context_arm->Pc & 1) wow_context_arm->Cpsr |= 0x20; /* thumb mode */
     }
 
     if (suspend) wait_suspend( &context );
