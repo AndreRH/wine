@@ -307,7 +307,7 @@ extern NTSTATUS unwind_builtin_dll( void *args );
 
 extern NTSTATUS get_thread_ldt_entry( HANDLE handle, void *data, ULONG len, ULONG *ret_len );
 extern void *get_native_context( CONTEXT *context );
-extern void *get_wow_context( CONTEXT *context );
+extern void *get_wow_context( CONTEXT *context, USHORT machine );
 extern BOOL get_thread_times( int unix_pid, int unix_tid, LARGE_INTEGER *kernel_time,
                               LARGE_INTEGER *user_time );
 extern void signal_init_threading(void);
