@@ -66,6 +66,17 @@ static void* *ptcg_ctx;
 
 static void *emuapi_handle;
 
+static void init_thread_cpu(void)
+{
+    if (!thread_cpu)
+        thread_cpu = pcpu_create(X86_CPU_TYPE_NAME("max"));
+    if (!thread_cpu)
+    {
+        fprintf(stderr, "Unable to find CPU definition\n");
+    }
+    pcpu_reset(thread_cpu);
+}
+
 static NTSTATUS attach( void *args )
 {
     static char default_lib[] = "/opt/libqemu-i386.so";
@@ -122,8 +133,7 @@ static NTSTATUS attach( void *args )
 
     if (ptcg_exec_init)
         ptcg_exec_init(0);
-    thread_cpu = pcpu_create(X86_CPU_TYPE_NAME("Westmere"));
-    pcpu_reset(thread_cpu);
+    init_thread_cpu();
 
     ptcg_prologue_init(*ptcg_ctx);
     ptcg_region_init();
@@ -136,17 +146,6 @@ static NTSTATUS detach( void *args )
 {
     dlclose( emuapi_handle );
     return STATUS_SUCCESS;
-}
-
-static void init_thread_cpu(void)
-{
-    if (!thread_cpu)
-        thread_cpu = pcpu_create(X86_CPU_TYPE_NAME("Westmere"));
-    if (!thread_cpu)
-    {
-        fprintf(stderr, "Unable to find CPU definition\n");
-    }
-    pcpu_reset(thread_cpu);
 }
 
 static inline void *get_wow_teb( TEB *teb )
