@@ -1512,6 +1512,7 @@ enable_wofutil
 enable_wow64
 enable_wow64cpu
 enable_wow64win
+enable_wowarmhw
 enable_wpc
 enable_wpcap
 enable_ws2_32
@@ -6406,6 +6407,7 @@ enable_wow64=${enable_wow64:-aarch64,x86_64}
 enable_wow64win=${enable_wow64win:-aarch64,x86_64}
 enable_wow64cpu=${enable_wow64cpu:-x86_64}
 enable_xtajit=${enable_xtajit:-aarch64,x86_64}
+enable_wowarmhw=${enable_wowarmhw:-aarch64,x86_64}
 
 enable_winetest=${enable_winetest:-$enable_tests}
 
@@ -21973,6 +21975,7 @@ wine_fn_config_makefile dlls/wow32 enable_win16
 wine_fn_config_makefile dlls/wow64 enable_wow64
 wine_fn_config_makefile dlls/wow64cpu enable_wow64cpu
 wine_fn_config_makefile dlls/wow64win enable_wow64win
+wine_fn_config_makefile dlls/wowarmhw enable_wowarmhw
 wine_fn_config_makefile dlls/wpc enable_wpc
 wine_fn_config_makefile dlls/wpc/tests enable_tests
 wine_fn_config_makefile dlls/wpcap enable_wpcap
