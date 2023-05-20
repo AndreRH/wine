@@ -184,6 +184,7 @@ enable_wow64=${enable_wow64:-aarch64,x86_64}
 enable_wow64win=${enable_wow64win:-aarch64,x86_64}
 enable_wow64cpu=${enable_wow64cpu:-x86_64}
 enable_xtajit=${enable_xtajit:-aarch64,x86_64}
+enable_wowarmhw=${enable_wowarmhw:-aarch64,x86_64}
 enable_vcruntime140_1=${enable_vcruntime140_1:-x86_64,arm64ec}
 
 dnl Explicitly enable some programs for arm64ec
@@ -3304,6 +3305,7 @@ WINE_CONFIG_MAKEFILE(dlls/wow32,enable_win16)
 WINE_CONFIG_MAKEFILE(dlls/wow64)
 WINE_CONFIG_MAKEFILE(dlls/wow64cpu)
 WINE_CONFIG_MAKEFILE(dlls/wow64win)
+WINE_CONFIG_MAKEFILE(dlls/wowarmhw)
 WINE_CONFIG_MAKEFILE(dlls/wpc)
 WINE_CONFIG_MAKEFILE(dlls/wpc/tests)
 WINE_CONFIG_MAKEFILE(dlls/wpcap)
