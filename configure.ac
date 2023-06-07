@@ -183,6 +183,7 @@ enable_win64=${enable_win64:-no}
 enable_wow64=${enable_wow64:-aarch64,x86_64}
 enable_wow64win=${enable_wow64win:-aarch64,x86_64}
 enable_wow64cpu=${enable_wow64cpu:-x86_64}
+enable_xtajit=${enable_xtajit:-aarch64,x86_64}
 enable_vcruntime140_1=${enable_vcruntime140_1:-x86_64,arm64ec}
 
 dnl Explicitly enable some programs for arm64ec
@@ -3370,6 +3371,7 @@ WINE_CONFIG_MAKEFILE(dlls/xmllite/tests)
 WINE_CONFIG_MAKEFILE(dlls/xolehlp)
 WINE_CONFIG_MAKEFILE(dlls/xpsprint)
 WINE_CONFIG_MAKEFILE(dlls/xpssvcs)
+WINE_CONFIG_MAKEFILE(dlls/xtajit)
 WINE_CONFIG_MAKEFILE(fonts)
 WINE_CONFIG_MAKEFILE(include)
 WINE_CONFIG_MAKEFILE(libs/adsiid)
