@@ -38,6 +38,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(wow);
 
 static void (*phangover_fex_init)(void);
 static void (*phangover_fex_run)(void* teb, I386_CONTEXT* ctx);
+static void (*phangover_fex_invalidate_code_range)(uint64_t start, uint64_t length);
 
 static void *emuapi_handle;
 
@@ -61,6 +62,7 @@ static NTSTATUS attach( void *args )
 #define LOAD_FUNCPTR(f) if((p##f = dlsym(emuapi_handle, #f)) == NULL) {ERR(#f " %p\n", p##f);return STATUS_ENTRYPOINT_NOT_FOUND;}
     LOAD_FUNCPTR(hangover_fex_init);
     LOAD_FUNCPTR(hangover_fex_run);
+    LOAD_FUNCPTR(hangover_fex_invalidate_code_range);
 #undef LOAD_FUNCPTR
 
     phangover_fex_init();
@@ -95,9 +97,16 @@ static NTSTATUS emu_run( void *args )
     return 0;
 }
 
+static void invalidate_code_range ( void *args )
+{
+    const struct invalidate_code_range_params *params = args;
+    phangover_fex_invalidate_code_range(params->base, params->length);
+}
+
 const unixlib_entry_t __wine_unix_call_funcs[] =
 {
     attach,
     detach,
     emu_run,
+    invalidate_code_range,
 };
