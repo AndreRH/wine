@@ -32,12 +32,25 @@ WINE_DEFAULT_DEBUG_CHANNEL(wow);
 
 static unixlib_handle_t emuapi_handle;
 
+static const UINT_PTR page_mask = 0xfff;
+
+#define ROUND_ADDR(addr,mask) ((void *)((UINT_PTR)(addr) & ~(UINT_PTR)(mask)))
+#define ROUND_SIZE(addr,size) (((SIZE_T)(size) + ((UINT_PTR)(addr) & page_mask) + page_mask) & ~page_mask)
+
 #define EMUAPI_CALL( func, params ) __wine_unix_call( emuapi_handle, unix_ ## func, params )
 
 NTSTATUS WINAPI emu_run(I386_CONTEXT *c)
 {
     struct emu_run_params params = { c };
     return EMUAPI_CALL( emu_run, &params );
+}
+
+NTSTATUS WINAPI invalidate_code_range( DWORD64 base, DWORD64 length )
+{
+    struct invalidate_code_range_params params = { base, length };
+    NTSTATUS ret;
+    ret = EMUAPI_CALL( invalidate_code_range, &params );
+    return ret;
 }
 
 NTSTATUS WINAPI Wow64SystemServiceEx( UINT num, UINT *args );
@@ -215,6 +228,81 @@ NTSTATUS WINAPI BTCpuTurboThunkControl( ULONG enable )
     if (enable) return STATUS_NOT_SUPPORTED;
     /* we don't have turbo thunks yet */
     return STATUS_SUCCESS;
+}
+
+/**********************************************************************
+ *           invalidate_mapped_section
+ *
+ * Invalidates all code in the entire memory section containing 'addr'
+ */
+static NTSTATUS invalidate_mapped_section( PVOID addr )
+{
+
+    MEMORY_BASIC_INFORMATION mem_info;
+    NTSTATUS ret = NtQueryVirtualMemory( NtCurrentProcess(), addr, MemoryBasicInformation, &mem_info,
+                                         sizeof(mem_info), NULL );
+
+    if (!NT_SUCCESS(ret))
+        return ret;
+
+
+    return invalidate_code_range( (DWORD64)mem_info.AllocationBase,
+                                  (DWORD64)(mem_info.BaseAddress + mem_info.RegionSize - mem_info.AllocationBase) );
+}
+
+/**********************************************************************
+ *           BTCpuNotifyUnmapViewOfSection  (xtajit.@)
+ */
+void WINAPI BTCpuNotifyUnmapViewOfSection( PVOID addr, ULONG flags )
+{
+    NTSTATUS ret = invalidate_mapped_section( addr );
+    if (!NT_SUCCESS(ret))
+        WARN( "Failed to invalidate code memory: 0x%x\n", ret );
+}
+
+/**********************************************************************
+ *           BTCpuNotifyMemoryFree  (xtajit.@)
+ */
+void WINAPI BTCpuNotifyMemoryFree( PVOID addr, SIZE_T size, ULONG free_type )
+{
+    NTSTATUS ret;
+
+    if (!size)
+        ret = invalidate_mapped_section( addr );
+    else if (free_type & MEM_DECOMMIT)
+        /* Invalidate all pages touched by the region, even if they are just straddled */
+        ret = invalidate_code_range( (DWORD64)ROUND_ADDR( addr, page_mask ), (DWORD64)ROUND_SIZE( addr, size ) );
+
+    if (!NT_SUCCESS(ret))
+        WARN( "Failed to invalidate code memory: 0x%x\n", ret );
+}
+
+/**********************************************************************
+ *           BTCpuNotifyMemoryProtect  (xtajit.@)
+ */
+void WINAPI BTCpuNotifyMemoryProtect( PVOID addr, SIZE_T size, DWORD new_protect )
+{
+    NTSTATUS ret;
+    if (!(new_protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE)))
+        return;
+
+    /* Invalidate all pages touched by the region, even if they are just straddled */
+    ret = invalidate_code_range( (DWORD64)ROUND_ADDR( addr, page_mask ), (DWORD64)ROUND_SIZE( addr, size ) );
+    if (!NT_SUCCESS(ret))
+        WARN( "Failed to invalidate code memory: 0x%x\n", ret );
+}
+
+/**********************************************************************
+ *           BTCpuFlushInstructionCache2  (xtajit.@)
+ */
+void WINAPI BTCpuFlushInstructionCache2( LPCVOID addr, SIZE_T size)
+{
+    NTSTATUS ret;
+
+    /* Invalidate all pages touched by the region, even if they are just straddled */
+    ret = invalidate_code_range( (DWORD64)addr, (DWORD64)size );
+    if (!NT_SUCCESS(ret))
+        WARN( "Failed to invalidate code memory: 0x%x\n", ret );
 }
 
 BOOL WINAPI DllMain (HINSTANCE inst, DWORD reason, void *reserved )
