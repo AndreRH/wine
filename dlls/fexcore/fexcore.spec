@@ -8,4 +8,8 @@
 @ stdcall BTCpuTurboThunkControl(long)
 #@ stub TurboDispatchJumpAddressEnd
 #@ stub TurboDispatchJumpAddressStart
+@ stdcall BTCpuNotifyUnmapViewOfSection(ptr long)
+@ stdcall BTCpuNotifyMemoryFree(ptr long long)
+@ stdcall BTCpuNotifyMemoryProtect(ptr long long)
+@ stdcall BTCpuFlushInstructionCache2(ptr long)
 @ stdcall __wine_get_unix_opcode()
