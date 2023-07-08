@@ -195,6 +195,7 @@ enable_win64=${enable_win64:-no}
 enable_wow64=${enable_wow64:-aarch64,x86_64}
 enable_wow64win=${enable_wow64win:-aarch64,x86_64}
 enable_wow64cpu=${enable_wow64cpu:-x86_64}
+enable_fexcore=${enable_fexcore:-aarch64,x86_64}
 enable_xtajit=${enable_xtajit:-aarch64,x86_64}
 enable_wowarmhw=${enable_wowarmhw:-aarch64,x86_64}
 
@@ -2621,6 +2622,7 @@ WINE_CONFIG_MAKEFILE(dlls/explorerframe/tests)
 WINE_CONFIG_MAKEFILE(dlls/faultrep)
 WINE_CONFIG_MAKEFILE(dlls/faultrep/tests)
 WINE_CONFIG_MAKEFILE(dlls/feclient)
+WINE_CONFIG_MAKEFILE(dlls/fexcore)
 WINE_CONFIG_MAKEFILE(dlls/fltlib)
 WINE_CONFIG_MAKEFILE(dlls/fltmgr.sys)
 WINE_CONFIG_MAKEFILE(dlls/fntcache)
