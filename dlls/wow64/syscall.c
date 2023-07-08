@@ -869,7 +869,7 @@ static const WCHAR *get_cpu_dll_name(void)
     switch (current_machine)
     {
     case IMAGE_FILE_MACHINE_I386:
-        return L"xtajit.dll";
+        return L"fexcore.dll";
     case IMAGE_FILE_MACHINE_ARMNT:
         RtlInitUnicodeString( &nameW, L"\\Registry\\Machine\\Software\\Microsoft\\Wow64\\arm" );
         ret = L"wowarmhw.dll";
