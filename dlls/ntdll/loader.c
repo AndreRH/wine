@@ -4298,8 +4298,6 @@ void loader_init( CONTEXT *context, void **entry )
         load_global_options();
         version_init();
 
-        if (NtCurrentTeb()->WowTebOffset) init_wow64( context );
-
         wm = build_main_module();
         build_ntdll_module();
 
@@ -4314,6 +4312,9 @@ void loader_init( CONTEXT *context, void **entry )
 
         actctx_init();
         locale_init();
+
+        if (NtCurrentTeb()->WowTebOffset) init_wow64( context );
+
         get_env_var( L"WINESYSTEMDLLPATH", 0, &system_dll_path );
         if (wm->ldr.Flags & LDR_COR_ILONLY)
             status = fixup_imports_ilonly( wm, NULL, entry );
