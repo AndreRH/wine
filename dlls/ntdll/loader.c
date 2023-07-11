@@ -4261,10 +4261,6 @@ void WINAPI LdrInitializeThunk( CONTEXT *context, ULONG_PTR unknown2, ULONG_PTR 
     }
     else wm = get_modref( NtCurrentTeb()->Peb->ImageBaseAddress );
 
-#ifdef _WIN64
-    if (NtCurrentTeb()->WowTebOffset) init_wow64( context );
-#endif
-
     RtlAcquirePebLock();
     InsertHeadList( &tls_links, &NtCurrentTeb()->TlsLinks );
     RtlReleasePebLock();
@@ -4313,6 +4309,10 @@ void WINAPI LdrInitializeThunk( CONTEXT *context, ULONG_PTR unknown2, ULONG_PTR 
         thread_attach();
         if (wm->ldr.TlsIndex == -1) call_tls_callbacks( wm->ldr.DllBase, DLL_THREAD_ATTACH );
     }
+
+#ifdef _WIN64
+    if (NtCurrentTeb()->WowTebOffset) init_wow64( context );
+#endif
 
     RtlLeaveCriticalSection( &loader_section );
     signal_start_thread( context );
