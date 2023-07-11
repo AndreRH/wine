@@ -4368,8 +4368,6 @@ void loader_init( CONTEXT *context, void **entry )
         if (!default_load_path)
             get_dll_load_path( peb->ProcessParameters->ImagePathName.Buffer, NULL, dll_safe_mode, &default_load_path );
 
-        if (NtCurrentTeb()->WowTebOffset) init_wow64( context );
-
         wm = build_main_module();
         build_ntdll_module();
 #ifdef __arm64ec__
@@ -4388,8 +4386,12 @@ void loader_init( CONTEXT *context, void **entry )
 
         actctx_init();
         locale_init();
+
         if (needs_elevation())
             elevate_token();
+
+        if (NtCurrentTeb()->WowTebOffset) init_wow64( context );
+
         get_env_var( L"WINESYSTEMDLLPATH", 0, &system_dll_path );
         if (wm->ldr.Flags & LDR_COR_ILONLY)
             status = fixup_imports_ilonly( wm, NULL, entry );
