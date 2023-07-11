@@ -4400,9 +4400,6 @@ void loader_init( CONTEXT *context, void **entry )
     }
     else
     {
-#ifdef _WIN64
-        if (NtCurrentTeb()->WowTebOffset) init_wow64( context );
-#endif
 #ifdef __arm64ec__
         arm64ec_thread_init();
 #endif
@@ -4455,6 +4452,10 @@ void loader_init( CONTEXT *context, void **entry )
         thread_attach();
         if (wm->ldr.TlsIndex == -1) call_tls_callbacks( wm->ldr.DllBase, DLL_THREAD_ATTACH );
     }
+
+#ifdef _WIN64
+    if (NtCurrentTeb()->WowTebOffset) init_wow64( context );
+#endif
 
     RtlLeaveCriticalSection( &loader_section );
 }
