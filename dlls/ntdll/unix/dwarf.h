@@ -1050,7 +1050,10 @@ static void apply_frame_state( CONTEXT *context, struct frame_state *state,
 
 #elif defined(__aarch64__)
 
+#define DW_OP_x10 DW_OP_breg10
+#define DW_OP_x22 DW_OP_breg22
 #define DW_OP_x28 DW_OP_breg28
+#define DW_OP_sp DW_OP_breg31
 
 #define DW_REG_x19 19
 #define DW_REG_x20 20
