@@ -1702,15 +1702,34 @@ __ASM_GLOBAL_FUNC( signal_exit_thread,
  *           __wine_syscall_dispatcher
  */
 __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
+                   __ASM_CFI(".cfi_remember_state\n\t")
+                   /* AARCH64 unwind is unable unwind past a function that sets
+                    * both LR and PC, so map x9 (holds the value LR will be set
+                    * to on dispatcher exit) to the dispatchers LR as to skip
+                    * the syscall stub and unwind straight to its caller */
+                   __ASM_CFI(".cfi_register 30, 9\n\t")
                    "ldr x10, [x18, #0x2f8]\n\t" /* arm64_thread_data()->syscall_frame */
                    "stp x18, x19, [x10, #0x90]\n\t"
+                   __ASM_CFI_REG_IS_AT2(x19, x10, 0x98, 0x01)
                    "stp x20, x21, [x10, #0xa0]\n\t"
+                   __ASM_CFI_REG_IS_AT2(x20, x10, 0xa0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x21, x10, 0xa8, 0x01)
                    "stp x22, x23, [x10, #0xb0]\n\t"
+                   __ASM_CFI_REG_IS_AT2(x22, x10, 0xb0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x23, x10, 0xb8, 0x01)
                    "stp x24, x25, [x10, #0xc0]\n\t"
+                   __ASM_CFI_REG_IS_AT2(x24, x10, 0xc0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x25, x10, 0xc8, 0x01)
                    "stp x26, x27, [x10, #0xd0]\n\t"
+                   __ASM_CFI_REG_IS_AT2(x26, x10, 0xd0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x27, x10, 0xd8, 0x01)
                    "stp x28, x29, [x10, #0xe0]\n\t"
+                   __ASM_CFI_REG_IS_AT2(x28, x10, 0xe0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x29, x10, 0xe8, 0x01)
                    "mov x19, sp\n\t"
                    "stp x9, x19, [x10, #0xf0]\n\t"
+                   __ASM_CFI_REG_IS_AT2(x30, x10, 0xf0, 0x01)
+                   __ASM_CFI_CFA_IS_AT2(x10, 0xf8, 0x01)
                    "mrs x9, NZCV\n\t"
                    "stp x30, x9, [x10, #0x100]\n\t"
                    "mrs x9, FPCR\n\t"
@@ -1722,9 +1741,17 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
                    "stp q4,  q5,  [x10, #0x170]\n\t"
                    "stp q6,  q7,  [x10, #0x190]\n\t"
                    "stp q8,  q9,  [x10, #0x1b0]\n\t"
+                   __ASM_CFI_REG_IS_AT2(v8, x10, 0xb0, 0x03)
+                   __ASM_CFI_REG_IS_AT2(v9, x10, 0xc0, 0x03)
                    "stp q10, q11, [x10, #0x1d0]\n\t"
+                   __ASM_CFI_REG_IS_AT2(v10, x10, 0xd0, 0x03)
+                   __ASM_CFI_REG_IS_AT2(v11, x10, 0xe0, 0x03)
                    "stp q12, q13, [x10, #0x1f0]\n\t"
+                   __ASM_CFI_REG_IS_AT2(v12, x10, 0xf0, 0x03)
+                   __ASM_CFI_REG_IS_AT2(v13, x10, 0x80, 0x04)
                    "stp q14, q15, [x10, #0x210]\n\t"
+                   __ASM_CFI_REG_IS_AT2(v14, x10, 0x90, 0x04)
+                   __ASM_CFI_REG_IS_AT2(v15, x10, 0xa0, 0x04)
                    "stp q16, q17, [x10, #0x230]\n\t"
                    "stp q18, q19, [x10, #0x250]\n\t"
                    "stp q20, q21, [x10, #0x270]\n\t"
@@ -1742,6 +1769,27 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
                    "cmp x20, x16\n\t"
                    "bcs 4f\n\t"
                    "mov x22, sp\n\t"
+                   __ASM_CFI_REG_IS_AT2(x19, x22, 0x98, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x20, x22, 0xa0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x21, x22, 0xa8, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x22, x22, 0xb0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x23, x22, 0xb8, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x24, x22, 0xc0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x25, x22, 0xc8, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x26, x22, 0xd0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x27, x22, 0xd8, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x28, x22, 0xe0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x29, x22, 0xe8, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x30, x22, 0xf0, 0x01)
+                   __ASM_CFI_CFA_IS_AT2(x22, 0xf8, 0x01)
+                   __ASM_CFI_REG_IS_AT2(v8, x22, 0xb0, 0x03)
+                   __ASM_CFI_REG_IS_AT2(v9, x22, 0xc0, 0x03)
+                   __ASM_CFI_REG_IS_AT2(v10, x22, 0xd0, 0x03)
+                   __ASM_CFI_REG_IS_AT2(v11, x22, 0xe0, 0x03)
+                   __ASM_CFI_REG_IS_AT2(v12, x22, 0xf0, 0x03)
+                   __ASM_CFI_REG_IS_AT2(v13, x22, 0x80, 0x04)
+                   __ASM_CFI_REG_IS_AT2(v14, x22, 0x90, 0x04)
+                   __ASM_CFI_REG_IS_AT2(v15, x22, 0xa0, 0x04)
                    "ldr x16, [x21, #24]\n\t"    /* table->ArgumentTable */
                    "ldrb w9, [x16, x20]\n\t"
                    "subs x9, x9, #64\n\t"
@@ -1758,6 +1806,27 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
                    "blr x16\n\t"
                    "mov sp, x22\n"
                    __ASM_LOCAL_LABEL("__wine_syscall_dispatcher_return") ":\n\t"
+                   __ASM_CFI_REG_IS_AT2(x19, sp, 0x98, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x20, sp, 0xa0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x21, sp, 0xa8, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x22, sp, 0xb0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x23, sp, 0xb8, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x24, sp, 0xc0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x25, sp, 0xc8, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x26, sp, 0xd0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x27, sp, 0xd8, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x28, sp, 0xe0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x29, sp, 0xe8, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x30, sp, 0xf0, 0x01)
+                   __ASM_CFI_CFA_IS_AT2(sp, 0xf8, 0x01)
+                   __ASM_CFI_REG_IS_AT2(v8, sp, 0xb0, 0x03)
+                   __ASM_CFI_REG_IS_AT2(v9, sp, 0xc0, 0x03)
+                   __ASM_CFI_REG_IS_AT2(v10, sp, 0xd0, 0x03)
+                   __ASM_CFI_REG_IS_AT2(v11, sp, 0xe0, 0x03)
+                   __ASM_CFI_REG_IS_AT2(v12, sp, 0xf0, 0x03)
+                   __ASM_CFI_REG_IS_AT2(v13, sp, 0x80, 0x04)
+                   __ASM_CFI_REG_IS_AT2(v14, sp, 0x90, 0x04)
+                   __ASM_CFI_REG_IS_AT2(v15, sp, 0xa0, 0x04)
                    "ldr w16, [sp, #0x10c]\n\t"  /* frame->restore_flags */
                    "tbz x16, #1, 2f\n\t"        /* CONTEXT_INTEGER */
                    "ldp x12, x13, [sp, #0x80]\n\t" /* frame->x[16..17] */
@@ -1804,8 +1873,31 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
                    "1:\tldp x16, x17, [sp, #0x100]\n\t"
                    "msr NZCV, x17\n\t"
                    "ldp x30, x17, [sp, #0xf0]\n\t"
+                   __ASM_CFI(".cfi_restore_state\n\t")
+                   __ASM_CFI(".cfi_register 30, 16\n\t")
                    "mov sp, x17\n\t"
                    "ret x16\n"
+                   __ASM_CFI_REG_IS_AT2(x19, sp, 0x98, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x20, sp, 0xa0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x21, sp, 0xa8, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x22, sp, 0xb0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x23, sp, 0xb8, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x24, sp, 0xc0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x25, sp, 0xc8, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x26, sp, 0xd0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x27, sp, 0xd8, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x28, sp, 0xe0, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x29, sp, 0xe8, 0x01)
+                   __ASM_CFI_REG_IS_AT2(x30, sp, 0xf0, 0x01)
+                   __ASM_CFI_CFA_IS_AT2(sp, 0xf8, 0x01)
+                   __ASM_CFI_REG_IS_AT2(v8, sp, 0xb0, 0x03)
+                   __ASM_CFI_REG_IS_AT2(v9, sp, 0xc0, 0x03)
+                   __ASM_CFI_REG_IS_AT2(v10, sp, 0xd0, 0x03)
+                   __ASM_CFI_REG_IS_AT2(v11, sp, 0xe0, 0x03)
+                   __ASM_CFI_REG_IS_AT2(v12, sp, 0xf0, 0x03)
+                   __ASM_CFI_REG_IS_AT2(v13, sp, 0x80, 0x04)
+                   __ASM_CFI_REG_IS_AT2(v14, sp, 0x90, 0x04)
+                   __ASM_CFI_REG_IS_AT2(v15, sp, 0xa0, 0x04)
                    "4:\tmov x0, #0xc0000000\n\t" /* STATUS_INVALID_PARAMETER */
                    "movk x0, #0x000d\n\t"
                    "b " __ASM_LOCAL_LABEL("__wine_syscall_dispatcher_return") "\n\t"
