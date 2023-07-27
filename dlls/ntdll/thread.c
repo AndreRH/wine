@@ -707,3 +707,26 @@ void WINAPI DECLSPEC_HOTPATCH RtlProcessFlsData( void *teb_fls_data, ULONG flags
         RtlFreeHeap( GetProcessHeap(), 0, fls );
     }
 }
+
+#ifdef _WIN64
+
+/***********************************************************************
+ *              RtlWow64SuspendThread (NTDLL.@)
+ */
+NTSTATUS WINAPI RtlWow64SuspendThread( HANDLE thread, ULONG *count )
+{
+    THREAD_BASIC_INFORMATION tbi;
+
+    NTSTATUS ret = NtQueryInformationThread( thread, ThreadBasicInformation, &tbi, sizeof(tbi), NULL);
+    if (ret) return ret;
+
+    if (tbi.ClientId.UniqueProcess != NtCurrentTeb()->ClientId.UniqueProcess) {
+        /* TODO: how to get suspend count out? */
+        ERR( "Non-local process suspend\n" );
+        return STATUS_SUCCESS;
+    }
+
+    return pWow64SuspendLocalThread( thread, count );
+}
+
+#endif

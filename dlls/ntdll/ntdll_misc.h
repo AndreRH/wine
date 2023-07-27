@@ -182,4 +182,7 @@ extern void *__os_arm64x_helper8;
 
 #endif
 
+/* threads */
+extern NTSTATUS (WINAPI *pWow64SuspendLocalThread)( HANDLE thread, ULONG *count );
+
 #endif
