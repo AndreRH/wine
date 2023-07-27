@@ -643,6 +643,24 @@ BOOLEAN WINAPI RtlIsProcessorFeaturePresent( UINT feature )
             user_shared_data->ProcessorFeatures[feature]);
 }
 
+/***********************************************************************
+ *              RtlWow64SuspendThread (NTDLL.@)
+ */
+NTSTATUS WINAPI RtlWow64SuspendThread( HANDLE thread, ULONG *count )
+{
+    THREAD_BASIC_INFORMATION tbi;
+
+    NTSTATUS ret = NtQueryInformationThread( thread, ThreadBasicInformation, &tbi, sizeof(tbi), NULL);
+    if (ret) return ret;
+
+    if (tbi.ClientId.UniqueProcess != NtCurrentTeb()->ClientId.UniqueProcess) {
+        /* TODO: to support this, remote thread creation would need to make a non wow thread */
+        ERR( "Non-local process suspend\n" );
+        return STATUS_SUCCESS;
+    }
+
+    return pWow64SuspendLocalThread( thread, count );
+}
 
 /*************************************************************************
  *		RtlWalkFrameChain (NTDLL.@)
