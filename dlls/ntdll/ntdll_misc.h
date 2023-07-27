@@ -204,4 +204,7 @@ extern void *__os_arm64x_set_x64_information;
 
 #endif
 
+/* threads */
+extern NTSTATUS (WINAPI *pWow64SuspendLocalThread)( HANDLE thread, ULONG *count );
+
 #endif
