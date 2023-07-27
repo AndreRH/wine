@@ -118,6 +118,7 @@ static NTSTATUS (WINAPI *pBTCpuSetContext)(HANDLE,HANDLE,void *,void *);
 static void     (WINAPI *pBTCpuThreadInit)(void);
 static void     (WINAPI *pBTCpuSimulate)(void);
 static NTSTATUS (WINAPI *pBTCpuResetToConsistentState)( EXCEPTION_POINTERS * );
+static NTSTATUS (WINAPI *pBTCpuSuspendLocalThread)(HANDLE,ULONG *);
 static void *   (WINAPI *p__wine_get_unix_opcode)(void);
 static void *   (WINAPI *pKiRaiseUserExceptionDispatcher)(void);
 void (WINAPI *pBTCpuNotifyFlushInstructionCache2)( const void *, SIZE_T ) = NULL;
@@ -902,6 +903,7 @@ static DWORD WINAPI process_init( RTL_RUN_ONCE *once, void *param, void **contex
     GET_PTR( BTCpuProcessInit );
     GET_PTR( BTCpuThreadInit );
     GET_PTR( BTCpuResetToConsistentState );
+    GET_PTR( BTCpuSuspendLocalThread );
     GET_PTR( BTCpuSetContext );
     GET_PTR( BTCpuSimulate );
     GET_PTR( BTCpuNotifyFlushInstructionCache2 );
@@ -1464,4 +1466,12 @@ NTSTATUS WINAPI Wow64RaiseException( int code, EXCEPTION_RECORD *rec )
     }
     __ENDTRY
     return STATUS_SUCCESS;
+}
+
+/**********************************************************************
+ *            Wow64SuspendLocalThread (wow64.@)
+ */
+NTSTATUS WINAPI Wow64SuspendLocalThread( HANDLE thread, ULONG *count )
+{
+    return pBTCpuSuspendLocalThread( thread, count );
 }
