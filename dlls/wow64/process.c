@@ -1054,9 +1054,8 @@ NTSTATUS WINAPI wow64_NtSuspendThread( UINT *args )
     HANDLE handle = get_handle( &args );
     ULONG *count = get_ptr( &args );
 
-    return NtSuspendThread( handle, count );
+    return RtlWow64SuspendThread( handle, count );
 }
-
 
 /**********************************************************************
  *           wow64_NtTerminateProcess
