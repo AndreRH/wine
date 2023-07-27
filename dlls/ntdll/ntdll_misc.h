@@ -131,4 +131,7 @@ static inline void ascii_to_unicode( WCHAR *dst, const char *src, size_t len )
 extern TEB_FLS_DATA *fls_alloc_data(void) DECLSPEC_HIDDEN;
 extern void heap_thread_detach(void) DECLSPEC_HIDDEN;
 
+/* threads */
+extern NTSTATUS (WINAPI *pWow64SuspendLocalThread)( HANDLE thread, ULONG *count ) DECLSPEC_HIDDEN;
+
 #endif
