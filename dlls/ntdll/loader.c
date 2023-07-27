@@ -4128,6 +4128,7 @@ static void build_wow64_main_module(void)
 static void (WINAPI *pWow64LdrpInitialize)( CONTEXT *ctx );
 
 void (WINAPI *pWow64PrepareForException)( EXCEPTION_RECORD *rec, CONTEXT *context ) = NULL;
+NTSTATUS (WINAPI *pWow64SuspendLocalThread)( HANDLE thread, ULONG *count ) = NULL;
 
 static void init_wow64( CONTEXT *context )
 {
@@ -4152,6 +4153,7 @@ static void init_wow64( CONTEXT *context )
 
         GET_PTR( Wow64LdrpInitialize );
         GET_PTR( Wow64PrepareForException );
+        GET_PTR( Wow64SuspendLocalThread );
 #undef GET_PTR
         imports_fixup_done = TRUE;
     }
