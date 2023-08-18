@@ -806,4 +806,57 @@ __ASM_GLOBAL_FUNC( DbgUserBreakPoint, "brk #0xf000; ret"
                     "\n\tnop; nop; nop; nop; nop; nop; nop; nop"
                     "\n\tnop; nop; nop; nop; nop; nop" );
 
+static void wow64_suspend_helper( void *arg )
+{
+    ULONG count;
+    pWow64SuspendLocalThread( (HANDLE)arg, &count );
+}
+/***********************************************************************
+ *              RtlWow64SuspendThread (NTDLL.@)
+ */
+NTSTATUS WINAPI RtlWow64SuspendThread( HANDLE thread, ULONG *count )
+{
+    THREAD_BASIC_INFORMATION tbi;
+    HANDLE target_thread;
+    NTSTATUS ret = NtDuplicateObject( NtCurrentProcess(), thread, NtCurrentProcess(), &target_thread,
+                                      THREAD_ALL_ACCESS, 0, 0);
+    if (ret) return ret;
+
+    ret = NtQueryInformationThread( target_thread, ThreadBasicInformation, &tbi, sizeof(tbi), NULL );
+    if (ret) goto end;
+
+    if (tbi.ClientId.UniqueProcess != NtCurrentTeb()->ClientId.UniqueProcess)
+    {
+        HANDLE process;
+        HANDLE remote_suspender_thread;
+        HANDLE remote_target_thread;
+        ret = NtOpenProcess( &process, PROCESS_ALL_ACCESS, NULL, &tbi.ClientId );
+        if (ret) goto end;
+
+        ret = NtDuplicateObject( NtCurrentProcess(), target_thread, process, &remote_target_thread,
+                                 THREAD_ALL_ACCESS, 0, 0 );
+        if (ret) goto close_process;
+
+        ret = NtCreateThreadEx( &remote_suspender_thread, THREAD_ALL_ACCESS, NULL, process,
+                                &wow64_suspend_helper, remote_target_thread, THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER,
+                                0, 0, 0, NULL );
+        if (ret) goto close_remote_target_thread;
+
+        NtWaitForSingleObject( remote_suspender_thread, FALSE, NULL );
+        ret = NtQueryInformationThread( target_thread, ThreadSuspendCount, count, sizeof(*count), NULL );
+
+        NtClose( remote_suspender_thread );
+close_remote_target_thread:
+        NtClose( remote_target_thread );
+close_process:
+        NtClose( process );
+    } else {
+        ret = pWow64SuspendLocalThread( target_thread, count );
+    }
+
+end:
+    NtClose( target_thread );
+    return ret;
+}
+
 #endif  /* __aarch64__ */
