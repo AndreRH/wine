@@ -1043,4 +1043,12 @@ __ASM_GLOBAL_FUNC( DbgUserBreakPoint, "int $3; ret"
                     "\n\tnop; nop; nop; nop; nop; nop; nop; nop"
                     "\n\tnop; nop; nop; nop; nop; nop" );
 
+/***********************************************************************
+ *              RtlWow64SuspendThread (NTDLL.@)
+ */
+NTSTATUS WINAPI RtlWow64SuspendThread( HANDLE thread, ULONG *count )
+{
+    return NtSuspendThread( thread, count );
+}
+
 #endif  /* __x86_64__ */
