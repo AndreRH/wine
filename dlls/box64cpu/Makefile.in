@@ -1,0 +1,19 @@
+MODULE    = box64cpu.dll
+IMPORTS   = $(BOX64_PE_LIBS) $(ZYDIS_PE_LIBS) wow64 ntdll winecrt0 kernel32
+EXTRAINCL = $(BOX64_PE_CFLAGS) $(ZYDIS_PE_CFLAGS)
+
+EXTRADLLFLAGS = -nodefaultlibs -Wl,--image-base,0x004c0000
+
+C_SRCS = \
+	cpu.c \
+	crt.c \
+	e_pow.c \
+	e_rem_pio2.c \
+	e_sqrt.c \
+	s_ceilf.c \
+	s_floor.c \
+	s_floorf.c \
+	s_round.c \
+	s_sincos.c \
+	s_trunc.c \
+	s_truncf.c
