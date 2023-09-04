@@ -524,16 +524,16 @@ NTSTATUS set_thread_wow64_context( HANDLE handle, const void *ctx, ULONG size )
             wow_frame->Ebp    = context->Ebp;
             wow_frame->Eip    = context->Eip;
             wow_frame->EFlags = context->EFlags;
-            wow_frame->SegCs  = context->SegCs;
-            wow_frame->SegSs  = context->SegSs;
+            wow_frame->SegCs  = LOWORD(context->SegCs);
+            wow_frame->SegSs  = LOWORD(context->SegSs);
             cpu->Flags |= WOW64_CPURESERVED_FLAG_RESET_STATE;
         }
         if (flags & CONTEXT_I386_SEGMENTS)
         {
-            wow_frame->SegDs = context->SegDs;
-            wow_frame->SegEs = context->SegEs;
-            wow_frame->SegFs = context->SegFs;
-            wow_frame->SegGs = context->SegGs;
+            wow_frame->SegDs = LOWORD(context->SegDs);
+            wow_frame->SegEs = LOWORD(context->SegEs);
+            wow_frame->SegFs = LOWORD(context->SegFs);
+            wow_frame->SegGs = LOWORD(context->SegGs);
         }
         if (flags & CONTEXT_I386_DEBUG_REGISTERS)
         {
@@ -646,16 +646,16 @@ NTSTATUS get_thread_wow64_context( HANDLE handle, void *ctx, ULONG size )
             context->Ebp    = wow_frame->Ebp;
             context->Eip    = wow_frame->Eip;
             context->EFlags = wow_frame->EFlags;
-            context->SegCs  = wow_frame->SegCs;
-            context->SegSs  = wow_frame->SegSs;
+            context->SegCs  = LOWORD(wow_frame->SegCs);
+            context->SegSs  = LOWORD(wow_frame->SegSs);
             context->ContextFlags |= CONTEXT_I386_CONTROL;
         }
         if (needed_flags & CONTEXT_I386_SEGMENTS)
         {
-            context->SegDs = wow_frame->SegDs;
-            context->SegEs = wow_frame->SegEs;
-            context->SegFs = wow_frame->SegFs;
-            context->SegGs = wow_frame->SegGs;
+            context->SegDs = LOWORD(wow_frame->SegDs);
+            context->SegEs = LOWORD(wow_frame->SegEs);
+            context->SegFs = LOWORD(wow_frame->SegFs);
+            context->SegGs = LOWORD(wow_frame->SegGs);
             context->ContextFlags |= CONTEXT_I386_SEGMENTS;
         }
         if (needed_flags & CONTEXT_I386_EXTENDED_REGISTERS)
