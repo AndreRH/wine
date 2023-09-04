@@ -4200,6 +4200,11 @@ void WINAPI LdrInitializeThunk( CONTEXT *context, ULONG_PTR unknown2, ULONG_PTR 
         ANSI_STRING ctrl_routine = RTL_CONSTANT_STRING( "CtrlRoutine" );
         WINE_MODREF *kernel32;
         PEB *peb = NtCurrentTeb()->Peb;
+        EVENT_BASIC_INFORMATION ebi;
+        OBJECT_ATTRIBUTES attr;
+        UNICODE_STRING nameW;
+        BOOL hack = FALSE;
+        HANDLE event;
 
         NtQueryVirtualMemory( GetCurrentProcess(), LdrInitializeThunk, MemoryBasicInformation,
                               &meminfo, sizeof(meminfo), NULL );
@@ -4229,6 +4234,20 @@ void WINAPI LdrInitializeThunk( CONTEXT *context, ULONG_PTR unknown2, ULONG_PTR 
 
         build_ntdll_module( meminfo.AllocationBase );
 
+        RtlInitUnicodeString( &nameW, L"\\KernelObjects\\__wineboot_event" );
+        InitializeObjectAttributes( &attr, &nameW, 0, 0, NULL );
+        status = NtOpenEvent( &event, EVENT_ALL_ACCESS, &attr );
+        if (NT_SUCCESS(status))
+            status = NtQueryEvent( event, EventBasicInformation, &ebi, sizeof(ebi), NULL );
+
+        if (NT_SUCCESS(status) && !ebi.EventState)
+        {
+            if (NtCurrentTeb()->WowTebOffset) WARN("Activated a hack for the hack\n");
+            hack = TRUE;
+        }
+        else if (NtCurrentTeb()->WowTebOffset) TRACE("Disabled a hack for the hack\n");
+
+        if (hack && NtCurrentTeb()->WowTebOffset) init_wow64( context );
 
         if ((status = load_dll( NULL, L"kernel32.dll", 0, &kernel32, FALSE )) != STATUS_SUCCESS)
         {
@@ -4247,7 +4266,7 @@ void WINAPI LdrInitializeThunk( CONTEXT *context, ULONG_PTR unknown2, ULONG_PTR 
         actctx_init();
         locale_init();
 
-        if (NtCurrentTeb()->WowTebOffset) init_wow64( context );
+        if (!hack && NtCurrentTeb()->WowTebOffset) init_wow64( context );
 
         if (wm->ldr.Flags & LDR_COR_ILONLY)
             status = fixup_imports_ilonly( wm, NULL, entry );
