@@ -4310,6 +4310,11 @@ void loader_init( CONTEXT *context, void **entry )
         ANSI_STRING ctrl_routine = RTL_CONSTANT_STRING( "CtrlRoutine" );
         WINE_MODREF *kernel32;
         PEB *peb = NtCurrentTeb()->Peb;
+        EVENT_BASIC_INFORMATION ebi;
+        OBJECT_ATTRIBUTES attr;
+        UNICODE_STRING nameW;
+        BOOL hack = FALSE;
+        HANDLE event;
 
         peb->LdrData            = &ldr;
         peb->FastPebLock        = &peb_lock;
@@ -4329,6 +4334,21 @@ void loader_init( CONTEXT *context, void **entry )
         load_global_options();
         version_init();
 
+        RtlInitUnicodeString( &nameW, L"\\KernelObjects\\__wineboot_event" );
+        InitializeObjectAttributes( &attr, &nameW, 0, 0, NULL );
+        status = NtOpenEvent( &event, EVENT_ALL_ACCESS, &attr );
+        if (NT_SUCCESS(status))
+            status = NtQueryEvent( event, EventBasicInformation, &ebi, sizeof(ebi), NULL );
+ 
+        if (NT_SUCCESS(status) && !ebi.EventState)
+        {
+            if (NtCurrentTeb()->WowTebOffset) WARN("Activated a hack for the hack\n");
+            hack = TRUE;
+        }
+        else if (NtCurrentTeb()->WowTebOffset) TRACE("Disabled a hack for the hack\n");
+ 
+        if (hack && NtCurrentTeb()->WowTebOffset) init_wow64( context );
+
         wm = build_main_module();
         build_ntdll_module();
 
@@ -4347,7 +4367,7 @@ void loader_init( CONTEXT *context, void **entry )
         if (needs_elevation())
             elevate_token();
 
-        if (NtCurrentTeb()->WowTebOffset) init_wow64( context );
+        if (!hack && NtCurrentTeb()->WowTebOffset) init_wow64( context );
 
         get_env_var( L"WINESYSTEMDLLPATH", 0, &system_dll_path );
         if (wm->ldr.Flags & LDR_COR_ILONLY)
