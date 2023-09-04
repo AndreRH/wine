@@ -29,9 +29,24 @@ struct emu_run_params
     ARM_CONTEXT *c;
 };
 
+struct set_prot_params
+{
+    DWORD64 base;
+    DWORD64 length;
+    DWORD64 prot;
+};
+
+struct invalidate_code_range_params
+{
+    DWORD64 base;
+    DWORD64 length;
+};
+
 enum wowarmhw_funcs
 {
     unix_attach,
     unix_detach,
     unix_emu_run,
+    unix_set_prot,
+    unix_invalidate_code_range
 };
