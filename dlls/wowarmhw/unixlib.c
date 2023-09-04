@@ -56,6 +56,7 @@ static void (*pqemu_log_needs_buffers)(void);
 static void (*pqemu_set_log)(int);
 static void (*perror_init)(const char *);
 static void (*ppage_set_flags)(target_ulong start, target_ulong end, int flags);
+static void (*ptb_invalidate_phys_page_range)(tb_page_addr_t start, tb_page_addr_t end);
 
 static void* *ptcg_ctx;
 
@@ -107,6 +108,7 @@ static NTSTATUS attach( void *args )
     LOAD_FUNCPTR(error_init);
     LOAD_FUNCPTR(page_set_flags);
     LOAD_FUNCPTR(tcg_ctx);
+    LOAD_FUNCPTR(tb_invalidate_phys_page_range);
 #undef LOAD_FUNCPTR_OPT
 #undef LOAD_FUNCPTR
 
@@ -131,7 +133,7 @@ static NTSTATUS attach( void *args )
 
     ptcg_prologue_init(*ptcg_ctx);
     ptcg_region_init();
-    ppage_set_flags(4096, 0x80000000, 8|4|2|1);
+    ppage_set_flags(4096, 0x80000000, PAGE_VALID | PAGE_EXEC | PAGE_WRITE | PAGE_READ);
 
     return STATUS_SUCCESS;
 }
@@ -264,9 +266,42 @@ static NTSTATUS emu_run( void *args )
     return 0;
 }
 
+static NTSTATUS set_prot( void *args )
+{
+    const struct set_prot_params *params = args;
+    int flags = PAGE_VALID;
+    DWORD64 end;
+
+    if (params->prot & PAGE_EXECUTE)
+        flags |= PAGE_EXEC;
+    if (params->prot & PAGE_EXECUTE_READ)
+        flags |= PAGE_EXEC | PAGE_READ;
+    if (params->prot & PAGE_EXECUTE_READWRITE)
+        flags |= PAGE_READ | PAGE_WRITE;
+    if (params->prot & PAGE_READONLY)
+        flags = PAGE_READ;
+    if (params->prot & PAGE_NOACCESS)
+        flags = 0;
+
+    end = params->base + params->length;
+    if (end <= params->base) end = params->base + 0x1000;
+
+    ppage_set_flags(params->base, end, flags);
+    return STATUS_SUCCESS;
+}
+
+static NTSTATUS invalidate_code_range( void *args )
+{
+    const struct invalidate_code_range_params *params = args;
+    ptb_invalidate_phys_page_range(params->base, params->base + params->length);
+    return STATUS_SUCCESS;
+}
+
 const unixlib_entry_t __wine_unix_call_funcs[] =
 {
     attach,
     detach,
     emu_run,
+    set_prot,
+    invalidate_code_range
 };
