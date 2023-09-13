@@ -5,6 +5,8 @@
 #include <string.h>
 
 #include <sys/syscall.h>   /* For SYS_xxx definitions */
+#include <sys/signalfd.h>
+#include <sys/eventfd.h>
 #include <unistd.h>
 #include <time.h>
 #include <sys/mman.h>
@@ -246,6 +248,7 @@ static scwrap_t syscallwrap[] = {
     #ifdef NOALIGN
     { 281, __NR_epoll_pwait, 6},
     #endif
+    //{ 282, __NR__signalfd, 3},
     #ifdef _NR_eventfd
     { 284, __NR_eventfd, 1},
     #endif
@@ -731,6 +734,25 @@ void EXPORT x64Syscall(x64emu_t *emu)
                 R_RAX = (uint64_t)-errno;
             break;
         #endif
+        case 282:   // sys_signalfd
+            // need to mask SIGSEGV
+            {
+                sigset_t * set = (sigset_t *)R_RSI;
+                if(sigismember(set, SIGSEGV)) {
+                    sigdelset(set, SIGSEGV);
+                    printf_log(LOG_INFO, "Warning, signalfd on SIGSEGV unsuported\n");
+                }
+                R_EAX = signalfd((int)R_EDI, set, 0);
+                if(R_EAX==-1)
+                    R_EAX = -errno;
+            }
+            break;
+        #ifndef _NR_eventfd
+        case 284:   // sys_eventfd
+            R_EAX = eventfd((int)R_EDI, 0);
+            if(R_EAX==-1)
+                R_EAX = -errno;
+        #endif
         case 317:   // sys_seccomp
             R_RAX = 0;  // ignoring call
             break;
@@ -979,6 +1001,21 @@ uintptr_t EXPORT my_syscall(x64emu_t *emu)
         case 281:   // sys_epool_pwait
             return (uint64_t)(int64_t)my_epoll_pwait(emu, (int)R_ESI, (void*)R_RDX, (int)R_ECX, (int)R_R8d, (void*)R_R9);
             break;
+        #endif
+        case 282:   // sys_signalfd
+            // need to mask SIGSEGV
+            {
+                sigset_t * set = (sigset_t *)R_RDX;
+                if(sigismember(set, SIGSEGV)) {
+                    sigdelset(set, SIGSEGV);
+                    printf_log(LOG_INFO, "Warning, signalfd on SIGSEGV unsuported\n");
+                }
+                return signalfd((int)R_ESI, set, 0);
+            }
+            break;
+        #ifndef _NR_eventfd
+        case 284:   // sys_eventfd
+            return eventfd((int)R_ESI, 0);
         #endif
         case 317:   // sys_seccomp
             return 0;  // ignoring call

@@ -952,6 +952,22 @@ const char* arm64_print(uint32_t opcode, uintptr_t addr)
         snprintf(buff, sizeof(buff), "VCMEQ V%d.%s, V%d.%s, V%d.%s", Rd, Vd, Rn, Vd, Rm, Vd);
         return buff;
     }
+    // CMP zero
+    if(isMask(opcode, "0QU01110ff100000100o10nnnnnddddd", &a)) {
+        const char* Y[] = {"8B", "16B", "4H", "8H", "2S", "4S", "??", "2D"};
+        const char* Z[] = {"GT", "GE", "EQ", "LE"};
+        const char* Vd = Y[((sf)<<1) | a.Q];
+        const char* Cond = Z[(a.o << 1 | a.U)];
+        snprintf(buff, sizeof(buff), "VCM%s V%d.%s, V%d.%s, #0", Cond, Rd, Vd, Rn, Vd);
+        return buff;
+    }
+    // CMPLT zero
+    if(isMask(opcode, "0Q001110ff100000101010nnnnnddddd", &a)) {
+        const char* Y[] = {"8B", "16B", "4H", "8H", "2S", "4S", "??", "2D"};
+        const char* Vd = Y[((sf)<<1) | a.Q];
+        snprintf(buff, sizeof(buff), "VCMLT V%d.%s, V%d.%s, #0", Rd, Vd, Rn, Vd);
+        return buff;
+    }
     // MIN/MAX
     if(isMask(opcode, "0QU01110ff1mmmmm0110o1nnnnnddddd", &a)) {
         const char* Y[] = {"8B", "16B", "4H", "8H", "2S", "4S", "??", "2D"};
@@ -1302,6 +1318,14 @@ const char* arm64_print(uint32_t opcode, uintptr_t addr)
         char s = (option==0)?'S':((option==1)?'D':'?');
         const char* roundings[] = {"N", "P", "M", "Z"};
         snprintf(buff, sizeof(buff), "FCVT%sS %s, %c%d", roundings[a.c], sf?Xt[Rd]:Wt[Rd], s, Rn);
+        return buff;
+    }
+    if(isMask(opcode, "0QU01110of100001101o10nnnnnddddd", &a)) {
+        const char* Y[] = {"2S", "4S", "??", "2D"};
+        const char* Z[] = {"S", "S", "??", "D"};
+        const char* Vd = Y[(sf<<1) | a.Q];
+        const char* roundings[] = {"N", "M", "P", "Z"};
+        snprintf(buff, sizeof(buff), "VFCVT%s%s%s%s V%d.%s, V%d.%s", roundings[option], a.U?"U":"S", a.Q?"Q":"", Z[(sf<<1)|a.Q], Rd, Vd, Rn, Vd);
         return buff;
     }
 
