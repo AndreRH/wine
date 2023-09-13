@@ -1360,6 +1360,7 @@
 #define VFRINTRDQ(Vd,Vn, mode)      EMIT(FRINT_vector(1, 0, (mode)&1, 1, ((mode)>>1)&1, Vn, Vd))
 // round with mode, mode is 0 = TieEven, 1=+inf, 2=-inf, 3=zero
 #define VFRINTRSQ(Vd,Vn, mode)      EMIT(FRINT_vector(1, 0, (mode)&1, 0, ((mode)>>1)&1, Vn, Vd))
+#define VFRINTRS(Vd, Vn, mode)      EMIT(FRINT_vector(0, 0, (mode)&1, 0, ((mode)>>1)&1, Vn, Vd))
 
 #define FRINTI_scalar(type, Rn, Rd)  (0b11110<<24 | (type)<<22 | 1<<21 | 0b001<<18 | 0b111<<15 | 0b10000<<10 | (Rn)<<5 | (Rd))
 #define FRINTIS(Sd, Sn)             EMIT(FRINTI_scalar(0b00, Sn, Sd))
@@ -1599,6 +1600,15 @@
 #define CMEQQ_0_16(Rd, Rn)          EMIT(CMEQ_0_vector(1, 0b01, Rn, Rd))
 #define CMEQQ_0_32(Rd, Rn)          EMIT(CMEQ_0_vector(1, 0b10, Rn, Rd))
 #define CMEQQ_0_64(Rd, Rn)          EMIT(CMEQ_0_vector(1, 0b11, Rn, Rd))
+// Greater Than 0
+#define CMCond_0_vector(Q, U, size, op, Rn, Rd) ((Q)<<30 | (U)<<29 | 0b01110<<24 | (size)<<22 | 0b10000<<17 | 0b0100<<13 | (op)<<12 | 0b10<<10 | (Rn)<<5 | (Rd))
+#define CMGT_0_8(Rd, Rn)            EMIT(CMCond_0_vector(0, 0, 0b00, 0, Rn, Rd))
+#define CMGT_0_16(Rd, Rn)           EMIT(CMCond_0_vector(0, 0, 0b01, 0, Rn, Rd))
+#define CMGT_0_32(Rd, Rn)           EMIT(CMCond_0_vector(0, 0, 0b10, 0, Rn, Rd))
+#define CMGTQ_0_8(Rd, Rn)           EMIT(CMCond_0_vector(1, 0, 0b00, 0, Rn, Rd))
+#define CMGTQ_0_16(Rd, Rn)          EMIT(CMCond_0_vector(1, 0, 0b01, 0, Rn, Rd))
+#define CMGTQ_0_32(Rd, Rn)          EMIT(CMCond_0_vector(1, 0, 0b10, 0, Rn, Rd))
+#define CMGTQ_0_64(Rd, Rn)          EMIT(CMCond_0_vector(1, 0, 0b11, 0, Rn, Rd))
 
 // Vector Float CMP
 // EQual

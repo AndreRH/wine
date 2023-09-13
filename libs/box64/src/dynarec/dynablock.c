@@ -43,10 +43,10 @@ dynablock_t* InvalidDynablock(dynablock_t* db, int need_lock)
         if(db->gone)
             return NULL; // already in the process of deletion!
         dynarec_log(LOG_DEBUG, "InvalidDynablock(%p), db->block=%p x64=%p:%p already gone=%d\n", db, db->block, db->x64_addr, db->x64_addr+db->x64_size-1, db->gone);
+        // remove jumptable without waiting
+        setJumpTableDefault64(db->x64_addr);
         if(need_lock)
             mutex_lock(&my_context->mutex_dyndump);
-        // remove jumptable
-        setJumpTableDefault64(db->x64_addr);
         db->done = 0;
         db->gone = 1;
         if(need_lock)
@@ -76,10 +76,10 @@ void FreeDynablock(dynablock_t* db, int need_lock)
         if(db->gone)
             return; // already in the process of deletion!
         dynarec_log(LOG_DEBUG, "FreeDynablock(%p), db->block=%p x64=%p:%p already gone=%d\n", db, db->block, db->x64_addr, db->x64_addr+db->x64_size-1, db->gone);
+        // remove jumptable without waiting
+        setJumpTableDefault64(db->x64_addr);
         if(need_lock)
             mutex_lock(&my_context->mutex_dyndump);
-        // remove jumptable
-        setJumpTableDefault64(db->x64_addr);
         dynarec_log(LOG_DEBUG, " -- FreeDyrecMap(%p, %d)\n", db->actual_block, db->size);
         db->done = 0;
         db->gone = 1;
@@ -174,11 +174,16 @@ dynablock_t *AddNewDynablock(uintptr_t addr)
 
 #ifndef _WIN32
 //TODO: move this to dynrec_arm.c and track allocated structure to avoid memory leak
-static __thread struct __jmp_buf_tag dynarec_jmpbuf;
+static __thread JUMPBUFF dynarec_jmpbuf;
+#ifdef ANDROID
+#define DYN_JMPBUF dynarec_jmpbuf
+#else
+#define DYN_JMPBUF &dynarec_jmpbuf
+#endif
 
 void cancelFillBlock()
 {
-    longjmp(&dynarec_jmpbuf, 1);
+    longjmp(DYN_JMPBUF, 1);
 }
 #endif
 
@@ -217,7 +222,7 @@ need_lock=0;
     // fill the block
     block->x64_addr = (void*)addr;
 #ifndef _WIN32
-    if(sigsetjmp(&dynarec_jmpbuf, 1)) {
+    if(sigsetjmp(DYN_JMPBUF, 1)) {
         printf_log(LOG_INFO, "FillBlock at %p triggered a segfault, canceling\n", (void*)addr);
         FreeDynablock(block, 0);
         if(need_lock)

@@ -62,10 +62,8 @@ int Run(x64emu_t *emu, int step)
     if(emu->quit)
         return 0;
     if(addr==0) {
-        emu->quit = 1;
-        printf_log(LOG_INFO, "%04d|Ask to run at NULL, quit silently\n", GetTID());
-        //print_cycle_log(LOG_INFO);
-        return 0;
+        // Some programs, like VB6 VARA.exe, need to trigger that segfault to actually run... (ticket #830 in box86)
+        printf_log(LOG_INFO, "%04d|Ask to run at NULL, will segfault\n", GetTID());
     }
     //ref opcode: http://ref.x64asm.net/geek32.html#xA1
     printf_log(LOG_DEBUG, "Run X86 (%p), RIP=%p, Stack=%p is32bits=%d\n", emu, (void*)addr, (void*)R_RSP, is32bits);
@@ -883,19 +881,6 @@ x64emurun:
         case 0x9D:                      /* POPF */
             emu->eflags.x64 = (((rex.is32bits?Pop32(emu):Pop64(emu)) & 0x3F7FD7)/* & (0xffff-40)*/ ) | 0x2; // mask off res2 and res3 and on res1
             RESET_FLAGS(emu);
-            #ifndef TEST_INTERPRETER
-            if(ACCESS_FLAG(F_TF)) {
-                R_RIP = addr;
-#if 0 // FIXME (AZ)
-                emit_signal(emu, SIGTRAP, (void*)addr, 1);
-#else
-                emit_signal(emu, -99, (void*)addr, 1);
-#endif
-                if(emu->quit) goto fini;
-                CLEAR_FLAG(F_TF);
-                STEP;
-            }
-            #endif
             break;
         case 0x9E:                      /* SAHF */
             CHECK_FLAGS(emu);
@@ -1553,6 +1538,22 @@ x64emurun:
             }
             break;
 
+        case 0xD4:                      /* AAM Ib */
+            if(rex.is32bits) {
+                R_AX = aam16(emu, R_AL, F8);
+            } else {
+                unimp = 1;
+                goto fini;
+            };
+            break;
+        case 0xD5:                      /* AAD Ib */
+            if(rex.is32bits) {
+                R_AX = aad16(emu, R_AX, F8);
+            } else {
+                unimp = 1;
+                goto fini;
+            };
+            break;
         case 0xD6:                      /* SALC */
             if(rex.is32bits) {
                 CHECK_FLAGS(emu);
@@ -2028,11 +2029,31 @@ x64emurun:
             unimp = 1;
             goto fini;
         }
+#ifndef TEST_INTERPRETER
+#ifndef _WIN32
+        // check the TRACE flag before going to next
+        if(ACCESS_FLAG(F_TF)) {
+            R_RIP = addr;
+            emit_signal(emu, SIGTRAP, (void*)addr, 1);
+            if(emu->quit) goto fini;
+        }
+#endif
+#endif
         R_RIP = addr;
     }
 
 
 fini:
+#ifndef TEST_INTERPRETER
+#ifndef _WIN32
+    // check the TRACE flag before going to out, in case it's a step by step scenario
+    if(!emu->quit && !emu->fork && !emu->uc_link && ACCESS_FLAG(F_TF)) {
+        R_RIP = addr;
+        emit_signal(emu, SIGTRAP, (void*)addr, 1);
+        if(emu->quit) goto fini;
+    }
+#endif
+#endif
 //if(emu->segs[_CS]!=0x33 && emu->segs[_CS]!=0x23) printf_log(LOG_NONE, "Warning, CS is not default value: 0x%x\n", emu->segs[_CS]);
 #ifndef TEST_INTERPRETER
     if(unimp) {
