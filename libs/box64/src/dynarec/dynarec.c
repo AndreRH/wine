@@ -117,16 +117,21 @@ void DynaRun(x64emu_t* emu)
 {
 #ifndef _WIN32
     // prepare setjump for signal handling
-    struct __jmp_buf_tag jmpbuf[1] = {0};
+    JUMPBUFF jmpbuf[1] = {0};
     int skip = 0;
-    struct __jmp_buf_tag *old_jmpbuf = emu->jmpbuf;
+    JUMPBUFF *old_jmpbuf = emu->jmpbuf;
     emu->flags.jmpbuf_ready = 0;
 
     while(!(emu->quit)) {
         if(!emu->jmpbuf || (emu->flags.need_jmpbuf && emu->jmpbuf!=jmpbuf)) {
             emu->jmpbuf = jmpbuf;
             emu->flags.jmpbuf_ready = 1;
-            if((skip=sigsetjmp(emu->jmpbuf, 1))) {
+            #ifdef ANDROID
+            if((skip=sigsetjmp(*(JUMPBUFF*)emu->jmpbuf, 1))) 
+            #else
+            if((skip=sigsetjmp(emu->jmpbuf, 1))) 
+            #endif
+            {
                 printf_log(LOG_DEBUG, "Setjmp DynaRun, fs=0x%x\n", emu->segs[_FS]);
                 #ifdef DYNAREC
                 if(box64_dynarec_test) {
@@ -154,6 +159,7 @@ void DynaRun(x64emu_t* emu)
             int is32bits = 1; //(emu->segs[_CS]==0x23);
             if (box64_dynarec_log) printf_log(LOG_DEBUG, "about to DBGetBlock\n");
             dynablock_t* block = (skip)?NULL:DBGetBlock(emu, R_RIP, 1, is32bits);
+
             if (box64_dynarec_log) printf_log(LOG_DEBUG, "block %p\n", block);
             if (box64_dynarec_log) printf_log(LOG_DEBUG, "block->block %p\n", block->block);
             if (box64_dynarec_log) printf_log(LOG_DEBUG, "block->done %p\n", block->done);
@@ -166,7 +172,8 @@ void DynaRun(x64emu_t* emu)
                     block = (skip)?NULL:DBGetBlock(emu, R_RIP, 1, is32bits);
                 }
             }
-            if(!block || !block->block || !block->done) {
+
+            if(!block || !block->block || !block->done || ACCESS_FLAG(F_TF)) {
                 skip = 0;
                 // no block, of block doesn't have DynaRec content (yet, temp is not null)
                 // Use interpreter (should use single instruction step...)
