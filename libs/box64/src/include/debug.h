@@ -40,6 +40,15 @@ extern int rv64_zba;
 extern int rv64_zbb;
 extern int rv64_zbc;
 extern int rv64_zbs;
+extern int rv64_xtheadba;
+extern int rv64_xtheadbb;
+extern int rv64_xtheadbs;
+extern int rv64_xtheadcondmov;
+extern int rv64_xtheadmemidx;
+extern int rv64_xtheadmempair;
+extern int rv64_xtheadfmemidx;
+extern int rv64_xtheadmac;
+extern int rv64_xtheadfmv;
 #endif
 #endif
 extern int box64_libcef;
@@ -107,18 +116,19 @@ void printf_ftrace(const char* fmt, ...);
 #ifdef BUILD_DYNAMIC
 #define EXPORTDYN __attribute__((visibility("default")))
 #else
-#define EXPORTDYN 
+#define EXPORTDYN
 #endif
 
 void init_malloc_hook(void);
-extern size_t(*box_malloc_usable_size)(void*);
 #ifdef ANDROID
+extern size_t(*box_malloc_usable_size)(const void*);
 extern void*(*__libc_malloc)(size_t);
 extern void*(*__libc_realloc)(void*, size_t);
 extern void*(*__libc_calloc)(size_t, size_t);
 extern void (*__libc_free)(void*);
 extern void*(*__libc_memalign)(size_t, size_t);
 #else
+extern size_t(*box_malloc_usable_size)(void*);
 extern void* __libc_malloc(size_t);
 extern void* __libc_realloc(void*, size_t);
 extern void* __libc_calloc(size_t, size_t);
