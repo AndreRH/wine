@@ -24,9 +24,9 @@
 
 #define OTHER_CACHE()
 
-#include "la464/la464_printer.h"
-#include "la464/dynarec_la464_private.h"
-#include "la464/dynarec_la464_functions.h"
+//#include "la464/la464_printer.h"
+//#include "la464/dynarec_la464_private.h"
+//#include "la464/dynarec_la464_functions.h"
 #elif defined(RV64)
 
 #define instruction_native_t        instruction_rv64_t
@@ -38,9 +38,9 @@
 #define OTHER_CACHE()   \
     if (fpuCacheNeedsTransform(dyn, ninst)) ret|=2;
 
-#include "rv64/rv64_printer.h"
-#include "rv64/dynarec_rv64_private.h"
-#include "rv64/dynarec_rv64_functions.h"
+//#include "rv64/rv64_printer.h"
+//#include "rv64/dynarec_rv64_private.h"
+//#include "rv64/dynarec_rv64_functions.h"
 #else
 #error Unsupported platform
 #endif
