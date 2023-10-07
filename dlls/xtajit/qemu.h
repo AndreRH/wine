@@ -713,7 +713,11 @@ typedef enum {
 #define EXCP12_MCHK	18
 #define EXCP_SYSCALL    0x101 /* only for user emulation */
 
-
+#define PAGE_READ      0x0001
+#define PAGE_WRITE     0x0002
+#define PAGE_EXEC      0x0004
+#define PAGE_BITS      (PAGE_READ | PAGE_WRITE | PAGE_EXEC)
+#define PAGE_VALID     0x0008
 
 struct tb_tc {
     void *ptr;    /* pointer to the translated code */
