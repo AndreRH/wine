@@ -97,7 +97,7 @@ void FreeDynablock(dynablock_t* db, int need_lock)
 void MarkDynablock(dynablock_t* db)
 {
     if(db) {
-        dynarec_log(LOG_DEBUG, "MarkDynablock %p %p-%p\n", db, db->x64_addr, db->x64_addr+db->x64_size-1);
+        if (box64_dynarec_log) dynarec_log(LOG_DEBUG, "MarkDynablock %p %p-%p\n", db, db->x64_addr, db->x64_addr+db->x64_size-1);
         if(!setJumpTableIfRef64(db->x64_addr, db->jmpnext, db->block)) {
             dynablock_t* old = db;
             db = getDB((uintptr_t)old->x64_addr);
@@ -136,7 +136,7 @@ void MarkRangeDynablock(dynablock_t* db, uintptr_t addr, uintptr_t size)
     // Mark will try to find *any* blocks that intersect the range to mark
     if(!db)
         return;
-    dynarec_log(LOG_DEBUG, "MarkRangeDynablock %p-%p .. startdb=%p, sizedb=%p\n", (void*)addr, (void*)addr+size-1, (void*)db->x64_addr, (void*)db->x64_size);
+    if (box64_dynarec_log) dynarec_log(LOG_DEBUG, "MarkRangeDynablock %p-%p .. startdb=%p, sizedb=%p\n", (void*)addr, (void*)addr+size-1, (void*)db->x64_addr, (void*)db->x64_size);
     if(IntervalIntersects((uintptr_t)db->x64_addr, (uintptr_t)db->x64_addr+db->x64_size-1, addr, addr+size+1))
         MarkDynablock(db);
 }
