@@ -30,6 +30,10 @@ SOURCES = \
        src/dynarec/arm64/dynarec_arm64_00_1.c \
        src/dynarec/arm64/dynarec_arm64_00_2.c \
        src/dynarec/arm64/dynarec_arm64_00_3.c \
+       src/dynarec/arm64/dynarec_arm64_da_0.c \
+       src/dynarec/arm64/dynarec_arm64_da_1.c \
+       src/dynarec/arm64/dynarec_arm64_da_2.c \
+       src/dynarec/arm64/dynarec_arm64_da_3.c \
        src/dynarec/arm64/dynarec_arm64_db_0.c \
        src/dynarec/arm64/dynarec_arm64_db_1.c \
        src/dynarec/arm64/dynarec_arm64_db_2.c \
