@@ -29,9 +29,12 @@
 #define native_lock_decifnot0(A)            arm64_lock_decifnot0(A)
 #define native_lock_store(A, B)             arm64_lock_store(A, B)
 #define native_lock_store_dd(A, B)          arm64_lock_store_dd(A, B)
+#define native_lock_get_b(A)                arm64_lock_get_b(A)
+#define native_lock_get_d(A)                arm64_lock_get_d(A)
+#define native_lock_get_dd(A)               arm64_lock_get_dd(A)
 
 #elif defined(RV64)
-#include "rv64/rv64_lock.h"
+//#include "rv64/rv64_lock.h"
 
 #define USE_CAS
 // RV64 is quite strict (or at least strongly recommand) on what you can do between an LD.A and an SD.A
@@ -70,6 +73,9 @@
 // there is no atomic move on 16bytes, so faking it
 #define native_lock_read_dq(A, B, C)        *A=tmpcas=((uint64_t*)(C))[0]; *B=((uint64_t*)(C))[1];
 #define native_lock_write_dq(A, B, C)       rv64_lock_cas_dq(C, A, tmpcas, B);
+#define native_lock_get_b(A)                rv64_lock_get_b(A)
+#define native_lock_get_d(A)                rv64_lock_get_d(A)
+#define native_lock_get_dd(A)               rv64_lock_get_dd(A)
 
 #else
 #error Unsupported architecture
