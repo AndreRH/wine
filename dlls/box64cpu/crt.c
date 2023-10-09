@@ -1,7 +1,7 @@
 /*
  * Avoid issues with linking box64cpu by adding some crt functions
  *
- * Copyright 2014, 2023 André Zwing
+ * Copyright 2023 André Zwing
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,67 +18,47 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-extern double bsd__ieee754_pow(double, double);
-extern double bsd__ieee754_sqrt(double);
+#include <stdarg.h>
 
-#define FP_INFINITE   1
-#define FP_NAN        2
-#define FP_NORMAL    -1
-#define FP_SUBNORMAL -2
-#define FP_ZERO       0
-#define isinf(x) (__builtin_fpclassify(FP_NAN, FP_INFINITE, FP_NORMAL, FP_SUBNORMAL, FP_ZERO, x) == FP_INFINITE)
-#define isinff(x) (__builtin_fpclassify(FP_NAN, FP_INFINITE, FP_NORMAL, FP_SUBNORMAL, FP_ZERO, x) == FP_INFINITE)
-#define isnan(x) (__builtin_fpclassify(FP_NAN, FP_INFINITE, FP_NORMAL, FP_SUBNORMAL, FP_ZERO, x) == FP_NAN)
-#define isnanf(x) (__builtin_fpclassify(FP_NAN, FP_INFINITE, FP_NORMAL, FP_SUBNORMAL, FP_ZERO, x) == FP_NAN)
-#define isfinite(x) (__builtin_fpclassify(FP_NAN, FP_INFINITE, FP_NORMAL, FP_SUBNORMAL, FP_ZERO, x) < 0)
-#define min(a,b) (((a) < (b)) ? (a) : (b))
-#define HUGE_VALF __builtin_huge_valf()
+#define WIN32_NO_STATUS
+#include "windef.h"
+#include "winternl.h"
+#include "wine/debug.h"
 
-static inline double softmath_log(double x)
+WINE_DEFAULT_DEBUG_CHANNEL(wow);
+
+int __cdecl __stdio_common_vsprintf(unsigned __int64 a,char* b,size_t c,const char* d,_locale_t e,va_list f)
 {
-    int n, aprox = min(32, 8 / (x / 2));
-    double result = 0.0;
-
-    if (x == 0.0)
-        return -HUGE_VALF;
-    else if (x < 0.0001)
-        aprox = 32768;
-
-    for(n = 0; n < aprox; n++)
-    {
-        result += bsd__ieee754_pow((x - 1.0) / (x + 1.0), 2 * n + 1) * (1.0 / (2.0 * n + 1.0));
-        if (isinf(result))
-            break;
-    }
-    result *= 2;
-
-    return result;
+    return vsprintf(b, d, f);
 }
 
-double exp2(double x)
+void* CDECL calloc(size_t count, size_t size)
 {
-    return bsd__ieee754_pow(2, x);
+    void *ret = RtlAllocateHeap( GetProcessHeap(), HEAP_ZERO_MEMORY, size*count );
+    if ((ULONG_PTR)ret >> 32)
+        ERR( "ret above 4G, disabling\n" );
+    return ret;
 }
 
-double log2(double x)
+void CDECL free(void* ptr)
 {
-    return softmath_log(x) / 0.69314718246459960938;
+    if ((ULONG_PTR)ptr >> 32)
+        ERR( "ptr above 4G, disabling\n" );
+    RtlFreeHeap(GetProcessHeap(), 0, ptr);
 }
 
-double pow(double x, double y)
+void CDECL _assert (const char *_Message, const char *_File, unsigned _Line)
 {
-    return bsd__ieee754_pow(x, y);
+    ERR( "_assert not supported yet\n" );
+    ERR( "%s:%d: %s\n", _File, _Line, _Message);
 }
 
-double fabs(double x)
+double math_error(int type, const char *name, double arg1, double arg2, double retval)
 {
-    return __builtin_fabs(x);
+    TRACE("(%d, %s, %g, %g, %g)\n", type, debugstr_a(name), arg1, arg2, retval);
+    return retval;
 }
 
-float sqrtf(float x)
-{
-    return bsd__ieee754_sqrt(x);
-}
 
 typedef struct _div_t {
     int quot;
@@ -106,34 +86,4 @@ ldiv_t __cdecl ldiv(long num, long denom)
     ret.quot = num / denom;
     ret.rem = num % denom;
     return ret;
-}
-
-double ldexp(double x, int exp)
-{
-    return x * bsd__ieee754_pow(2, exp);
-}
-
-double frexp(double x, int *exp)
-{
-    double a;
-    int i = 0;
-
-    if (isnan(x) || isinf(x)) return x;
-    if (x == 0.0)
-    {
-        if (exp) *exp = 0;
-        return x;
-    }
-
-    a = fabs(x);
-
-    if (a >= 1)
-        while (pow(2, i) < a) i++;
-    else
-        while (pow(2, i) > a) i--;
-
-    if (a/pow(2, i) >= 1.0) i++;
-
-    if (exp) *exp = i;
-    return x/pow(2, i);
 }
