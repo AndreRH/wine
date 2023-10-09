@@ -177,7 +177,7 @@ void DynaRun(x64emu_t* emu)
                 skip = 0;
                 // no block, of block doesn't have DynaRec content (yet, temp is not null)
                 // Use interpreter (should use single instruction step...)
-                dynarec_log(LOG_DEBUG, "%04d|Running Interpreter @%p, emu=%p\n", GetTID(), (void*)R_RIP, emu);
+                if (box64_dynarec_log) dynarec_log(LOG_DEBUG, "%04d|Running Interpreter @%p, emu=%p\n", GetTID(), (void*)R_RIP, emu);
                 if(box64_dynarec_test)
                     emu->test.clean = 0;
                 Run(emu, 1);
