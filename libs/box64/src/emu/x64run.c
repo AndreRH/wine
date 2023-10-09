@@ -66,8 +66,7 @@ int Run(x64emu_t *emu, int step)
         printf_log(LOG_INFO, "%04d|Ask to run at NULL, will segfault\n", GetTID());
     }
     //ref opcode: http://ref.x64asm.net/geek32.html#xA1
-    printf_log(LOG_DEBUG, "Run X86 (%p), RIP=%p, Stack=%p is32bits=%d\n", emu, (void*)addr, (void*)R_RSP, is32bits);
-    //fprintf(stderr, "Run X86 (%p), RIP=%p, Stack=%p is32bits=%d\n", emu, (void*)addr, (void*)R_RSP, is32bits);
+    if (box64_dynarec_log) printf_log(LOG_DEBUG, "Run X86 (%p), RIP=%p, Stack=%p is32bits=%d\n", emu, (void*)addr, (void*)R_RSP, is32bits);
 
 x64emurun:
 #ifndef TEST_INTERPRETER
