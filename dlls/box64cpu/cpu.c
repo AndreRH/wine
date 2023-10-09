@@ -299,38 +299,6 @@ void applyFlushTo0(x64emu_t* emu)
     ERR( "not supported yet: applyFlushTo0\n" );
 }
 
-#define CRTHACK
-#ifdef CRTHACK
-
-int __cdecl __stdio_common_vsprintf(unsigned __int64 a,char* b,size_t c,const char* d,_locale_t e,va_list f)
-{
-    return vsprintf(b, d, f);
-}
-
-void* CDECL calloc(size_t count, size_t size)
-{
-    void *ret = RtlAllocateHeap( GetProcessHeap(), HEAP_ZERO_MEMORY, size*count );
-    if ((ULONG_PTR)ret >> 32)
-        ERR( "ret above 4G, disabling\n" );
-    TRACE( "ret: %p\n", ret );
-    return ret;
-}
-
-void CDECL free(void* ptr)
-{
-    if ((ULONG_PTR)ptr >> 32)
-        ERR( "ptr above 4G, disabling\n" );
-    TRACE( "ptr: %p\n", ptr );
-    RtlFreeHeap(GetProcessHeap(), 0, ptr);
-}
-
-void CDECL _assert (const char *_Message, const char *_File, unsigned _Line)
-{
-    ERR( "_assert not supported yet\n" );
-}
-
-#endif
-
 
 void x64Syscall(x64emu_t *emu)
 {
