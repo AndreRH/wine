@@ -807,7 +807,9 @@ static const WCHAR *get_cpu_dll_name(void)
     switch (current_machine)
     {
     case IMAGE_FILE_MACHINE_I386:
-        return L"fexcore.dll";
+        if (native_machine == IMAGE_FILE_MACHINE_ARM64)
+            return L"box64cpu.dll";
+        return L"wow64cpu.dll";
     case IMAGE_FILE_MACHINE_ARMNT:
         RtlInitUnicodeString( &nameW, L"\\Registry\\Machine\\Software\\Microsoft\\Wow64\\arm" );
         ret = L"wowarmhw.dll";
