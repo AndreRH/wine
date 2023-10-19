@@ -37,6 +37,7 @@
 #define IMAGE_FILE_MACHINE_AMD64   0x8664
 #define IMAGE_FILE_MACHINE_ARMNT   0x01C4
 #define IMAGE_FILE_MACHINE_ARM64   0xaa64
+#define IMAGE_FILE_MACHINE_RISCV64 0x5064
 
 #define IMAGE_SIZEOF_NT_OPTIONAL32_HEADER 224
 #define IMAGE_SIZEOF_NT_OPTIONAL64_HEADER 240
@@ -367,6 +368,52 @@ static void output_relay_debug( DLLSPEC *spec )
             break;
         }
 
+        case CPU_RISCV64:
+        {
+            int stack_size = 16 * ((min(odp->u.func.nb_args, 8) + 1) / 2);
+
+            output( "\t.balign 4\n" );
+            output( "__wine_spec_relay_entry_point_%d:\n", i );
+            output( "\taddi sp, sp, -%u\n", stack_size + 16 );
+            output( "\tsd fp, %u(sp)\n", stack_size );
+            output( "\tmv fp, sp\n" );
+            output( "\tsd ra, %u(sp)\n", stack_size + 8 );
+            switch (stack_size)
+            {
+            case 64:
+                output( "\tsd a7, 72(sp)\n" );
+                output( "\tsd a6, 64(sp)\n" );
+            /* fall through */
+            case 48:
+                output( "\tsd a5, 56(sp)\n" );
+                output( "\tsd a4, 48(sp)\n" );
+            /* fall through */
+            case 32:
+                output( "\tsd a3, 40(sp)\n" );
+                output( "\tsd a2, 32(sp)\n" );
+            /* fall through */
+            case 16:
+                output( "\tsd a1, 24(sp)\n" );
+                output( "\tsd a0, 16(sp)\n" );
+            /* fall through */
+            default: break;
+            }
+            output( "\taddi a2, sp, 16\n");
+            //output( "\tstp x8, x9, [SP,#-16]!\n" );
+            output( "\tli a1, %u\n", odp->u.func.args_str_offset << 16 );
+            output( "\tli a3, %u\n", i - spec->base );
+            output( "\tadd a1, a1, a3\n" );
+            output( "\tla a0, %s\n", asm_name(".L__wine_spec_relay_descr") );
+            output( "\tld a3, 8(a0)\n");
+            output( "\tjalr a3\n");
+            output( "\tmv sp, fp\n" );
+            output( "\tld fp, %u(sp)\n", stack_size );
+            output( "\tld ra, %u(sp)\n", stack_size + 8 );
+            output( "\taddi sp, sp, %u\n", stack_size + 16 );
+            output( "\tret\n");
+            break;
+        }
+
         case CPU_x86_64:
             output( "\t.balign 4\n" );
             output( "\t.long 0x90909090,0x90909090\n" );
@@ -654,6 +701,10 @@ void output_module( DLLSPEC *spec )
             output( "\n\t.section \".init\",\"ax\"\n" );
             output( "\tb 1f\n" );
             break;
+        case CPU_RISCV64:
+            output( "\n\t.section \".text\",\"ax\"\n" );
+            output( "\tj 1f\n" );
+            break;
         case CPU_ARM64EC:
             assert( 0 );
             break;
@@ -680,6 +731,7 @@ void output_module( DLLSPEC *spec )
     case CPU_x86_64:  machine = IMAGE_FILE_MACHINE_AMD64; break;
     case CPU_ARM:     machine = IMAGE_FILE_MACHINE_ARMNT; break;
     case CPU_ARM64:   machine = IMAGE_FILE_MACHINE_ARM64; break;
+    case CPU_RISCV64: machine = IMAGE_FILE_MACHINE_RISCV64; break;
     }
     output( "\t.short 0x%04x\n",          /* Machine */
              machine );
@@ -1098,6 +1150,7 @@ static void output_pe_file( DLLSPEC *spec, const char signature[32] )
     case CPU_x86_64:  put_word( IMAGE_FILE_MACHINE_AMD64 ); break;
     case CPU_ARM:     put_word( IMAGE_FILE_MACHINE_ARMNT ); break;
     case CPU_ARM64:   put_word( IMAGE_FILE_MACHINE_ARM64 ); break;
+    case CPU_RISCV64: put_word( IMAGE_FILE_MACHINE_RISCV64 ); break;
     }
     put_word( pe.sec_count );                        /* NumberOfSections */
     put_dword( hash_filename(spec->file_name) );     /* TimeDateStamp */

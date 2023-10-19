@@ -991,6 +991,7 @@ void output_gnu_stack_note(void)
         {
         case CPU_ARM:
         case CPU_ARM64:
+        case CPU_RISCV64:
             output( "\t.section .note.GNU-stack,\"\",%%progbits\n" );
             break;
         default:

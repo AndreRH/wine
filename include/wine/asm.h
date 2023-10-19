@@ -225,6 +225,17 @@
          "ldr x16, [x16]\n\t" \
          "blr x16\n\t" \
          "ret" :: "i" (id) )
+#elif defined __riscv64__
+# define __ASM_SYSCALL_FUNC(id,name) \
+    __ASM_GLOBAL_FUNC( name, \
+                       "li t0, (" #id ")\n\t" \
+                       "mv t1, ra\n\t" \
+                       "la t2, 1f\n\t" \
+                       "ld t2, 0(t2)\n\t" \
+                       "ld t2, 0(t2)\n\t" \
+                       "jalr t2\n\t" \
+                       "ret\n" \
+                       "1:\t.dword " __ASM_NAME("__wine_syscall_dispatcher") )
 #elif defined __x86_64__
 /* Chromium depends on syscall thunks having the same form as on
  * Windows. For 64-bit systems the only viable form we can emulate is
