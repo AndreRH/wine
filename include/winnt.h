@@ -1876,6 +1876,164 @@ typedef struct _KNONVOLATILE_CONTEXT_POINTERS
 
 #endif /* __aarch64__ */
 
+#define CONTEXT_RISCV64         0x800000
+#define CONTEXT_RISCV64_CONTROL         (CONTEXT_RISCV64 | 0x00000001)
+#define CONTEXT_RISCV64_INTEGER         (CONTEXT_RISCV64 | 0x00000002)
+#define CONTEXT_RISCV64_FLOATING_POINT  (CONTEXT_RISCV64 | 0x00000004)
+#define CONTEXT_RISCV64_DEBUG_REGISTERS (CONTEXT_RISCV64 | 0x00000008)
+#define CONTEXT_RISCV64_FULL (CONTEXT_RISCV64_CONTROL | CONTEXT_RISCV64_INTEGER | CONTEXT_RISCV64_FLOATING_POINT)
+#define CONTEXT_RISCV64_ALL  (CONTEXT_RISCV64_FULL | CONTEXT_RISCV64_DEBUG_REGISTERS)
+
+typedef struct _IMAGE_RISCV64_RUNTIME_FUNCTION_ENTRY
+{
+    DWORD BeginAddress;
+    union
+    {
+        DWORD UnwindData;
+        struct
+        {
+            DWORD Unknown;
+        } DUMMYSTRUCTNAME;
+    } DUMMYUNIONNAME;
+} IMAGE_RISCV64_RUNTIME_FUNCTION_ENTRY, *PIMAGE_RISCV64_RUNTIME_FUNCTION_ENTRY;
+
+typedef IMAGE_RISCV64_RUNTIME_FUNCTION_ENTRY RISCV64_RUNTIME_FUNCTION, *PRISCV64_RUNTIME_FUNCTION;
+
+typedef struct DECLSPEC_ALIGN(16) _RISCV64_CONTEXT /* FIXME: FPCR FPSR CPSR? */
+{
+    ULONG ContextFlags;                 /* 000 */
+    ULONG Align;                        /* 004 */
+    /* CONTEXT_INTEGER */
+    union
+    {
+        struct
+        {
+            DWORD64 Pc;                 /* 008 */
+            DWORD64 Ra;                 /* 010 */
+            DWORD64 Sp;                 /* 018 */
+            DWORD64 Gp;                 /* 020 */
+            DWORD64 Tp;                 /* 028 */
+            DWORD64 T0;                 /* 030 */
+            DWORD64 T1;                 /* 038 */
+            DWORD64 T2;                 /* 040 */
+            union
+            {
+                DWORD64 S0;
+                DWORD64 Fp;
+            } DUMMYUNIONNAME2;          /* 048 */
+            DWORD64 S1;                 /* 050 */
+            DWORD64 A0;                 /* 058 */
+            DWORD64 A1;                 /* 060 */
+            DWORD64 A2;                 /* 068 */
+            DWORD64 A3;                 /* 070 */
+            DWORD64 A4;                 /* 078 */
+            DWORD64 A5;                 /* 080 */
+            DWORD64 A6;                 /* 088 */
+            DWORD64 A7;                 /* 090 */
+            DWORD64 S2;                 /* 098 */
+            DWORD64 S3;                 /* 0a0 */
+            DWORD64 S4;                 /* 0a8 */
+            DWORD64 S5;                 /* 0b0 */
+            DWORD64 S6;                 /* 0b8 */
+            DWORD64 S7;                 /* 0c0 */
+            DWORD64 S8;                 /* 0c8 */
+            DWORD64 S9;                 /* 0d0 */
+            DWORD64 S10;                /* 0d8 */
+            DWORD64 S11;                /* 0e0 */
+            DWORD64 T3;                 /* 0e8 */
+            DWORD64 T4;                 /* 0f0 */
+            DWORD64 T5;                 /* 0f8 */
+            DWORD64 T6;                 /* 100 */
+        } DUMMYSTRUCTNAME;
+        DWORD64 X[32];                  /* 008 */
+    } DUMMYUNIONNAME1;
+    /* CONTEXT_FLOATING_POINT */
+    union
+    {
+        struct
+        {
+            DWORD64 F0;                 /* 108 */
+            DWORD64 F1;                 /* 110 */
+            DWORD64 F2;                 /* 118 */
+            DWORD64 F3;                 /* 120 */
+            DWORD64 F4;                 /* 128 */
+            DWORD64 F5;                 /* 130 */
+            DWORD64 F6;                 /* 138 */
+            DWORD64 F7;                 /* 140 */
+            DWORD64 F8;                 /* 148 */
+            DWORD64 F9;                 /* 150 */
+            DWORD64 F10;                /* 158 */
+            DWORD64 F11;                /* 160 */
+            DWORD64 F12;                /* 168 */
+            DWORD64 F13;                /* 170 */
+            DWORD64 F14;                /* 178 */
+            DWORD64 F15;                /* 180 */
+            DWORD64 F16;                /* 188 */
+            DWORD64 F17;                /* 190 */
+            DWORD64 F18;                /* 198 */
+            DWORD64 F19;                /* 1a0 */
+            DWORD64 F20;                /* 1a8 */
+            DWORD64 F21;                /* 1b0 */
+            DWORD64 F22;                /* 1b8 */
+            DWORD64 F23;                /* 1c0 */
+            DWORD64 F24;                /* 1c8 */
+            DWORD64 F25;                /* 1d0 */
+            DWORD64 F26;                /* 1d8 */
+            DWORD64 F27;                /* 1e0 */
+            DWORD64 F28;                /* 1e8 */
+            DWORD64 F29;                /* 1f0 */
+            DWORD64 F30;                /* 1f8 */
+            DWORD64 F31;                /* 200 */
+        } DUMMYSTRUCTNAME;
+        DWORD64 F[32];                  /* 108 */
+    } DUMMYUNIONNAME2;
+    /* CONTEXT_DEBUG_REGISTERS */
+} RISCV64_CONTEXT, *PRISCV64_CONTEXT;
+
+#ifdef __riscv64__
+
+#define CONTEXT_CONTROL CONTEXT_RISCV64_CONTROL
+#define CONTEXT_INTEGER CONTEXT_RISCV64_INTEGER
+#define CONTEXT_FLOATING_POINT CONTEXT_RISCV64_FLOATING_POINT
+#define CONTEXT_DEBUG_REGISTERS CONTEXT_RISCV64_DEBUG_REGISTERS
+#define CONTEXT_FULL CONTEXT_RISCV64_FULL
+#define CONTEXT_ALL CONTEXT_RISCV64_ALL
+
+typedef IMAGE_RISCV64_RUNTIME_FUNCTION_ENTRY RUNTIME_FUNCTION, *PRUNTIME_FUNCTION;
+typedef RISCV64_CONTEXT CONTEXT, *PCONTEXT;
+
+typedef struct _KNONVOLATILE_CONTEXT_POINTERS /* TODO */
+{
+    PDWORD64 Ra;
+    PDWORD64 Sp;
+    PDWORD64 Fp;
+    PDWORD64 S1;
+    PDWORD64 S2;
+    PDWORD64 S3;
+    PDWORD64 S4;
+    PDWORD64 S5;
+    PDWORD64 S6;
+    PDWORD64 S7;
+    PDWORD64 S8;
+    PDWORD64 S9;
+    PDWORD64 S10;
+    PDWORD64 S11;
+    PDWORD64 F8;
+    PDWORD64 F9;
+    PDWORD64 F18;
+    PDWORD64 F19;
+    PDWORD64 F20;
+    PDWORD64 F21;
+    PDWORD64 F22;
+    PDWORD64 F23;
+    PDWORD64 F24;
+    PDWORD64 F25;
+    PDWORD64 F26;
+    PDWORD64 F27;
+} KNONVOLATILE_CONTEXT_POINTERS, *PKNONVOLATILE_CONTEXT_POINTERS;
+
+#endif /* __riscv64__ */
+
 #if !defined(CONTEXT_FULL) && !defined(RC_INVOKED)
 #error You need to define a CONTEXT for your CPU
 #endif
@@ -2057,12 +2215,57 @@ typedef void (CALLBACK *PTERMINATION_HANDLER)(BOOLEAN,DWORD64);
 #define UNW_FLAG_EHANDLER  1
 #define UNW_FLAG_UHANDLER  2
 
+#elif defined(__riscv64__)
+
+#define UNWIND_HISTORY_TABLE_SIZE 12
+
+typedef struct _UNWIND_HISTORY_TABLE_ENTRY
+{
+    DWORD64 ImageBase;
+    PRUNTIME_FUNCTION FunctionEntry;
+} UNWIND_HISTORY_TABLE_ENTRY, *PUNWIND_HISTORY_TABLE_ENTRY;
+
+typedef struct _UNWIND_HISTORY_TABLE
+{
+    DWORD   Count;
+    BYTE    LocalHint;
+    BYTE    GlobalHint;
+    BYTE    Search;
+    BYTE    Once;
+    DWORD64 LowAddress;
+    DWORD64 HighAddress;
+    UNWIND_HISTORY_TABLE_ENTRY Entry[UNWIND_HISTORY_TABLE_SIZE];
+} UNWIND_HISTORY_TABLE, *PUNWIND_HISTORY_TABLE;
+
+typedef struct _DISPATCHER_CONTEXT
+{
+    ULONG_PTR             ControlPc;
+    ULONG_PTR             ImageBase;
+    PRUNTIME_FUNCTION     FunctionEntry;
+    ULONG_PTR             EstablisherFrame;
+    ULONG_PTR             TargetPc;
+    PCONTEXT              ContextRecord;
+    PEXCEPTION_ROUTINE    LanguageHandler;
+    PVOID                 HandlerData;
+    PUNWIND_HISTORY_TABLE HistoryTable;
+    DWORD                 ScopeIndex;
+    BOOLEAN               ControlPcIsUnwound;
+    PBYTE                 NonVolatileRegisters;
+} DISPATCHER_CONTEXT, *PDISPATCHER_CONTEXT;
+
+typedef LONG (CALLBACK *PEXCEPTION_FILTER)(struct _EXCEPTION_POINTERS*,DWORD64);
+typedef void (CALLBACK *PTERMINATION_HANDLER)(BOOLEAN,DWORD64);
+
+#define UNW_FLAG_NHANDLER  0
+#define UNW_FLAG_EHANDLER  1
+#define UNW_FLAG_UHANDLER  2
+
 #endif /* __aarch64__ */
 
 NTSYSAPI void    NTAPI RtlRaiseException(struct _EXCEPTION_RECORD*);
 NTSYSAPI void    NTAPI RtlUnwind(void*,void*,struct _EXCEPTION_RECORD*,void*);
 
-#if defined(__x86_64__) || defined(__arm__) || defined(__aarch64__)
+#if defined(__x86_64__) || defined(__arm__) || defined(__aarch64__) || defined(__riscv64__)
 
 typedef PRUNTIME_FUNCTION (CALLBACK *PGET_RUNTIME_FUNCTION_CALLBACK)(DWORD_PTR,PVOID);
 
@@ -2435,6 +2638,12 @@ static FORCEINLINE struct _TEB * WINAPI NtCurrentTeb(void)
 static FORCEINLINE struct _TEB * WINAPI NtCurrentTeb(void)
 {
     return (struct _TEB *)(ULONG_PTR)_MoveFromCoprocessor(15, 0, 13, 0, 2);
+}
+#elif defined(__riscv64__)
+register struct _TEB *__wine_current_teb __asm__("tp");
+static FORCEINLINE struct _TEB * WINAPI NtCurrentTeb(void)
+{
+    return __wine_current_teb;
 }
 #elif !defined(RC_INVOKED)
 # error You must define NtCurrentTeb() for your architecture
