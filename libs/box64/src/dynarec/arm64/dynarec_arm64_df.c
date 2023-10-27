@@ -36,6 +36,7 @@ uintptr_t dynarec64_DF(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
     int64_t j64;
     int64_t fixedaddress;
     int unscaled;
+    int i1;
 
     MAYUSE(s0);
     MAYUSE(v2);
@@ -53,12 +54,20 @@ uintptr_t dynarec64_DF(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
         case 0xC7:
             INST_NAME("FFREEP STx");
             // not handling Tag...
-            x87_do_pop(dyn, ninst, x3);
+            X87_POP_OR_FAIL(dyn, ninst, x3);
             break;
 
         case 0xE0:
             INST_NAME("FNSTSW AX");
             LDRw_U12(x2, xEmu, offsetof(x64emu_t, top));
+            if(dyn->n.x87stack) {
+                if(dyn->n.x87stack>0) {
+                    SUBw_U12(x2, x2, dyn->n.x87stack);
+                } else {
+                    ADDw_U12(x2, x2, -dyn->n.x87stack);
+                }
+                ANDw_mask(x2, x2, 0, 2);  //mask=7
+            }
             LDRH_U12(x1, xEmu, offsetof(x64emu_t, sw));
             BFIw(x1, x2, 11, 3); // inject top
             STRH_U12(x1, xEmu, offsetof(x64emu_t, sw));
@@ -83,7 +92,7 @@ uintptr_t dynarec64_DF(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                 FCMPD(v1, v2);
             }
             FCOMI(x1, x2);
-            x87_do_pop(dyn, ninst, x3);
+            X87_POP_OR_FAIL(dyn, ninst, x3);
             break;
         case 0xF0:
         case 0xF1:
@@ -104,7 +113,7 @@ uintptr_t dynarec64_DF(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                 FCMPD(v1, v2);
             }
             FCOMI(x1, x2);
-            x87_do_pop(dyn, ninst, x3);
+            X87_POP_OR_FAIL(dyn, ninst, x3);
             break;
 
         case 0xC8:
@@ -153,7 +162,7 @@ uintptr_t dynarec64_DF(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             switch((nextop>>3)&7) {
                 case 0:
                     INST_NAME("FILD ST0, Ew");
-                    v1 = x87_do_push(dyn, ninst, x1, NEON_CACHE_ST_F);
+                    X87_PUSH_OR_FAIL(v1, dyn, ninst, x1, NEON_CACHE_ST_F);
                     addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<1, 1, rex, NULL, 0, 0);
                     LDSHw(x1, wback, fixedaddress);
                     if(ST_IS_F(0)) {
@@ -198,7 +207,7 @@ uintptr_t dynarec64_DF(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                     MARK3;
                     STH(x3, wback, fixedaddress);
                     #endif
-                    x87_do_pop(dyn, ninst, x3);
+                    X87_POP_OR_FAIL(dyn, ninst, x3);
                     break;
                 case 2:
                     INST_NAME("FIST Ew, ST0");
@@ -277,19 +286,19 @@ uintptr_t dynarec64_DF(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                     MARK3;
                     STH(x3, wback, fixedaddress);
                     #endif
-                    x87_do_pop(dyn, ninst, x3);
+                    X87_POP_OR_FAIL(dyn, ninst, x3);
                     x87_restoreround(dyn, ninst, u8);
                     break;
                 case 4:
                     INST_NAME("FBLD ST0, tbytes");
-                    x87_do_push_empty(dyn, ninst, x1);
+                    X87_PUSH_EMPTY_OR_FAIL(dyn, ninst, x1);
                     addr = geted(dyn, addr, ninst, nextop, &ed, x1, &fixedaddress, NULL, 0, 0, rex, NULL, 0, 0);
                     if(ed!=x1) {MOVx_REG(x1, ed);}
                     CALL(fpu_fbld, -1);
                     break;
                 case 5:
                     INST_NAME("FILD ST0, i64");
-                    v1 = x87_do_push(dyn, ninst, x1, NEON_CACHE_ST_I64);
+                    X87_PUSH_OR_FAIL(v1, dyn, ninst, x1, NEON_CACHE_ST_I64);
                     addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<3, 7, rex, NULL, 0, 0);
                     VLD64(v1, wback, fixedaddress);
                     if(!ST_IS_I64(0)) {
@@ -317,11 +326,13 @@ uintptr_t dynarec64_DF(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                     break;
                 case 6:
                     INST_NAME("FBSTP tbytes, ST0");
+                    i1 = x87_stackcount(dyn, ninst, x1);
                     x87_forget(dyn, ninst, x1, x2, 0);
                     addr = geted(dyn, addr, ninst, nextop, &ed, x1, &fixedaddress, NULL, 0, 0, rex, NULL, 0, 0);
                     if(ed!=x1) {MOVx_REG(x1, ed);}
                     CALL(fpu_fbst, -1);
-                    x87_do_pop(dyn, ninst, x3);
+                    x87_unstackcount(dyn, ninst, x1, i1);
+                    X87_POP_OR_FAIL(dyn, ninst, x3);
                     break;
                 case 7:
                     INST_NAME("FISTP i64, ST0");
@@ -377,7 +388,7 @@ uintptr_t dynarec64_DF(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                         #endif
                         x87_restoreround(dyn, ninst, u8);
                     }
-                    x87_do_pop(dyn, ninst, x3);
+                    X87_POP_OR_FAIL(dyn, ninst, x3);
                     break;
                 default:
                     DEFAULT;
