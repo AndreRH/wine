@@ -539,14 +539,14 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
                 case 0x20:
                     INST_NAME("PMOVSXBW Gx, Ex");  // SSE4 opcode!
                     nextop = F8;
-                    GETEX(q1, 0, 0);
+                    GETEX64(q1, 0, 0);
                     GETGX_empty(q0);
                     SXTL_8(q0, q1);     // 8bits->16bits
                     break;
                 case 0x21:
                     INST_NAME("PMOVSXBD Gx, Ex");  // SSE4 opcode!
                     nextop = F8;
-                    GETEX(q1, 0, 0);
+                    GETEX32(q1, 0, 0);
                     GETGX_empty(q0);
                     SXTL_8(q0, q1);     // 8bits->16bits
                     SXTL_16(q0, q0);    //16bits->32bits
@@ -554,7 +554,7 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
                 case 0x22:
                     INST_NAME("PMOVSXBQ Gx, Ex");  // SSE4 opcode!
                     nextop = F8;
-                    GETEX(q1, 0, 0);
+                    GETEX16(q1, 0, 0);
                     GETGX_empty(q0);
                     SXTL_8(q0, q1);     // 8bits->16bits
                     SXTL_16(q0, q0);    //16bits->32bits
@@ -563,14 +563,14 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
                 case 0x23:
                     INST_NAME("PMOVSXWD Gx, Ex");  // SSE4 opcode!
                     nextop = F8;
-                    GETEX(q1, 0, 0);
+                    GETEX64(q1, 0, 0);
                     GETGX_empty(q0);
                     SXTL_16(q0, q1);     // 16bits->32bits
                     break;
                 case 0x24:
                     INST_NAME("PMOVSXWQ Gx, Ex");  // SSE4 opcode!
                     nextop = F8;
-                    GETEX(q1, 0, 0);
+                    GETEX32(q1, 0, 0);
                     GETGX_empty(q0);
                     SXTL_16(q0, q1);     // 16bits->32bits
                     SXTL_32(q0, q0);     // 32bits->64bits
@@ -578,7 +578,7 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
                 case 0x25:
                     INST_NAME("PMOVSXDQ Gx, Ex");  // SSE4 opcode!
                     nextop = F8;
-                    GETEX(q1, 0, 0);
+                    GETEX64(q1, 0, 0);
                     GETGX_empty(q0);
                     SXTL_32(q0, q1);     // 32bits->64bits
                     break;
@@ -635,14 +635,14 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
                 case 0x30:
                     INST_NAME("PMOVZXBW Gx, Ex");  // SSE4 opcode!
                     nextop = F8;
-                    GETEX(q1, 0, 0);
+                    GETEX64(q1, 0, 0);
                     GETGX_empty(q0);
                     UXTL_8(q0, q1);     // 8bits->16bits
                     break;
                 case 0x31:
                     INST_NAME("PMOVZXBD Gx, Ex");  // SSE4 opcode!
                     nextop = F8;
-                    GETEX(q1, 0, 0);
+                    GETEX32(q1, 0, 0);
                     GETGX_empty(q0);
                     UXTL_8(q0, q1);     // 8bits->16bits
                     UXTL_16(q0, q0);    //16bits->32bits
@@ -650,7 +650,7 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
                 case 0x32:
                     INST_NAME("PMOVZXBQ Gx, Ex");  // SSE4 opcode!
                     nextop = F8;
-                    GETEX(q1, 0, 0);
+                    GETEX16(q1, 0, 0);
                     GETGX_empty(q0);
                     UXTL_8(q0, q1);     // 8bits->16bits
                     UXTL_16(q0, q0);    //16bits->32bits
@@ -659,14 +659,14 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
                 case 0x33:
                     INST_NAME("PMOVZXWD Gx, Ex");  // SSE4 opcode!
                     nextop = F8;
-                    GETEX(q1, 0, 0);
+                    GETEX64(q1, 0, 0);
                     GETGX_empty(q0);
                     UXTL_16(q0, q1);     // 16bits->32bits
                     break;
                 case 0x34:
                     INST_NAME("PMOVZXWQ Gx, Ex");  // SSE4 opcode!
                     nextop = F8;
-                    GETEX(q1, 0, 0);
+                    GETEX32(q1, 0, 0);
                     GETGX_empty(q0);
                     UXTL_16(q0, q1);     // 16bits->32bits
                     UXTL_32(q0, q0);     // 32bits->64bits
@@ -674,10 +674,11 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
                 case 0x35:
                     INST_NAME("PMOVZXDQ Gx, Ex");  // SSE4 opcode!
                     nextop = F8;
-                    GETEX(q1, 0, 0);
+                    GETEX64(q1, 0, 0);
                     GETGX_empty(q0);
                     UXTL_32(q0, q1);     // 32bits->64bits
                     break;
+
                 case 0x37:
                     INST_NAME("PCMPGTQ Gx, Ex"); // SSE4 opcode!
                     nextop = F8;
@@ -1085,7 +1086,22 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
                         SMWRITE2();
                     }
                     break;
-
+                case 0x17:
+                    INST_NAME("EXTRACTPS Ew, Gx, Ib");
+                    nextop = F8;
+                    GETGX(q0, 0);
+                    if (MODREG) {
+                        ed = xRAX+(nextop&7)+(rex.b<<3);
+                        u8 = F8&0b11;
+                        MOVx_REG(ed, xZR);
+                        VMOVSto(ed, q0, u8);
+                    } else {
+                        addr = geted(dyn, addr, ninst, nextop, &wback, x2, &fixedaddress, NULL, 0xfff<<2, 3, rex, NULL, 0, 1);
+                        u8 = F8&0b11;
+                        VMOVSto(x1, q0, u8);
+                        STW(x1, wback, fixedaddress);
+                    }
+                    break;
                 case 0x20:
                     INST_NAME("PINSRB Gx, ED, Ib");
                     nextop = F8;
@@ -1094,7 +1110,77 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
                     u8 = F8;
                     VMOVQBfrom(q0, (u8&15), ed);
                     break;
-
+                case 0x21:
+                    INST_NAME("INSERTPS Gx, Ex, Ib");
+                    nextop = F8;
+                    GETGX(q0, 1);
+                    d0 = fpu_get_scratch(dyn);
+                    VMOVQ(d0, q0);
+                    if (MODREG) {
+                        q1 = sse_get_reg(dyn, ninst, x1, (nextop & 7) + (rex.b << 3), 0);
+                        u8 = F8;
+                        uint8_t count_d = (u8 >> 4) & 3;
+                        uint8_t count_s = u8 >> 6;
+                        #define GO(A) \
+                            switch (count_d) {              \
+                                case 0:                     \
+                                    VMOVeS(d0, 0, q1, A);   \
+                                    break;                  \
+                                case 1:                     \
+                                    VMOVeS(d0, 1, q1, A);   \
+                                    break;                  \
+                                case 2:                     \
+                                    VMOVeS(d0, 2, q1, A);   \
+                                    break;                  \
+                                case 3:                     \
+                                    VMOVeS(q0, 3, q1, A);   \
+                                    break;                  \
+                            }
+                        switch (count_s) {
+                            case 0:
+                                GO(0)
+                                break;
+                            case 1:
+                                GO(1)
+                                break;
+                            case 2:
+                                GO(2)
+                                break;
+                            case 3:
+                                GO(3)
+                                break;
+                        }
+                        #undef GO
+                    } else {
+                        SMREAD();
+                        addr = geted(dyn, addr, ninst, nextop, &ed, x1, &fixedaddress, &unscaled, 0xfff<<2, 3, rex, NULL, 0, 1);
+                        u8 = F8;
+                        uint8_t count_d = (u8 >> 4) & 3;
+                        LDW(x2, ed, fixedaddress);
+                        switch (count_d) {
+                            case 0:
+                                VMOVQSfrom(d0, 0, x2);
+                                break; 
+                            case 1:
+                                VMOVQSfrom(d0, 1, x2);
+                                break;
+                            case 2:
+                                VMOVQSfrom(d0, 2, x2);
+                                break;
+                            case 3:
+                                VMOVQSfrom(d0, 3, x2);
+                                break;
+                        }
+                    }
+                    uint8_t zmask = u8 & 0xf;
+                    for (uint8_t i=0; i<4; i++) {
+                        if (zmask & (1<<i)) {
+                            VMOVQSfrom(q0, i, wZR);
+                        } else {
+                            VMOVeS(q0, i, d0, i);
+                        }
+                    }
+                    break;
                 case 0x22:
                     INST_NAME("PINSRD Gx, ED, Ib");
                     nextop = F8;
@@ -1255,9 +1341,16 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
         case 0x57:
             INST_NAME("XORPD Gx, Ex");
             nextop = F8;
-            GETEX(q0, 0, 0);
-            GETGX(v0, 1);
-            VEORQ(v0, v0, q0);
+            GETG;
+            if(MODREG && ((nextop&7)+(rex.b<<3)==gd)) {
+                // special case for XORPD Gx, Gx
+                q0 = sse_get_reg_empty(dyn, ninst, x1, gd);
+                VEORQ(q0, q0, q0);
+            } else {
+                q0 = sse_get_reg(dyn, ninst, x1, gd, 1);
+                GETEX(q1, 0, 0);
+                VEORQ(q0, q0, q1);
+            }
             break;
         case 0x58:
             INST_NAME("ADDPD Gx, Ex");
@@ -1595,6 +1688,15 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
                 } else if(u8==0xFF) {
                     // duplicate slot 3 to all spot
                     VDUPQ_32(v0, v1, 3);
+                } else if(u8==0x44) {
+                    // duplicate slot 0/1 to all spot
+                    VDUPQ_64(v0, v1, 0);
+                } else if(u8==0xEE) {
+                    // duplicate slot 2/3 to all spot
+                    VDUPQ_64(v0, v1, 1);
+                } else if(u8==0xB1) {
+                    // invert 0/1 and 2/3
+                    VREV64Q_32(v0, v1);
                 } else if(v0!=v1) {
                     VMOVeS(v0, 0, v1, (u8>>(0*2))&3);
                     VMOVeS(v0, 1, v1, (u8>>(1*2))&3);
