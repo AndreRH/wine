@@ -53,7 +53,7 @@ uintptr_t dynarec64_D9(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
         case 0xC6:
         case 0xC7:
             INST_NAME("FLD STx");
-            v2 = x87_do_push(dyn, ninst, x1, X87_ST(nextop&7));
+            X87_PUSH_OR_FAIL(v2, dyn, ninst, x1, X87_ST(nextop&7));
             v1 = x87_get_st(dyn, ninst, x1, x2, (nextop&7)+1, X87_COMBINE(0, (nextop&7)+1));
             if(ST_IS_F(0)) {
                 FMOVS(v2, v1);
@@ -86,7 +86,7 @@ uintptr_t dynarec64_D9(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
 
         case 0xD8:
             INST_NAME("FSTPNCE ST0, ST0");
-            x87_do_pop(dyn, ninst, x3);
+            X87_POP_OR_FAIL(dyn, ninst, x3);
             break;
         case 0xD9:
         case 0xDA:
@@ -100,7 +100,7 @@ uintptr_t dynarec64_D9(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             x87_get_st_empty(dyn, ninst, x1, x2, nextop&7, X87_ST(nextop&7));
             x87_get_st(dyn, ninst, x1, x2, 0, X87_ST0);
             x87_swapreg(dyn, ninst, x1, x2, 0, nextop&7);
-            x87_do_pop(dyn, ninst, x3);
+            X87_POP_OR_FAIL(dyn, ninst, x3);
             break;
         case 0xE0:
             INST_NAME("FCHS");
@@ -140,7 +140,7 @@ uintptr_t dynarec64_D9(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
 
         case 0xE8:
             INST_NAME("FLD1");
-            v1 = x87_do_push(dyn, ninst, x1, NEON_CACHE_ST_F);
+            X87_PUSH_OR_FAIL(v1, dyn, ninst, x1, NEON_CACHE_ST_F);
             if(ST_IS_F(0)) {
                 FMOVS_8(v1, 0b01110000);
             } else {
@@ -149,82 +149,123 @@ uintptr_t dynarec64_D9(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             break;
         case 0xE9:
             INST_NAME("FLDL2T");
-            v1 = x87_do_push(dyn, ninst, x1, NEON_CACHE_ST_D);
+            X87_PUSH_OR_FAIL(v1, dyn, ninst, x1, NEON_CACHE_ST_D);
             FTABLE64(v1, L2T);
             break;
-        case 0xEA:     
+        case 0xEA:
             INST_NAME("FLDL2E");
-            v1 = x87_do_push(dyn, ninst, x1, NEON_CACHE_ST_D);
+            X87_PUSH_OR_FAIL(v1, dyn, ninst, x1, NEON_CACHE_ST_D);
             FTABLE64(v1, L2E);
             break;
         case 0xEB:
             INST_NAME("FLDPI");
-            v1 = x87_do_push(dyn, ninst, x1, NEON_CACHE_ST_D);
+            X87_PUSH_OR_FAIL(v1, dyn, ninst, x1, NEON_CACHE_ST_D);
             FTABLE64(v1, PI);
             break;
         case 0xEC:
             INST_NAME("FLDLG2");
-            v1 = x87_do_push(dyn, ninst, x1, NEON_CACHE_ST_D);
+            X87_PUSH_OR_FAIL(v1, dyn, ninst, x1, NEON_CACHE_ST_D);
             FTABLE64(v1, LG2);
             break;
         case 0xED:
             INST_NAME("FLDLN2");
-            v1 = x87_do_push(dyn, ninst, x1, NEON_CACHE_ST_D);
+            X87_PUSH_OR_FAIL(v1, dyn, ninst, x1, NEON_CACHE_ST_D);
             FTABLE64(v1, LN2);
             break;
         case 0xEE:
             INST_NAME("FLDZ");
-            v1 = x87_do_push(dyn, ninst, x1, NEON_CACHE_ST_F);
+            X87_PUSH_OR_FAIL(v1, dyn, ninst, x1, NEON_CACHE_ST_F);
             VEOR(v1, v1, v1);
             break;
 
         case 0xF0:
             INST_NAME("F2XM1");
             MESSAGE(LOG_DUMP, "Need Optimization\n");
+            i1 = x87_stackcount(dyn, ninst, x1);
             x87_forget(dyn, ninst, x1, x2, 0);
             CALL(native_f2xm1, -1);
+            x87_unstackcount(dyn, ninst, x1, i1);
             break;
         case 0xF1:
             INST_NAME("FYL2X");
             MESSAGE(LOG_DUMP, "Need Optimization\n");
+            i1 = x87_stackcount(dyn, ninst, x1);
             x87_forget(dyn, ninst, x1, x2, 0);
             x87_forget(dyn, ninst, x1, x2, 1);
             CALL(native_fyl2x, -1);
-            x87_do_pop(dyn, ninst, x3);
+            x87_unstackcount(dyn, ninst, x1, i1);
+            X87_POP_OR_FAIL(dyn, ninst, x3);
             break;
         case 0xF2:
             INST_NAME("FPTAN");
             MESSAGE(LOG_DUMP, "Need Optimization\n");
+            i1 = x87_stackcount(dyn, ninst, x1);
             x87_forget(dyn, ninst, x1, x2, 0);
             CALL(native_ftan, -1);
-            v1 = x87_do_push(dyn, ninst, x1, NEON_CACHE_ST_F);
-            if(ST_IS_F(0)) {
-                FMOVS_8(v1, 0b01110000);
+            x87_unstackcount(dyn, ninst, x1, i1);
+            if(PK(0)==0xdd && PK(1)==0xd8) {
+                MESSAGE(LOG_DUMP, "Optimized next DD D8 fstp st0, st0, not emiting 1\n");
+                u8 = F8;
+                u8 = F8;
             } else {
-                FMOVD_8(v1, 0b01110000);
+                X87_PUSH_OR_FAIL(v1, dyn, ninst, x1, NEON_CACHE_ST_F);
+                if(ST_IS_F(0)) {
+                    FMOVS_8(v1, 0b01110000);
+                } else {
+                    FMOVD_8(v1, 0b01110000);
+                }
             }
             break;
         case 0xF3:
             INST_NAME("FPATAN");
             MESSAGE(LOG_DUMP, "Need Optimization\n");
+            i1 = x87_stackcount(dyn, ninst, x1);
             x87_forget(dyn, ninst, x1, x2, 0);
             x87_forget(dyn, ninst, x1, x2, 1);
             CALL(native_fpatan, -1);
-            x87_do_pop(dyn, ninst, x3);
+            x87_unstackcount(dyn, ninst, x1, i1);
+            X87_POP_OR_FAIL(dyn, ninst, x3);
             break;
         case 0xF4:
             INST_NAME("FXTRACT");
             MESSAGE(LOG_DUMP, "Need Optimization\n");
-            x87_do_push_empty(dyn, ninst, 0);
+            X87_PUSH_EMPTY_OR_FAIL(dyn, ninst, 0);
+            i1 = x87_stackcount(dyn, ninst, x1);
             x87_forget(dyn, ninst, x1, x2, 1);
             CALL(native_fxtract, -1);
+            x87_unstackcount(dyn, ninst, x1, i1);
             break;
         case 0xF5:
             INST_NAME("FPREM1");
             MESSAGE(LOG_DUMP, "Need Optimization\n");
+            #if 0
+            i1 = x87_stackcount(dyn, ninst, x1);
             x87_forget(dyn, ninst, x1, x2, 0);
             x87_forget(dyn, ninst, x1, x2, 1);
             CALL(native_fprem1, -1);
+            x87_unstackcount(dyn, ninst, x1, i1);
+            #else
+            v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
+            v2 = x87_get_st(dyn, ninst, x1, x2, 1, NEON_CACHE_ST_D);
+            s0 = fpu_get_scratch(dyn);
+            FDIVD(s0, v1, v2);
+            FRINTRRD(s0, s0, 0b00); // Nearest == TieToEven?
+            FCVTZSxD(x4, s0);
+            FMULD(s0, s0, v2);
+            FSUBD(v1, v1, s0);
+            LDRw_U12(x1, xEmu, offsetof(x64emu_t, sw));
+            // set C2 = 0
+            BFCw(x1, 10, 1);
+            // set C1 = Q0
+            BFIw(x1, x4, 9, 1);
+            // set C3 = Q1
+            LSRx_IMM(x4, x4, 1);
+            BFIw(x1, x4, 14, 1);
+            // Set C0 = Q2
+            LSRx(x4, x4, 1);
+            BFIw(x1, x4, 8, 1);
+            STRw_U12(x1, xEmu, offsetof(x64emu_t, sw));
+            #endif
             break;
         case 0xF6:
             INST_NAME("FDECSTP");
@@ -244,18 +285,45 @@ uintptr_t dynarec64_D9(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             break;
         case 0xF8:
             INST_NAME("FPREM");
+            #if 0
             MESSAGE(LOG_DUMP, "Need Optimization\n");
+            i1 = x87_stackcount(dyn, ninst, x1);
             x87_forget(dyn, ninst, x1, x2, 0);
             x87_forget(dyn, ninst, x1, x2, 1);
             CALL(native_fprem, -1);
+            x87_unstackcount(dyn, ninst, x1, i1);
+            #else
+            v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
+            v2 = x87_get_st(dyn, ninst, x1, x2, 1, NEON_CACHE_ST_D);
+            s0 = fpu_get_scratch(dyn);
+            FDIVD(s0, v1, v2);
+            FRINTZD(s0, s0);
+            FCVTZSxD(x4, s0);
+            FMULD(s0, s0, v2);
+            FSUBD(v1, v1, s0);
+            LDRw_U12(x1, xEmu, offsetof(x64emu_t, sw));
+            // set C2 = 0
+            BFCw(x1, 10, 1);
+            // set C1 = Q0
+            BFIw(x1, x4, 9, 1);
+            // set C3 = Q1
+            LSRx_IMM(x4, x4, 1);
+            BFIw(x1, x4, 14, 1);
+            // Set C0 = Q2
+            LSRx(x4, x4, 1);
+            BFIw(x1, x4, 8, 1);
+            STRw_U12(x1, xEmu, offsetof(x64emu_t, sw));
+            #endif
             break;
         case 0xF9:
             INST_NAME("FYL2XP1");
             MESSAGE(LOG_DUMP, "Need Optimization\n");
+            i1 = x87_stackcount(dyn, ninst, x1);
             x87_forget(dyn, ninst, x1, x2, 0);
             x87_forget(dyn, ninst, x1, x2, 1);
             CALL(native_fyl2xp1, -1);
-            x87_do_pop(dyn, ninst, x3);
+            x87_unstackcount(dyn, ninst, x1, i1);
+            X87_POP_OR_FAIL(dyn, ninst, x3);
             break;
         case 0xFA:
             INST_NAME("FSQRT");
@@ -269,9 +337,11 @@ uintptr_t dynarec64_D9(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
         case 0xFB:
             INST_NAME("FSINCOS");
             MESSAGE(LOG_DUMP, "Need Optimization\n");
-            x87_do_push_empty(dyn, ninst, 0);
+            X87_PUSH_EMPTY_OR_FAIL(dyn, ninst, 0);
+            i1 = x87_stackcount(dyn, ninst, x1);
             x87_forget(dyn, ninst, x1, x2, 1);
             CALL(native_fsincos, -1);
+            x87_unstackcount(dyn, ninst, x1, i1);
             break;
         case 0xFC:
             INST_NAME("FRNDINT");
@@ -294,21 +364,27 @@ uintptr_t dynarec64_D9(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
         case 0xFD:
             INST_NAME("FSCALE");
             MESSAGE(LOG_DUMP, "Need Optimization\n");
+            i1 = x87_stackcount(dyn, ninst, x1);
             x87_forget(dyn, ninst, x1, x2, 0);
             x87_forget(dyn, ninst, x1, x2, 1);
             CALL(native_fscale, -1);
+            x87_unstackcount(dyn, ninst, x1, i1);
             break;
         case 0xFE:
             INST_NAME("FSIN");
             MESSAGE(LOG_DUMP, "Need Optimization\n");
+            i1 = x87_stackcount(dyn, ninst, x1);
             x87_forget(dyn, ninst, x1, x2, 0);
             CALL(native_fsin, -1);
+            x87_unstackcount(dyn, ninst, x1, i1);
             break;
         case 0xFF:
             INST_NAME("FCOS");
             MESSAGE(LOG_DUMP, "Need Optimization\n");
+            i1 = x87_stackcount(dyn, ninst, x1);
             x87_forget(dyn, ninst, x1, x2, 0);
             CALL(native_fcos, -1);
+            x87_unstackcount(dyn, ninst, x1, i1);
             break;
 
 
@@ -324,12 +400,12 @@ uintptr_t dynarec64_D9(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
         case 0xEF:
             DEFAULT;
             break;
-             
+
         default:
             switch((nextop>>3)&7) {
                 case 0:
                     INST_NAME("FLD ST0, float[ED]");
-                    v1 = x87_do_push(dyn, ninst, x1, box64_dynarec_x87double?NEON_CACHE_ST_D:NEON_CACHE_ST_F);
+                    X87_PUSH_OR_FAIL(v1, dyn, ninst, x1, box64_dynarec_x87double?NEON_CACHE_ST_D:NEON_CACHE_ST_F);
                     addr = geted(dyn, addr, ninst, nextop, &ed, x2, &fixedaddress, &unscaled, 0xfff<<2, 3, rex, NULL, 0, 0);
                     VLD32(v1, ed, fixedaddress);
                     if(!ST_IS_F(0)) {
@@ -356,7 +432,7 @@ uintptr_t dynarec64_D9(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                         FCVT_S_D(v1, v1);
                     }
                     VST32(v1, ed, fixedaddress);
-                    x87_do_pop(dyn, ninst, x3);
+                    X87_POP_OR_FAIL(dyn, ninst, x3);
                     break;
                 case 4:
                     INST_NAME("FLDENV Ed");
