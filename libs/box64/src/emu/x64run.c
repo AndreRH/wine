@@ -729,7 +729,13 @@ x64emurun:
                 if(rex.w) {
                     GD->q[0] = native_lock_xchg_dd(ED, GD->q[0]);
                 } else {
-                    GD->q[0] = native_lock_xchg_d(ED, GD->dword[0]);
+                    if((uintptr_t)ED&3) {
+                        // not aligned, dont't try to "LOCK"
+                        tmp32u = ED->dword[0];
+                        ED->dword[0] = GD->dword[0];
+                        GD->q[0] = tmp32u;
+                    } else
+                        GD->q[0] = native_lock_xchg_d(ED, GD->dword[0]);
                 }
             }
 #else
@@ -2063,12 +2069,12 @@ fini:
     // fork handling
     if(emu->fork) {
         addr = R_RIP;
-        if(step)
-            return 0;
         int forktype = emu->fork;
         emu->quit = 0;
         emu->fork = 0;
         emu = x64emu_fork(emu, forktype);
+        if(step)
+            return 0;
         goto x64emurun;
     }
     // setcontext handling
