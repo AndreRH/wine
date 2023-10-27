@@ -70,6 +70,14 @@ SOURCES = \
        src/dynarec/arm64/dynarec_arm64_67_1.c \
        src/dynarec/arm64/dynarec_arm64_67_2.c \
        src/dynarec/arm64/dynarec_arm64_67_3.c \
+       src/dynarec/arm64/dynarec_arm64_67_32_0.c \
+       src/dynarec/arm64/dynarec_arm64_67_32_1.c \
+       src/dynarec/arm64/dynarec_arm64_67_32_2.c \
+       src/dynarec/arm64/dynarec_arm64_67_32_3.c \
+       src/dynarec/arm64/dynarec_arm64_6764_32_0.c \
+       src/dynarec/arm64/dynarec_arm64_6764_32_1.c \
+       src/dynarec/arm64/dynarec_arm64_6764_32_2.c \
+       src/dynarec/arm64/dynarec_arm64_6764_32_3.c \
        src/dynarec/arm64/dynarec_arm64_660f_0.c \
        src/dynarec/arm64/dynarec_arm64_660f_1.c \
        src/dynarec/arm64/dynarec_arm64_660f_2.c \

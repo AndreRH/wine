@@ -72,7 +72,10 @@ int box64_dynarec_wait = 1;
 int box64_dynarec_test = 0;
 int box64_dynarec_missing = 0;
 int box64_dynarec_trace = 0;
+int box64_dynarec_aligned_atomics = 0;
 
+int arm64_atomics = 0;
+int arm64_flagm = 0;
 int arm64_aes = 1;
 int arm64_pmull = 0;
 int box64_log = 1;

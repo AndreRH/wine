@@ -1949,12 +1949,13 @@ uintptr_t dynarec64_0F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             nextop = F8;
             GETGM(d0);
             GETEM(d1, 0);
-            if(MODREG)
-                q0 = fpu_get_scratch(dyn);
-            else
-                q0 = d1;
-            NEG_64(q0, d1);
-            USHL_R_64(d0, d0, q0);
+            v0 = fpu_get_scratch(dyn);
+            //MOVI_64(v0, 64);  not 64!
+            MOV32w(x1, 64);
+            VMOVQDfrom(v0, 0, x1);
+            UMIN_32(v0, v0, d1);    // limit to 0 .. +64 values (will force 32bits upper part to 0)
+            NEG_64(v0, v0);
+            USHL_R_64(d0, d0, v0);
             break;
         case 0xD4:
             INST_NAME("PADDQ Gm,Em");
@@ -2173,10 +2174,10 @@ uintptr_t dynarec64_0F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             USHL_R_64(d0, d0, d1);
             break;
         case 0xF4:
-            INST_NAME("PMULUDQ Gx,Ex");
+            INST_NAME("PMULUDQ Gm,Em");
             nextop = F8;
-            GETGX(v0, 1);
-            GETEX(v1, 0, 0);
+            GETGM(v0);
+            GETEM(v1, 0);
             VUMULL_32(v0, v0, v1);
             break;
         case 0xF5:

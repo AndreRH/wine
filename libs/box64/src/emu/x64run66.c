@@ -114,12 +114,40 @@ uintptr_t Run66(x64emu_t *emu, rex_t rex, int rep, uintptr_t addr)
     GO(0x28, sub)                   /* SUB 0x29 ~> 0x2D */
     GO(0x30, xor)                   /* XOR 0x31 ~> 0x35 */
 
+    case 0x06:                      /* PUSH ES */
+        if(!rex.is32bits) {
+            return 0;
+        }
+        Push32(emu, emu->segs[_ES]);  // even if a segment is a 16bits, a 32bits push/pop is done
+        break;
+    case 0x07:                      /* POP ES */
+        if(!rex.is32bits) {
+            return 0;
+        }
+        emu->segs[_ES] = Pop32(emu);    // no check, no use....
+        emu->segs_serial[_ES] = 0;
+        break;
+
     case 0x0F:                              /* more opcdes */
         #ifdef TEST_INTERPRETER
         return Test660F(test, rex, addr);
         #else
         return Run660F(emu, rex, addr);
         #endif
+
+        case 0x1E:                      /* PUSH DS */
+            if(!rex.is32bits) {
+                return 0;
+            }
+            Push32(emu, emu->segs[_DS]);  // even if a segment is a 16bits, a 32bits push/pop is done
+            break;
+        case 0x1F:                      /* POP DS */
+            if(!rex.is32bits) {
+                return 0;
+            }
+            emu->segs[_DS] = Pop32(emu);    // no check, no use....
+            emu->segs_serial[_DS] = 0;
+            break;
 
     case 0x39:
         nextop = F8;
@@ -364,6 +392,12 @@ uintptr_t Run66(x64emu_t *emu, rex_t rex, int rep, uintptr_t addr)
             GD->q[0] = tmp64u;
         else
             GD->word[0] = (uint16_t)tmp64u;
+        break;
+    case 0x8E:                               /* MOV Seg,Ew */
+        nextop = F8;
+        GETEW(0);
+        emu->segs[((nextop&0x38)>>3)] = EW->word[0];
+        emu->segs_serial[((nextop&0x38)>>3)] = 0;
         break;
 
     case 0x90:                      /* NOP or XCHG R8d, AX*/
