@@ -15,6 +15,7 @@
 #include "emu/x64run_private.h"
 #include "x64trace.h"
 #include "dynarec_native.h"
+#include "custommem.h"
 
 #include "arm64_printer.h"
 #include "dynarec_arm64_private.h"
@@ -44,7 +45,7 @@ uintptr_t dynarec64_66(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
     MAYUSE(j64);
     MAYUSE(lock);
 
-    while((opcode==0x2E) || (opcode==0x36) || (opcode==0x66))   // ignoring CS:, SS: or multiple 0x66
+    while((opcode==0x2E) || (opcode==0x36) || (opcode==0x26) || (opcode==0x66))   // ignoring CS:, SS:, ES: or multiple 0x66
         opcode = F8;
 
     while((opcode==0xF2) || (opcode==0xF3)) {
@@ -83,6 +84,25 @@ uintptr_t dynarec64_66(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             MOV32w(x2, i32);
             emit_add16(dyn, ninst, x1, x2, x3, x4);
             BFIx(xRAX, x1, 0, 16);
+            break;
+        case 0x06:
+            if(rex.is32bits) {
+                INST_NAME("PUSH ES");
+                LDRH_U12(x1, xEmu, offsetof(x64emu_t, segs[_ES]));
+                PUSH1_32(x1);
+            } else {
+                DEFAULT;
+            }
+            break;
+        case 0x07:
+            if(rex.is32bits) {
+                INST_NAME("POP ES");
+                POP1_32(x1);
+                STRH_U12(x1, xEmu, offsetof(x64emu_t, segs[_ES]));
+                STRw_U12(xZR, xEmu, offsetof(x64emu_t, segs_serial[_ES]));
+            } else {
+                DEFAULT;
+            }
             break;
 
         case 0x09:
@@ -176,6 +196,25 @@ uintptr_t dynarec64_66(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             MOVZw(x2, i16);
             emit_sbb16(dyn, ninst, x1, x2, x3, x4);
             BFIx(xRAX, x1, 0, 16);
+            break;
+        case 0x1E:
+            if(rex.is32bits) {
+                INST_NAME("PUSH DS");
+                LDRH_U12(x1, xEmu, offsetof(x64emu_t, segs[_DS]));
+                PUSH1_32(x1);
+            } else {
+                DEFAULT;
+            }
+            break;
+        case 0x1F:
+            if(rex.is32bits) {
+                INST_NAME("POP DS");
+                POP1_32(x1);
+                STRH_U12(x1, xEmu, offsetof(x64emu_t, segs[_DS]));
+                STRw_U12(xZR, xEmu, offsetof(x64emu_t, segs_serial[_DS]));
+            } else {
+                DEFAULT;
+            }
             break;
 
         case 0x21:
@@ -602,7 +641,7 @@ uintptr_t dynarec64_66(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             INST_NAME("MOV EW, Seg");
             nextop=F8;
             u8 = (nextop&0x38)>>3;
-            LDRw_U12(x3, xEmu, offsetof(x64emu_t, segs[u8]));
+            LDRH_U12(x3, xEmu, offsetof(x64emu_t, segs[u8]));
             if((nextop&0xC0)==0xC0) {   // reg <= seg
                 UXTHw(xRAX+(nextop&7)+(rex.b<<3), x3);
             } else {                    // mem <= seg
@@ -610,6 +649,22 @@ uintptr_t dynarec64_66(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                 STH(x3, wback, fixedaddress);
                 SMWRITE2();
             }
+            break;
+
+        case 0x8E:
+            INST_NAME("MOV Seg,Ew");
+            nextop = F8;
+            u8 = (nextop&0x38)>>3;
+            if((nextop&0xC0)==0xC0) {
+                ed = xRAX+(nextop&7)+(rex.b<<3);
+            } else {
+                SMREAD();
+                addr = geted(dyn, addr, ninst, nextop, &wback, x2, &fixedaddress, &unscaled, 0xfff<<1, 1, rex, NULL, 0, 0);
+                LDH(x1, wback, fixedaddress);
+                ed = x1;
+            }
+            STRH_U12(ed, xEmu, offsetof(x64emu_t, segs[u8]));
+            STRw_U12(wZR, xEmu, offsetof(x64emu_t, segs_serial[u8]));
             break;
 
             case 0x90:
@@ -671,7 +726,8 @@ uintptr_t dynarec64_66(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             else
                 u64 = F64;
             MOV64z(x1, u64);
-            SMREAD();
+            if(isLockAddress(u64)) lock=1; else lock = 0;
+            SMREADLOCK(lock);
             LDRH_U12(x2, x1, 0);
             BFIx(xRAX, x2, 0, 16);
             break;
@@ -683,8 +739,9 @@ uintptr_t dynarec64_66(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             else
                 u64 = F64;
             MOV64z(x1, u64);
+            if(isLockAddress(u64)) lock=1; else lock = 0;
             STRH_U12(xRAX, x1, 0);
-            SMWRITE();
+            SMWRITELOCK(lock);
             break;
 
         case 0xA5:
