@@ -184,13 +184,13 @@ esac
 
 enable_win16=${enable_win16:-i386}
 enable_win64=${enable_win64:-no}
-enable_wow64=${enable_wow64:-aarch64,x86_64}
-enable_wow64win=${enable_wow64win:-aarch64,x86_64}
+enable_wow64=${enable_wow64:-aarch64,x86_64,riscv64}
+enable_wow64win=${enable_wow64win:-aarch64,x86_64,riscv64}
 enable_wow64cpu=${enable_wow64cpu:-x86_64}
-enable_box64cpu=${enable_box64cpu:-aarch64}
+enable_box64cpu=${enable_box64cpu:-aarch64,riscv64}
 enable_fexcore=${enable_fexcore:-aarch64,x86_64}
-enable_xtajit=${enable_xtajit:-aarch64,x86_64}
-enable_wowarmhw=${enable_wowarmhw:-aarch64,x86_64}
+enable_xtajit=${enable_xtajit:-aarch64,x86_64,riscv64}
+enable_wowarmhw=${enable_wowarmhw:-aarch64,x86_64,riscv64}
 enable_vcruntime140_1=${enable_vcruntime140_1:-x86_64,arm64ec}
 
 dnl Explicitly enable some programs for arm64ec
@@ -224,6 +224,7 @@ case "$host_cpu" in
   arm*)            HOST_ARCH=arm ;;
   i[[3456789]]86*) HOST_ARCH=i386 ;;
   x86_64)          HOST_ARCH=x86_64 ;;
+  riscv64)         HOST_ARCH=riscv64 ;;
 esac
 m4_set_add_all([_AC_SUBST_VARS],[HOST_ARCH]m4_foreach([cpu],[aarch64,arm,arm64ec,i386,x86_64],
                                 [m4_foreach([var],[CC,CFLAGS,EXTRACFLAGS,LDFLAGS,DEBUG,TARGET,DELAYLOADFLAG,DISABLED_SUBDIRS],[,cpu[_]var])]))
@@ -2042,11 +2043,13 @@ AC_SUBST(WINELOADER_PROGRAMS,"$wine_binary")
 
 case $host_os in
   linux*)
-    if test $HOST_ARCH != unknown
-    then
-        test "$wine_binary" = wine || WINE_IGNORE_FILE(loader/wine-preloader)
-        WINELOADER_PROGRAMS="$WINELOADER_PROGRAMS $wine_binary-preloader"
-    fi
+    case $HOST_ARCH in
+      i386|x86_64|aarch64|arm)
+			test "$wine_binary" = wine || WINE_IGNORE_FILE(loader/wine-preloader)
+			WINELOADER_PROGRAMS="$WINELOADER_PROGRAMS $wine_binary-preloader"
+            ;;
+      *)    ;;
+    esac
     ;;
   darwin*|macosx*)
     if test "$wine_can_build_preloader" = "yes"
@@ -2376,6 +2379,7 @@ case $host_cpu in
   *powerpc*)        WINE_CHECK_DEFINE([__powerpc__]) ;;
   *aarch64*)        WINE_CHECK_DEFINE([__aarch64__]) ;;
   *arm*)            WINE_CHECK_DEFINE([__arm__]) ;;
+  *riscv64*)        WINE_CHECK_DEFINE([__riscv64__]) ;;
 esac
 
 case $host_vendor in

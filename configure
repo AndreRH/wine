@@ -6440,13 +6440,13 @@ esac
 
 enable_win16=${enable_win16:-i386}
 enable_win64=${enable_win64:-no}
-enable_wow64=${enable_wow64:-aarch64,x86_64}
-enable_wow64win=${enable_wow64win:-aarch64,x86_64}
+enable_wow64=${enable_wow64:-aarch64,x86_64,riscv64}
+enable_wow64win=${enable_wow64win:-aarch64,x86_64,riscv64}
 enable_wow64cpu=${enable_wow64cpu:-x86_64}
-enable_box64cpu=${enable_box64cpu:-aarch64}
+enable_box64cpu=${enable_box64cpu:-aarch64,riscv64}
 enable_fexcore=${enable_fexcore:-aarch64,x86_64}
-enable_xtajit=${enable_xtajit:-aarch64,x86_64}
-enable_wowarmhw=${enable_wowarmhw:-aarch64,x86_64}
+enable_xtajit=${enable_xtajit:-aarch64,x86_64,riscv64}
+enable_wowarmhw=${enable_wowarmhw:-aarch64,x86_64,riscv64}
 enable_vcruntime140_1=${enable_vcruntime140_1:-x86_64,arm64ec}
 
 enable_cmd=${enable_cmd:-yes}
@@ -6479,6 +6479,7 @@ case "$host_cpu" in
   arm*)            HOST_ARCH=arm ;;
   i[3456789]86*) HOST_ARCH=i386 ;;
   x86_64)          HOST_ARCH=x86_64 ;;
+  riscv64)         HOST_ARCH=riscv64 ;;
 esac
 
 
@@ -20158,11 +20159,13 @@ WINELOADER_PROGRAMS="$wine_binary"
 
 case $host_os in
   linux*)
-    if test $HOST_ARCH != unknown
-    then
-        test "$wine_binary" = wine || as_fn_append CONFIGURE_TARGETS " loader/wine-preloader"
-        WINELOADER_PROGRAMS="$WINELOADER_PROGRAMS $wine_binary-preloader"
-    fi
+    case $HOST_ARCH in
+      i386|x86_64|aarch64|arm)
+			test "$wine_binary" = wine || as_fn_append CONFIGURE_TARGETS " loader/wine-preloader"
+			WINELOADER_PROGRAMS="$WINELOADER_PROGRAMS $wine_binary-preloader"
+            ;;
+      *)    ;;
+    esac
     ;;
   darwin*|macosx*)
     if test "$wine_can_build_preloader" = "yes"
@@ -21555,6 +21558,35 @@ if test "x$ac_cv_cpp_def___arm__" = xyes
 then :
   CFLAGS="$CFLAGS -D__arm__"
   LINTFLAGS="$LINTFLAGS -D__arm__"
+fi ;;
+  *riscv64*)        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether we need to define __riscv64__" >&5
+printf %s "checking whether we need to define __riscv64__... " >&6; }
+if test ${ac_cv_cpp_def___riscv64__+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#ifndef __riscv64__
+yes
+#endif
+_ACEOF
+if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
+  $EGREP "yes" >/dev/null 2>&1
+then :
+  ac_cv_cpp_def___riscv64__=yes
+else $as_nop
+  ac_cv_cpp_def___riscv64__=no
+fi
+rm -rf conftest*
+
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_cpp_def___riscv64__" >&5
+printf "%s\n" "$ac_cv_cpp_def___riscv64__" >&6; }
+if test "x$ac_cv_cpp_def___riscv64__" = xyes
+then :
+  CFLAGS="$CFLAGS -D__riscv64__"
+  LINTFLAGS="$LINTFLAGS -D__riscv64__"
 fi ;;
 esac
 
