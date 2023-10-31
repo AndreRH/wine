@@ -45,6 +45,9 @@ static const WCHAR source_disks_files_platform[] = L"SourceDisksFiles.arm";
 #elif defined(__aarch64__)
 static const WCHAR source_disks_names_platform[] = L"SourceDisksNames.arm64";
 static const WCHAR source_disks_files_platform[] = L"SourceDisksFiles.arm64";
+#elif defined(__riscv64__)
+static const WCHAR source_disks_names_platform[] = L"SourceDisksNames.riscv64";
+static const WCHAR source_disks_files_platform[] = L"SourceDisksFiles.riscv64";
 #else  /* FIXME: other platforms */
 static const WCHAR source_disks_names_platform[] = L"SourceDisksNames";
 static const WCHAR source_disks_files_platform[] = L"SourceDisksFiles";
