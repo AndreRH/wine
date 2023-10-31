@@ -132,6 +132,34 @@ typedef struct _JUMP_BUFFER
 #define _JBLEN  24
 #define _JBTYPE unsigned __int64
 
+#elif defined(__riscv64__)
+
+typedef struct _JUMP_BUFFER
+{
+    unsigned __int64 Frame;
+    unsigned __int64 Reserved;
+    unsigned __int64 Ra;
+    unsigned __int64 Fp;
+    unsigned __int64 S1;
+    unsigned __int64 S2;
+    unsigned __int64 S3;
+    unsigned __int64 S4;
+    unsigned __int64 S5;
+    unsigned __int64 S6;
+    unsigned __int64 S7;
+    unsigned __int64 S8;
+    unsigned __int64 S9;
+    unsigned __int64 S10;
+    unsigned __int64 S11;
+    unsigned __int64 Sp;
+    double D[12];
+    /*unsigned long Fpcr;
+    unsigned long Fpsr;*/
+} _JUMP_BUFFER;
+
+#define _JBLEN  16
+#define _JBTYPE unsigned __int64
+
 #else
 
 #define _JBLEN 1
