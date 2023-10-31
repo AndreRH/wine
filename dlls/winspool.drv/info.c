@@ -132,9 +132,10 @@ static const printenv_t env_x64 = { L"Windows x64", L"x64", 3, L"\\Version-3", L
 static const printenv_t env_x86 = { L"Windows NT x86", L"w32x86", 3, L"\\Version-3", L"\\3" };
 static const printenv_t env_arm = { L"Windows ARM", L"arm", 3, L"\\Version-3", L"\\3" };
 static const printenv_t env_arm64 = { L"Windows ARM64", L"arm64", 3, L"\\Version-3", L"\\3" };
+static const printenv_t env_riscv64 = { L"Windows RISCV64", L"riscv64", 3, L"\\Version-3", L"\\3" };
 static const printenv_t env_win40 = { L"Windows 4.0", L"win40", 0, L"\\Version-0", L"\\0" };
 
-static const printenv_t * const all_printenv[] = { &env_x86, &env_x64, &env_arm, &env_arm64, &env_win40 };
+static const printenv_t * const all_printenv[] = { &env_x86, &env_x64, &env_arm, &env_arm64, &env_riscv64, &env_win40 };
 
 #ifdef __i386__
 #define env_arch env_x86
@@ -144,6 +145,8 @@ static const printenv_t * const all_printenv[] = { &env_x86, &env_x64, &env_arm,
 #define env_arch env_arm
 #elif defined __aarch64__
 #define env_arch env_arm64
+#elif defined __riscv64__
+#define env_arch env_riscv64
 #else
 #error not defined for this cpu
 #endif
