@@ -53,6 +53,11 @@ static const WCHAR source_disks_names_platform[] =
     {'S','o','u','r','c','e','D','i','s','k','s','N','a','m','e','s','.','a','r','m','6','4',0};
 static const WCHAR source_disks_files_platform[] =
     {'S','o','u','r','c','e','D','i','s','k','s','F','i','l','e','s','.','a','r','m','6','4',0};
+#elif defined(__riscv64__)
+static const WCHAR source_disks_names_platform[] =
+    {'S','o','u','r','c','e','D','i','s','k','s','N','a','m','e','s','.','r','i','s','c','v','6','4',0};
+static const WCHAR source_disks_files_platform[] =
+    {'S','o','u','r','c','e','D','i','s','k','s','F','i','l','e','s','.','r','i','s','c','v','6','4',0};
 #else  /* FIXME: other platforms */
 static const WCHAR source_disks_names_platform[] =
     {'S','o','u','r','c','e','D','i','s','k','s','N','a','m','e','s',0};
