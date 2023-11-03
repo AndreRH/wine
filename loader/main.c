@@ -134,6 +134,8 @@ static void *load_ntdll( char *argv0 )
 #define SO_DIR "arm-unix/"
 #elif defined(__aarch64__)
 #define SO_DIR "aarch64-unix/"
+#elif defined(__riscv64__)
+#define SO_DIR "riscv64-unix/"
 #else
 #define SO_DIR ""
 #endif
