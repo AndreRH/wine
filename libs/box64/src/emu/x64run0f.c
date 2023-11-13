@@ -1142,6 +1142,8 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
                             ED->dword[0] ^= (1<<tmp8u);
                             CLEAR_FLAG(F_CF);
                         }
+                        if(MODREG)
+                            ED->dword[1] = 0;
                     }
                     break;
                 case 6:             /* BTR Ed, Ib */
@@ -1162,6 +1164,8 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
                             ED->dword[0] ^= (1<<tmp8u);
                         } else
                             CLEAR_FLAG(F_CF);
+                        if(MODREG)
+                            ED->dword[1] = 0;
                     }
                     break;
                 case 7:             /* BTC Ed, Ib */
@@ -1182,6 +1186,8 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
                         else
                             CLEAR_FLAG(F_CF);
                         ED->dword[0] ^= (1<<tmp8u);
+                        if(MODREG)
+                            ED->dword[1] = 0;
                     }
                     break;
 
