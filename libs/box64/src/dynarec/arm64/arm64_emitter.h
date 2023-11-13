@@ -1104,6 +1104,12 @@
 #define FADDP_vector(Q, sz, Rm, Rn, Rd) ((Q)<<30 | 1<<29 | 0b01110<<24 | (sz)<<22 | 1<<21 | (Rm)<<16 | 0b11010<<11 | 1<<10 | (Rn)<<5 | (Rd))
 #define VFADDPQS(Vd, Vn, Vm)        EMIT(FADDP_vector(1, 0, Vm, Vn, Vd))
 #define VFADDPQD(Vd, Vn, Vm)        EMIT(FADDP_vector(1, 1, Vm, Vn, Vd))
+#define VFADDPS(Vd, Vn, Vm)         EMIT(FADDP_vector(0, 0, Vm, Vn, Vd))
+#define VFADDPD(Vd, Vn, Vm)         EMIT(FADDP_vector(0, 1, Vm, Vn, Vd))
+
+#define FADDP_scalar(sz, Rn, Rd)        (0b01<<30 | 1<<29 | 0b11110<<24 | (sz)<<22 | 0b11000<<17 | 0b01101<<12 | 0b10<<10 | (Rn)<<5 | (Rd))
+#define FADDPS(Sd, Sn)              EMIT(FADDP_scalar(0, Sn, Sd))
+#define FADDPD(Dd, Dn)              EMIT(FADDP_scalar(1, Dn, Dd))
 
 // NEG / ABS
 #define FNEGABS_scalar(type, opc, Rn, Rd)  (0b11110<<24 | (type)<<22 | 1<<21 | (opc)<<15 | 0b10000<<10 | (Rn)<<5 | (Rd))
@@ -1766,8 +1772,9 @@
 // MOV Immediate
 #define MOVI_vector(Q, op, abc, cmode, defgh, Rd)   ((Q)<<30 | (op)<<29 | 0b0111100000<<19 | (abc)<<16 | (cmode)<<12 | 1<<10 | (defgh)<<5 | (Rd))
 #define MOVIQ_8(Rd, imm8)           EMIT(MOVI_vector(1, 0, (((imm8)>>5)&0b111), 0b1110, ((imm8)&0b11111), Rd))
+#define MOVIQ_16(Rd, imm8, lsl8)    EMIT(MOVI_vector(1, 0, (((imm8)>>5)&0b111), 0b1000|((lsl8)?0b10:0), ((imm8)&0b11111), Rd))
 #define MOVI_8(Rd, imm8)            EMIT(MOVI_vector(0, 0, (((imm8)>>5)&0b111), 0b1110, ((imm8)&0b11111), Rd))
-#define MOVI_16(Rd, imm8)           EMIT(MOVI_vector(0, 0, (((imm8)>>5)&0b111), 0b1000, ((imm8)&0b11111), Rd))
+#define MOVI_16(Rd, imm8, lsl8)     EMIT(MOVI_vector(0, 0, (((imm8)>>5)&0b111), 0b1000|((lsl8)?0b10:0), ((imm8)&0b11111), Rd))
 #define MOVI_32(Rd, imm8)           EMIT(MOVI_vector(0, 0, (((imm8)>>5)&0b111), 0b0000, ((imm8)&0b11111), Rd))
 #define MOVI_64(Rd, imm8)           EMIT(MOVI_vector(0, 1, (((imm8)>>5)&0b111), 0b1110, ((imm8)&0b11111), Rd))
 
@@ -2151,5 +2158,12 @@
 #define FRINT64XS(Sd, Sn)           EMIT(FRINTxx_scalar(0b00, 0b11, Sn, Sd))
 #define FRINT64XD(Dd, Dn)           EMIT(FRINTxx_scalar(0b01, 0b11, Dn, Dd))
 
+// CRC32 extension
+#define CRC32C_gen(sf, Rm, sz, Rn, Rd)  ((sf)<<31 | 0b11010110<<21 | (Rm)<<16 | 0b010<<13 | 1<<12 | (sz)<<10 | (Rn)<<5 | (Rd))
+#define CRC32CB(Wd, Wn, Wm)         EMIT(CRC32C_gen(0, Wm, 0b00, Wn, Wd))
+#define CRC32CH(Wd, Wn, Wm)         EMIT(CRC32C_gen(0, Wm, 0b01, Wn, Wd))
+#define CRC32CW(Wd, Wn, Wm)         EMIT(CRC32C_gen(0, Wm, 0b10, Wn, Wd))
+#define CRC32CX(Wd, Wn, Xm)         EMIT(CRC32C_gen(1, Xm, 0b11, Wn, Wd))
+#define CRC32Cxw(Wd, Wn, Rm)        EMIT(CRC32C_gen(rex.w, Rm, 0b10|rex.w, Wn, Wd))
 
 #endif  //__ARM64_EMITTER_H__

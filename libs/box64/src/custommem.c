@@ -87,6 +87,7 @@ static uint64_t  memprot_allocated = 0, memprot_max_allocated = 0;
 #endif
 static memprot_t memprot[1<<MEMPROT_SIZE0];    // x86_64 mem is 48bits, page is 12bits, so memory is tracked as [20][16][page protection]
 static uint8_t   memprot_default[MEMPROT_SIZE];
+static int have48bits = 0;
 static int inited = 0;
 
 typedef struct mapmem_s {
@@ -94,7 +95,8 @@ typedef struct mapmem_s {
     struct mapmem_s *next;
 } mapmem_t;
 
-static mapmem_t *mapmem = NULL;
+static mapmem_t *mapallmem = NULL;
+static mapmem_t *mmapmem = NULL;
 
 typedef struct blocklist_s {
     void*               block;
@@ -1109,7 +1111,6 @@ void protectDB(uintptr_t addr, uintptr_t size)
             prot = native_lock_xchg_b(&block[i&0xffff], PROT_WAIT);
         } while(prot==PROT_WAIT);
         uint32_t dyn = prot&PROT_DYN;
-        uint32_t mapped = prot&PROT_MMAP;
         if(!prot)
             prot = PROT_READ | PROT_WRITE | PROT_EXEC;      // comes from malloc & co, so should not be able to execute
         prot&=~PROT_CUSTOM;
@@ -1126,12 +1127,11 @@ void protectDB(uintptr_t addr, uintptr_t size)
                 if (box64_dynarec_log) printf_log(LOG_DEBUG, "ntstatus %08x %p %d -> %d %x\n", ntstatus, (void*)(i<<MEMPROT_SHIFT), old_prot, prot_unix_to_win32(prot&~PROT_WRITE), box64_pagesize);
             }
 #else
-                mprotect((void*)(i<<MEMPROT_SHIFT), 1<<MEMPROT_SHIFT, prot&~PROT_WRITE);
+                    mprotect((void*)(i<<MEMPROT_SHIFT), 1<<MEMPROT_SHIFT, prot&~PROT_WRITE);
 #endif
-                prot |= mapped|PROT_DYNAREC;
+                prot |= PROT_DYNAREC;
             } else 
-                prot |= mapped|PROT_DYNAREC_R;
-
+                prot |= PROT_DYNAREC_R;
         }
         native_lock_storeb(&block[i&0xffff], prot);
     }
@@ -1168,11 +1168,11 @@ void unprotectDB(uintptr_t addr, size_t size, int mark)
                 ULONG old_prot;
                 SIZE_T allocsize = 1<<MEMPROT_SHIFT;
                 void *why = (void*)(i<<MEMPROT_SHIFT);
-                ntstatus = NtProtectVirtualMemory( GetCurrentProcess(), &why, &allocsize, prot_unix_to_win32(prot&~PROT_MMAP), &old_prot );
-                if (box64_dynarec_log) printf_log(LOG_DEBUG, "ntstatus %08x %p %d -> %d %x\n", ntstatus, (void*)(i<<MEMPROT_SHIFT), old_prot, prot_unix_to_win32(prot&~PROT_MMAP), box64_pagesize);
+                ntstatus = NtProtectVirtualMemory( GetCurrentProcess(), &why, &allocsize, prot_unix_to_win32(prot), &old_prot );
+                if (box64_dynarec_log) printf_log(LOG_DEBUG, "ntstatus %08x %p %d -> %d %x\n", ntstatus, (void*)(i<<MEMPROT_SHIFT), old_prot, prot_unix_to_win32(prot), box64_pagesize);
             }
 #else
-                    mprotect((void*)(i<<MEMPROT_SHIFT), 1<<MEMPROT_SHIFT, prot&~PROT_MMAP);
+                    mprotect((void*)(i<<MEMPROT_SHIFT), 1<<MEMPROT_SHIFT, prot);
 
 #endif
 
@@ -1212,7 +1212,7 @@ int isprotectedDB(uintptr_t addr, size_t size)
 
 #endif
 
-void printMapMem()
+void printMapMem(mapmem_t* mapmem)
 {
     mapmem_t* m = mapmem;
     while(m) {
@@ -1221,10 +1221,12 @@ void printMapMem()
     }
 }
 
-void addMapMem(uintptr_t begin, uintptr_t end)
+void addMapMem(mapmem_t* mapmem, uintptr_t begin, uintptr_t end)
 {
     if(!mapmem)
         return;
+    if(begin<box64_pagesize)
+        begin = box64_pagesize;
     begin &=~(box64_pagesize-1);
     end = (end&~(box64_pagesize-1))+(box64_pagesize-1); // full page
     // sanitize values
@@ -1260,10 +1262,12 @@ void addMapMem(uintptr_t begin, uintptr_t end)
     }
     // all done!
 }
-void removeMapMem(uintptr_t begin, uintptr_t end)
+void removeMapMem(mapmem_t* mapmem, uintptr_t begin, uintptr_t end)
 {
     if(!mapmem)
         return;
+    if(begin<box64_pagesize)
+        begin = box64_pagesize;
     begin &=~(box64_pagesize-1);
     end = (end&~(box64_pagesize-1))+(box64_pagesize-1); // full page
     // sanitize values
@@ -1314,7 +1318,7 @@ void updateProtection(uintptr_t addr, size_t size, uint32_t prot)
     if(end>=(1LL<<(48-MEMPROT_SHIFT)))
         end = (1LL<<(48-MEMPROT_SHIFT))-1;
     mutex_lock(&mutex_prot);
-    addMapMem(addr, addr+size-1);
+    addMapMem(mapallmem, addr, addr+size-1);
     UNLOCK_DYNAREC();
     uintptr_t bidx = ~1LL;
     uint8_t *block = NULL;
@@ -1325,7 +1329,6 @@ void updateProtection(uintptr_t addr, size_t size, uint32_t prot)
         }
         GET_PROT_WAIT(old_prot, i&0xffff);
         uint32_t dyn=(old_prot&PROT_DYN);
-        uint32_t mapped=(old_prot&PROT_MMAP);
         if(!(dyn&PROT_NOPROT)) {
             if(dyn && (prot&PROT_WRITE)) {   // need to remove the write protection from this block
                 dyn = PROT_DYNAREC;
@@ -1346,7 +1349,7 @@ void updateProtection(uintptr_t addr, size_t size, uint32_t prot)
                 dyn = PROT_DYNAREC_R;
             }
         }
-        SET_PROT(i&0xffff, prot|dyn|mapped);
+        SET_PROT(i&0xffff, prot|dyn);
     }
     UNLOCK_NODYNAREC();
 }
@@ -1358,7 +1361,7 @@ void setProtection(uintptr_t addr, size_t size, uint32_t prot)
     if(end>=(1LL<<(48-MEMPROT_SHIFT)))
         end = (1LL<<(48-MEMPROT_SHIFT))-1;
     mutex_lock(&mutex_prot);
-    addMapMem(addr, addr+size-1);
+    addMapMem(mapallmem, addr, addr+size-1);
     UNLOCK_DYNAREC();
     for (uintptr_t i=(idx>>16); i<=(end>>16); ++i) {
         uint8_t* block = getProtBlock(i, prot?1:0);
@@ -1374,11 +1377,25 @@ void setProtection(uintptr_t addr, size_t size, uint32_t prot)
 
 void setProtection_mmap(uintptr_t addr, size_t size, uint32_t prot)
 {
+    mutex_lock(&mutex_prot);
+    addMapMem(mmapmem, addr, addr+size-1);
+    mutex_unlock(&mutex_prot);
     if(prot)
-        setProtection(addr, size, prot|PROT_MMAP);
+        setProtection(addr, size, prot);
     else {
         mutex_lock(&mutex_prot);
-        addMapMem(addr, addr+size-1);
+        addMapMem(mapallmem, addr, addr+size-1);
+        mutex_unlock(&mutex_prot);
+    }
+}
+
+void setProtection_elf(uintptr_t addr, size_t size, uint32_t prot)
+{
+    if(prot)
+        setProtection(addr, size, prot);
+    else {
+        mutex_lock(&mutex_prot);
+        addMapMem(mapallmem, addr, addr+size-1);
         mutex_unlock(&mutex_prot);
     }
 }
@@ -1419,7 +1436,7 @@ void allocProtection(uintptr_t addr, size_t size, uint32_t prot)
     if(end>=(1LL<<(48-MEMPROT_SHIFT)))
         end = (1LL<<(48-MEMPROT_SHIFT))-1;
     mutex_lock(&mutex_prot);
-    addMapMem(addr, addr+size-1);
+    addMapMem(mapallmem, addr, addr+size-1);
     mutex_unlock(&mutex_prot);
     // don't need to add precise tracking probably
 }
@@ -1504,7 +1521,17 @@ void loadProtectionFromMap()
         if(sscanf(buf, "%lx-%lx %c%c%c", &s, &e, &r, &w, &x)==5) {
             int prot = ((r=='r')?PROT_READ:0)|((w=='w')?PROT_WRITE:0)|((x=='x')?PROT_EXEC:0);
             allocProtection(s, e-s, prot);
+            if(s>0x7fff00000000LL)
+                have48bits = 1;
         }
+    }
+    static int shown48bits = 0;
+    if(!shown48bits) {
+        shown48bits = 1;
+        if(have48bits)
+            printf_log(LOG_INFO, "BOX64: Detected 48bits at least of address space\n");
+        else
+            printf_log(LOG_INFO, "BOX64: Didn't detect 48bits of address space, considering it's 39bits\n");
     }
     fclose(f);
     box64_mapclean = 1;
@@ -1528,7 +1555,8 @@ void freeProtection(uintptr_t addr, size_t size)
     if(end>=(1LL<<(48-MEMPROT_SHIFT)))
         end = (1LL<<(48-MEMPROT_SHIFT))-1;
     mutex_lock(&mutex_prot);
-    removeMapMem(addr, addr+size-1);
+    removeMapMem(mapallmem, addr, addr+size-1);
+    removeMapMem(mmapmem, addr, addr+size-1);
     UNLOCK_DYNAREC();
     for (uintptr_t i=idx; i<=end; ++i) {
         const uint32_t key = (i>>16);
@@ -1595,38 +1623,44 @@ uint32_t getProtection(uintptr_t addr)
     uint8_t *block = getProtBlock(idx>>16, 0);
     GET_PROT(ret, idx&0xffff);
     UNLOCK_NODYNAREC();
-    return ret&~PROT_MMAP;
+    return ret;
 }
 
 int getMmapped(uintptr_t addr)
 {
-    if(addr>=(1LL<<48))
-        return 0;
-    LOCK_NODYNAREC();
-    const uintptr_t idx = (addr>>MEMPROT_SHIFT);
-    uint8_t *block = getProtBlock(idx>>16, 0);
-    GET_PROT(ret, idx&0xffff);
-    UNLOCK_NODYNAREC();
-    return (ret&PROT_MMAP)?1:0;
+    mapmem_t* m = mmapmem;
+    if(addr<box64_pagesize) return 0;
+    while(m) {
+        uintptr_t begin = m->begin;
+        uintptr_t end = m->end;
+        if(addr>=begin && addr<=end)
+            return 1;
+        if(addr<begin)
+            return 0;
+        m = m->next;
+    }
+    return 0;
 }
 
 #define LOWEST (void*)0x10000
-#define MEDIUM (void*)0x20000000
+#define MEDIUM (void*)0x40000000
 
-void* find31bitBlockNearHint(void* hint, size_t size)
+void* find31bitBlockNearHint(void* hint, size_t size, uintptr_t mask)
 {
-    mapmem_t* m = mapmem;
+    mapmem_t* m = mapallmem;
     uintptr_t h = (uintptr_t)hint;
     if(hint<LOWEST) hint = LOWEST;
+    if(!mask) mask = 0xffff;
     while(m && m->end<0x80000000LL) {
         // granularity 0x10000
-        uintptr_t addr = (m->end+1+0xffff)&~0xffff;
+        uintptr_t addr = m->end+1;
         uintptr_t end = (m->next)?(m->next->begin-1):0xffffffffffffffffLL;
         // check hint and available size
         if(addr<=h && end>=h && end-h+1>=size)
             return hint;
-        if(addr>=h && end-addr+1>=size)
-            return (void*)addr;
+        uintptr_t aaddr = (addr+mask)&~mask;
+        if(aaddr>=h && end>aaddr && end-aaddr+1>=size)
+            return (void*)aaddr;
         m = m->next;
     }
     return NULL;
@@ -1634,46 +1668,64 @@ void* find31bitBlockNearHint(void* hint, size_t size)
 
 void* find32bitBlock(size_t size)
 {
-    void* ret = find31bitBlockNearHint(MEDIUM, size);
+    void* ret = find31bitBlockNearHint(MEDIUM, size, 0);
     if(ret)
         return ret;
-    ret = find31bitBlockNearHint(LOWEST, size);
+    ret = find31bitBlockNearHint(LOWEST, size, 0);
     return ret?ret:find47bitBlock(size);
 }
 void* find47bitBlock(size_t size)
 {
-    void* ret = find47bitBlockNearHint((void*)0x100000000LL, size);
+    void* ret = find47bitBlockNearHint((void*)0x100000000LL, size, 0);
     if(!ret)
         ret = find32bitBlock(size);
     return ret;
 }
-void* find47bitBlockNearHint(void* hint, size_t size)
+void* find47bitBlockNearHint(void* hint, size_t size, uintptr_t mask)
 {
-    mapmem_t* m = mapmem;
+    mapmem_t* m = mapallmem;
     uintptr_t h = (uintptr_t)hint;
     if(hint<LOWEST) hint = LOWEST;
+    if(!mask) mask = 0xffff;
     while(m && m->end<0x800000000000LL) {
         // granularity 0x10000
-        uintptr_t addr = (m->end+1+0xffff)&~0xffff;
+        uintptr_t addr = m->end+1;
         uintptr_t end = (m->next)?(m->next->begin-1):0xffffffffffffffffLL;
         // check hint and available size
         if(addr<=h && end>=h && end-h+1>=size)
             return hint;
-        if(addr>=h && end-addr+1>=size)
-            return (void*)addr;
+        uintptr_t aaddr = (addr+mask)&~mask;
+        if(aaddr>=h && end>aaddr && end-aaddr+1>=size)
+            return (void*)aaddr;
         m = m->next;
     }
     return NULL;
 }
+void* find47bitBlockElf(size_t size, int mainbin, uintptr_t mask)
+{
+    static void* startingpoint = NULL;
+    if(!startingpoint) {
+        startingpoint = (void*)(have48bits?0x7fff00000000LL:0x3f00000000LL);
+    }
+    void* mainaddr = (void*)0x100000000LL;
+    void* ret = find47bitBlockNearHint(mainbin?mainaddr:startingpoint, size, mask);
+    if(!ret)
+        ret = find31bitBlockNearHint(MEDIUM, size, mask);
+    if(!ret)
+        ret = find31bitBlockNearHint(LOWEST, size, mask);
+    if(!mainbin)
+        startingpoint = (void*)(((uintptr_t)startingpoint+size+0x1000000LL)&~0xffffffLL);
+    return ret;
+}
 
 int isBlockFree(void* hint, size_t size)
 {
-    mapmem_t* m = mapmem;
+    mapmem_t* m = mapallmem;
     uintptr_t h = (uintptr_t)hint;
     if(h>0x800000000000LL)
         return 0;   // no tracking there
     while(m && m->end<0x800000000000LL) {
-        uintptr_t addr = (m->end+1+0xffff)&~0xffff;
+        uintptr_t addr = m->end+1;
         uintptr_t end = (m->next)?(m->next->begin-1):0xffffffffffffffffLL;
         if(addr<=h && end>=h && end-h+1>=size)
             return 1;
@@ -1752,14 +1804,14 @@ void reserveHighMem()
 {
 #if 0 // FIXME (AZ)
     char* p = getenv("BOX64_RESERVE_HIGH");
-    #ifdef ADLINK
+    #if 0//def ADLINK
     if(p && p[0]=='0')
     #else
     if(!p || p[0]=='0')
     #endif
         return; // don't reserve by default
     intptr_t cur = 1LL<<47;
-    mapmem_t* m = mapmem;
+    mapmem_t* m = mapallmem;
     while(m && (m->end<cur)) {
         m = m->next;
     }
@@ -1777,7 +1829,7 @@ void reserveHighMem()
         cur = m->end + 1;
         m = m->next;
         if(addr)
-            addMapMem(addr, end);
+            addMapMem(mapallmem, addr, end);
     }
 #endif
 }
@@ -1812,13 +1864,18 @@ void init_custommem_helper(box64context_t* ctx)
     }
     lockaddress = kh_init(lockaddress);
 #endif
+
     //pthread_atfork(NULL, NULL, atfork_child_custommem);
-    // init mapmem list
-    mapmem = (mapmem_t*)box_calloc(1, sizeof(mapmem_t));
-    mapmem->begin = 0x0;
-    mapmem->end = (uintptr_t)LOWEST - 1;
+    // init mapallmem list
+    mapallmem = (mapmem_t*)box_calloc(1, sizeof(mapmem_t));
+    mapallmem->begin = 0x0;
+    mapallmem->end = (uintptr_t)LOWEST - 1;
     loadProtectionFromMap();
     reserveHighMem();
+    // init mmapmem list
+    mmapmem = (mapmem_t*)box_calloc(1, sizeof(mapmem_t));
+    mmapmem->begin = 0x0;
+    mmapmem->end = (uintptr_t)box64_pagesize - 1;
     // check if PageSize is correctly defined
     if(box64_pagesize != (1<<MEMPROT_SHIFT)) {
         printf_log(LOG_NONE, "Error: PageSize configuration is wrong: configured with %d, but got %zd\n", 1<<MEMPROT_SHIFT, box64_pagesize);
@@ -1930,9 +1987,14 @@ void fini_custommem_helper(box64context_t *ctx)
     //pthread_mutex_destroy(&mutex_prot);
     //pthread_mutex_destroy(&mutex_blocks);
     #endif
-    while(mapmem) {
-        mapmem_t *tmp = mapmem;
-        mapmem = mapmem->next;
+    while(mapallmem) {
+        mapmem_t *tmp = mapallmem;
+        mapallmem = mapallmem->next;
+        box_free(tmp);
+    }
+    while(mmapmem) {
+        mapmem_t *tmp = mmapmem;
+        mmapmem = mmapmem->next;
         box_free(tmp);
     }
 }
