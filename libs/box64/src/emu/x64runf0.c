@@ -686,16 +686,18 @@ uintptr_t RunF0(x64emu_t *emu, rex_t rex, uintptr_t addr)
 #else
                     pthread_mutex_lock(&my_context->mutex_lock);
                     if(rex.w) {
-                        tmp64u = add64(emu, ED->q[0], GD->q[0]);
-                        GD->q[0] = ED->q[0];
-                        ED->q[0] = tmp64u;
+                        tmp64u = ED->q[0];
+                        tmp64u2 = add64(emu, tmp64u, GD->q[0]);
+                        GD->q[0] = tmp64u;
+                        ED->q[0] = tmp64u2;
                     } else {
-                        tmp32u = add32(emu, ED->dword[0], GD->dword[0]);
-                        GD->q[0] = ED->dword[0];
+                        tmp32u = ED->dword[0];
+                        tmp32u2 = add32(emu, tmp32u, GD->dword[0]);
+                        GD->q[0] = tmp32u;
                         if(MODREG)
-                            ED->q[0] = tmp32u;
+                            ED->q[0] = tmp32u2;
                         else
-                            ED->dword[0] = tmp32u;
+                            ED->dword[0] = tmp32u2;
                     }
                     pthread_mutex_unlock(&my_context->mutex_lock);
 #endif
@@ -948,7 +950,18 @@ uintptr_t RunF0(x64emu_t *emu, rex_t rex, uintptr_t addr)
                 }
             } else {
                 if(rex.w) {
-                    GD->q[0] = native_lock_xchg_dd(ED, GD->q[0]);
+                    if((uintptr_t)ED&7) {
+                        // unaligned
+                        do {
+                            tmp64u = ED->q[0] & 0xffffffffffffff00LL;
+                            tmp64u |= native_lock_read_b(ED);
+                            
+                        } while(native_lock_write_b(ED, GD->byte[0]));
+                        ED->q[0] = GD->q[0];
+                        GD->q[0] = tmp64u;
+                    } else {
+                        GD->q[0] = native_lock_xchg_dd(ED, GD->q[0]);
+                    }
                 } else {
                     GD->dword[0] = native_lock_xchg_d(ED, GD->dword[0]);
                 }

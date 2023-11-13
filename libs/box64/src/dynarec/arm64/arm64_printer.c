@@ -985,11 +985,21 @@ const char* arm64_print(uint32_t opcode, uintptr_t addr)
         snprintf(buff, sizeof(buff), "MOVI V%d.%s, #0x%x", Rd, Vd, imm);
         return buff;
     }
-    // MOV immediate (not)shifted 16bits & 32bits
+    // MOV immediate notshifted 16bits & 32bits
     if(isMask(opcode, "0Q00111100000iiif00001iiiiiddddd", &a)) {
         const char* Y[] = {"2S", "4S", "4H", "8H"};
         const char* Vd = Y[(sf<<1)| a.Q];
-        snprintf(buff, sizeof(buff), "MOVI V%d.%s, #0x%x", Rd, Vd, imm);
+        int sh = 0;
+
+        snprintf(buff, sizeof(buff), "MOVI V%d.%s, #0x%x", Rd, Vd, imm<<sh);
+        return buff;
+    }
+    // MOV immediate shifted 16bits
+    if(isMask(opcode, "0Q00111100000iii101001iiiiiddddd", &a)) {
+        const char* Y[] = {"4H", "8H"};
+        const char* Vd = Y[a.Q];
+
+        snprintf(buff, sizeof(buff), "MOVI V%d.%s, #0x%x", Rd, Vd, imm<<8);
         return buff;
     }
 
@@ -1134,6 +1144,20 @@ const char* arm64_print(uint32_t opcode, uintptr_t addr)
     if(isMask(opcode, "00011110ff1mmmmm000110nnnnnddddd", &a)) {
         char s = (sf==0)?'S':((sf==1)?'D':'?');
         snprintf(buff, sizeof(buff), "FDIV %c%d, %c%d, %c%d", s, Rd, s, Rn, s, Rm);
+        return buff;
+    }
+
+    // FADDP
+    if(isMask(opcode, "0Q1011100f1mmmmm110101nnnnnddddd", &a)) {
+        char s = a.Q?'V':'D';
+        char d = sf?'D':'S';
+        int n = (a.Q && !sf)?4:2;
+        snprintf(buff, sizeof(buff), "VFADDP %c%d.%d%c, %c%d.%d%c, %c%d.%d%c", s, Rd, n, d, s, Rn, n, d, s, Rm, n, d);
+        return buff;
+    }
+    if(isMask(opcode, "011111100f110000110110nnnnnddddd", &a)) {
+        char s = (sf==0)?'S':((sf==1)?'D':'?');
+        snprintf(buff, sizeof(buff), "FADDP %c%d, %c%d, %c%d", s, Rd, s, Rn, s, Rm);
         return buff;
     }
 
