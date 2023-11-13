@@ -75,6 +75,7 @@ int box64_dynarec_trace = 0;
 int box64_dynarec_aligned_atomics = 0;
 
 int arm64_atomics = 0;
+int arm64_crc32 = 0;
 int arm64_flagm = 0;
 int arm64_aes = 1;
 int arm64_pmull = 0;
@@ -730,11 +731,7 @@ void WINAPI BTCpuSimulate(void)
     fpu_to_box(ctx, emu);
 
     if (box64_dynarec)
-    {
-        //void *handler = RtlAddVectoredExceptionHandler(TRUE, &emu_veh);
         DynaRun(emu);
-        //RtlRemoveVectoredExceptionHandler(handler);
-    }
     else
         Run(emu, 0);
     TRACE("finished eip %llx stack %x\n", R_RIP, R_ESP);
