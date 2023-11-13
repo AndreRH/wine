@@ -71,9 +71,8 @@ uintptr_t getJumpAddress64(uintptr_t addr);
 #define PROT_DYNAREC    0x80
 #define PROT_DYNAREC_R  0x40
 #define PROT_NOPROT     0x20
-#define PROT_MMAP       0x10
 #define PROT_DYN        (PROT_DYNAREC | PROT_DYNAREC_R | PROT_NOPROT)
-#define PROT_CUSTOM     (PROT_DYNAREC | PROT_DYNAREC_R | PROT_MMAP | PROT_NOPROT)
+#define PROT_CUSTOM     (PROT_DYNAREC | PROT_DYNAREC_R | PROT_NOPROT)
 #define PROT_WAIT       0xFF
 
 #ifdef _WIN32
@@ -85,6 +84,7 @@ uintptr_t getJumpAddress64(uintptr_t addr);
 void updateProtection(uintptr_t addr, size_t size, uint32_t prot);
 void setProtection(uintptr_t addr, size_t size, uint32_t prot);
 void setProtection_mmap(uintptr_t addr, size_t size, uint32_t prot);
+void setProtection_elf(uintptr_t addr, size_t size, uint32_t prot);
 void freeProtection(uintptr_t addr, size_t size);
 void refreshProtection(uintptr_t addr);
 uint32_t getProtection(uintptr_t addr);
@@ -99,9 +99,10 @@ int AreaInHotPage(uintptr_t start, uintptr_t end);
 void AddHotPage(uintptr_t addr);
 #endif
 void* find32bitBlock(size_t size);
-void* find31bitBlockNearHint(void* hint, size_t size);
+void* find31bitBlockNearHint(void* hint, size_t size, uintptr_t mask);
 void* find47bitBlock(size_t size);
-void* find47bitBlockNearHint(void* hint, size_t size);
+void* find47bitBlockNearHint(void* hint, size_t size, uintptr_t mask); // mask can be 0 for default one (0xffff)
+void* find47bitBlockElf(size_t size, int mainbin, uintptr_t mask);
 int isBlockFree(void* hint, size_t size);
 
 // unlock mutex that are locked by current thread (for signal handling). Return a mask of unlock mutex

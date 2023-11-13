@@ -20,12 +20,13 @@
 #include "dynarec_arm64_private.h"
 #include "dynarec_arm64_functions.h"
 #include "dynarec_arm64_helper.h"
+#include "emu/x64compstrings.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(box64dynarec);
 
-uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int ninst, rex_t rex, int rep, int* ok, int* need_epilog)
+uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int ninst, rex_t rex, int* ok, int* need_epilog)
 {
-    (void)ip; (void)rep; (void)need_epilog;
+    (void)ip; (void)need_epilog;
 
     uint8_t opcode = F8;
     uint8_t nextop, u8;
@@ -50,6 +51,8 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
     MAYUSE(j64);
     #if STEP > 1
     static const int8_t mask_shift8[] = { -7, -6, -5, -4, -3, -2, -1, 0 };
+    static const int8_t mask_string8[] = { 7, 6, 5, 4, 3, 2, 1, 0 };
+    static const int8_t mask_string16[] = { 15, 14, 13, 12, 11, 10, 9, 8 };
     static const int8_t round_round[] = { 0, 2, 1, 3};
     #endif
 
@@ -1119,65 +1122,18 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
                     if (MODREG) {
                         q1 = sse_get_reg(dyn, ninst, x1, (nextop & 7) + (rex.b << 3), 0);
                         u8 = F8;
-                        uint8_t count_d = (u8 >> 4) & 3;
-                        uint8_t count_s = u8 >> 6;
-                        #define GO(A) \
-                            switch (count_d) {              \
-                                case 0:                     \
-                                    VMOVeS(d0, 0, q1, A);   \
-                                    break;                  \
-                                case 1:                     \
-                                    VMOVeS(d0, 1, q1, A);   \
-                                    break;                  \
-                                case 2:                     \
-                                    VMOVeS(d0, 2, q1, A);   \
-                                    break;                  \
-                                case 3:                     \
-                                    VMOVeS(q0, 3, q1, A);   \
-                                    break;                  \
-                            }
-                        switch (count_s) {
-                            case 0:
-                                GO(0)
-                                break;
-                            case 1:
-                                GO(1)
-                                break;
-                            case 2:
-                                GO(2)
-                                break;
-                            case 3:
-                                GO(3)
-                                break;
-                        }
-                        #undef GO
+                        VMOVeS(q0, (u8>>4)&3, q1, (u8>>6)&3);
                     } else {
                         SMREAD();
-                        addr = geted(dyn, addr, ninst, nextop, &ed, x1, &fixedaddress, &unscaled, 0xfff<<2, 3, rex, NULL, 0, 1);
+                        addr = geted(dyn, addr, ninst, nextop, &wback, x1, &fixedaddress, &unscaled, 0xfff<<2, 3, rex, NULL, 0, 1);
                         u8 = F8;
-                        uint8_t count_d = (u8 >> 4) & 3;
-                        LDW(x2, ed, fixedaddress);
-                        switch (count_d) {
-                            case 0:
-                                VMOVQSfrom(d0, 0, x2);
-                                break; 
-                            case 1:
-                                VMOVQSfrom(d0, 1, x2);
-                                break;
-                            case 2:
-                                VMOVQSfrom(d0, 2, x2);
-                                break;
-                            case 3:
-                                VMOVQSfrom(d0, 3, x2);
-                                break;
-                        }
+                        LDW(x2, wback, fixedaddress);
+                        VMOVQSfrom(q0, (u8>>4)&3, x2);
                     }
                     uint8_t zmask = u8 & 0xf;
                     for (uint8_t i=0; i<4; i++) {
                         if (zmask & (1<<i)) {
                             VMOVQSfrom(q0, i, wZR);
-                        } else {
-                            VMOVeS(q0, i, d0, i);
                         }
                     }
                     break;
@@ -1192,6 +1148,28 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
                     } else {
                         VMOVQSfrom(q0, (u8&3), ed);
                     }
+                    break;
+
+                case 0x40:
+                    INST_NAME("DPPS Gx, Ex, Ib");
+                    nextop = F8;
+                    GETGX(q0, 1);
+                    GETEX(q1, 0, 1);
+                    u8 = F8;
+                    v0 = fpu_get_scratch(dyn);
+                    VFMULQS(v0, q0, q1);
+                    // mask some, duplicate all, mask some
+                    for(int i=0; i<4; ++i)
+                        if(!(u8&(1<<(4+i)))) {
+                            VMOVQSfrom(v0, i, xZR);
+                        }
+                    VFADDPQS(v0, v0, v0);
+                    FADDPS(v0, v0);
+                    VDUPQ_32(q0, v0, 0);
+                    for(int i=0; i<4; ++i)
+                        if(!(u8&(1<<i))) {
+                            VMOVQSfrom(q0, i, xZR);
+                        }
                     break;
 
                 case 0x44:
@@ -1236,6 +1214,181 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
                         u8 = F8;
                         MOV32w(x4, u8);
                         CALL(native_pclmul, -1);
+                    }
+                    break;
+
+                case 0x60:
+                    INST_NAME("PCMPESTRM Gx, Ex, Ib");
+                    SETFLAGS(X_OF|X_CF|X_AF|X_ZF|X_SF|X_PF, SF_SET);
+                    nextop = F8;
+                    GETG;
+                    sse_forget_reg(dyn, ninst, gd);
+                    ADDx_U12(x3, xEmu, offsetof(x64emu_t, xmm[gd]));
+                    if(MODREG) {
+                        ed = (nextop&7)+(rex.b<<3);
+                        sse_reflect_reg(dyn, ninst, ed);
+                        ADDx_U12(x1, xEmu, offsetof(x64emu_t, xmm[ed]));
+                    } else {
+                        addr = geted(dyn, addr, ninst, nextop, &ed, x1, &fixedaddress, NULL, 0, 0, rex, NULL, 0, 1);
+                        if(ed!=x1) {
+                            MOVx_REG(x1, ed);
+                        }
+                    }
+                    MOVx_REG(x2, xRDX);
+                    MOVx_REG(x4, xRAX);
+                    u8 = F8;
+                    MOV32w(x5, u8);
+                    CALL(sse42_compare_string_explicit_len, x1);
+                    q0 = sse_get_reg_empty(dyn, ninst, x2, gd);
+                    q1 = fpu_get_scratch(dyn);
+                    if(u8&0b1000000) {
+                        switch(u8&1) {
+                            case 0b00:
+                                VDUPQB(q0, x1); // load the low 8bits of the mask
+                                LSRw_IMM(x1, x1, 8);
+                                VDUPQB(q1, x1); // load the high 8bits of the mask
+                                VEXTQ_8(q0, q0, q1, 8); // low and hig bits mask
+                                TABLE64(x2, (uintptr_t)&mask_string8);
+                                VLDR64_U12(q1, x2, 0);     // load shift
+                                VDUPQ_64(q1, q1, 0);
+                                USHLQ_8(q0, q0, q1); // extract 1 bit
+                                MOVIQ_8(q1, 0x80);   // load mask
+                                VANDQ(q0, q0, q1);
+                                VSSHRQ_8(q0, q0, 7);    // saturate the mask
+                                break;
+                            case 0b01:
+                                VDUPQH(q0, x1); // load the 8bits of the mask
+                                TABLE64(x2, (uintptr_t)&mask_string16);
+                                VLDR64_U12(q1, x2, 0);     // load shift
+                                UXTL_8(q1, q1);     // extend mask to 16bits
+                                USHLQ_16(q0, q0, q1); // extract 1 bit
+                                MOVIQ_16(q1, 0x80, 1);   // load mask
+                                VANDQ(q0, q0, q1);
+                                VSSHRQ_16(q0, q0, 15);    // saturate the mask
+                        }
+                    } else {
+                        VEORQ(q0, q0, q0);
+                        VMOVQHfrom(q0, 0, x1);
+                    }
+                    break;
+                case 0x61:
+                    INST_NAME("PCMPESTRI Gx, Ex, Ib");
+                    SETFLAGS(X_OF|X_CF|X_AF|X_ZF|X_SF|X_PF, SF_SET);
+                    nextop = F8;
+                    GETG;
+                    sse_reflect_reg(dyn, ninst, gd);
+                    ADDx_U12(x3, xEmu, offsetof(x64emu_t, xmm[gd]));
+                    if(MODREG) {
+                        ed = (nextop&7)+(rex.b<<3);
+                        sse_reflect_reg(dyn, ninst, ed);
+                        ADDx_U12(x1, xEmu, offsetof(x64emu_t, xmm[ed]));
+                    } else {
+                        addr = geted(dyn, addr, ninst, nextop, &ed, x1, &fixedaddress, NULL, 0, 0, rex, NULL, 0, 1);
+                        if(ed!=x1) {
+                            MOVx_REG(x1, ed);
+                        }
+                    }
+                    MOVx_REG(x2, xRDX);
+                    MOVx_REG(x4, xRAX);
+                    u8 = F8;
+                    MOV32w(x5, u8);
+                    CALL(sse42_compare_string_explicit_len, x1);
+                    CBNZw_MARK(x1);
+                    MOV32w(xRCX, (u8&1)?8:16);
+                    B_NEXT_nocond;
+                    MARK;
+                    if(u8&0b1000000) {
+                        CLZw(xRCX, x1);
+                        MOV32w(x2, 31);
+                        SUBw_REG(xRCX, x2, xRCX);
+                    } else {
+                        RBITxw(xRCX, x1);
+                        CLZw(xRCX, xRCX);
+                    }
+                    break;
+                case 0x62:
+                    INST_NAME("PCMPISTRM Gx, Ex, Ib");
+                    SETFLAGS(X_OF|X_CF|X_AF|X_ZF|X_SF|X_PF, SF_SET);
+                    nextop = F8;
+                    GETG;
+                    sse_forget_reg(dyn, ninst, gd);
+                    ADDx_U12(x2, xEmu, offsetof(x64emu_t, xmm[gd]));
+                    if(MODREG) {
+                        ed = (nextop&7)+(rex.b<<3);
+                        sse_reflect_reg(dyn, ninst, ed);
+                        ADDx_U12(x1, xEmu, offsetof(x64emu_t, xmm[ed]));
+                    } else {
+                        addr = geted(dyn, addr, ninst, nextop, &ed, x1, &fixedaddress, NULL, 0, 0, rex, NULL, 0, 1);
+                        if(ed!=x1) {
+                            MOVx_REG(x1, ed);
+                        }
+                    }
+                    u8 = F8;
+                    MOV32w(x3, u8);
+                    CALL(sse42_compare_string_implicit_len, x1);
+                    q0 = sse_get_reg_empty(dyn, ninst, x2, gd);
+                    q1 = fpu_get_scratch(dyn);
+                    if(u8&0b1000000) {
+                        switch(u8&1) {
+                            case 0b00:
+                                VDUPQB(q0, x1); // load the low 8bits of the mask
+                                LSRw_IMM(x1, x1, 8);
+                                VDUPQB(q1, x1); // load the high 8bits of the mask
+                                VEXTQ_8(q0, q0, q1, 8); // low and hig bits mask
+                                TABLE64(x2, (uintptr_t)&mask_string8);
+                                VLDR64_U12(q1, x2, 0);     // load shift
+                                VDUPQ_64(q1, q1, 0);
+                                USHLQ_8(q0, q0, q1); // extract 1 bit
+                                MOVIQ_8(q1, 0x80);   // load mask
+                                VANDQ(q0, q0, q1);
+                                VSSHRQ_8(q0, q0, 7);    // saturate the mask
+                                break;
+                            case 0b01:
+                                VDUPQH(q0, x1); // load the 8bits of the mask
+                                TABLE64(x2, (uintptr_t)&mask_string16);
+                                VLDR64_U12(q1, x2, 0);     // load shift
+                                UXTL_8(q1, q1);     // extend mask to 16bits
+                                USHLQ_16(q0, q0, q1); // extract 1 bit
+                                MOVIQ_16(q1, 0x80, 1);   // load mask
+                                VANDQ(q0, q0, q1);
+                                VSSHRQ_16(q0, q0, 15);    // saturate the mask
+                        }
+                    } else {
+                        VEORQ(q0, q0, q0);
+                        VMOVQHfrom(q0, 0, x1);
+                    }
+                    break;
+                case 0x63:
+                    INST_NAME("PCMPISTRI Gx, Ex, Ib");
+                    SETFLAGS(X_OF|X_CF|X_AF|X_ZF|X_SF|X_PF, SF_SET);
+                    nextop = F8;
+                    GETG;
+                    sse_reflect_reg(dyn, ninst, gd);
+                    ADDx_U12(x2, xEmu, offsetof(x64emu_t, xmm[gd]));
+                    if(MODREG) {
+                        ed = (nextop&7)+(rex.b<<3);
+                        sse_reflect_reg(dyn, ninst, ed);
+                        ADDx_U12(x1, xEmu, offsetof(x64emu_t, xmm[ed]));
+                    } else {
+                        addr = geted(dyn, addr, ninst, nextop, &ed, x1, &fixedaddress, NULL, 0, 0, rex, NULL, 0, 1);
+                        if(ed!=x1) {
+                            MOVx_REG(x1, ed);
+                        }
+                    }
+                    u8 = F8;
+                    MOV32w(x3, u8);
+                    CALL(sse42_compare_string_implicit_len, x1);
+                    CBNZw_MARK(x1);
+                    MOV32w(xRCX, (u8&1)?8:16);
+                    B_NEXT_nocond;
+                    MARK;
+                    if(u8&0b1000000) {
+                        CLZw(xRCX, x1);
+                        MOV32w(x2, 31);
+                        SUBw_REG(xRCX, x2, xRCX);
+                    } else {
+                        RBITxw(xRCX, x1);
+                        CLZw(xRCX, xRCX);
                     }
                     break;
 
@@ -2044,12 +2197,12 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
                 ed = x4;
             }
             ANDw_mask(x2, gd, 0, 0b000011);  // mask=0x0f
-            LSRw_REG(x1, ed, x2);
-            BFIw(xFlags, x1, F_CF, 1);
-            ANDSw_mask(x1, x1, 0, 0);  //mask=1
-            B_NEXT(cNE);
+            IFX(X_CF) {
+                LSRw_REG(x1, ed, x2);
+                BFIw(xFlags, x1, F_CF, 1);
+            }
             MOV32w(x1, 1);
-            LSLxw_REG(x1, x1, x2);
+            LSLw_REG(x1, x1, x2);
             ORRx_REG(ed, ed, x1);
             if(wback) {
                 STRH_U12(ed, wback, fixedaddress);
@@ -2080,12 +2233,12 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
             INST_NAME("IMUL Gw,Ew");
             SETFLAGS(X_ALL, SF_PENDING);
             nextop = F8;
-            UFLAG_DF(x1, d_imul16);
             GETSEW(x1, 0);
             GETSGW(x2);
             MULw(x2, x2, x1);
             UFLAG_RES(x2);
             GWBACK;
+            UFLAG_DF(x1, d_imul16);
             break;
 
         case 0xB3:
@@ -2301,6 +2454,16 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
             BFIx(gd, x1, 0, 16);
             break;
 
+        case 0xC1:
+            INST_NAME("XADD Gw, Ew");
+            SETFLAGS(X_ALL, SF_SET_PENDING);
+            nextop = F8;
+            GETGW(x1);
+            GETEW(x2, 0);
+            BFIx(xRAX+((nextop&0x38)>>3)+(rex.r<<3), ed, 0, 16);
+            emit_add16(dyn, ninst, ed, gd, x4, x5);
+            EWBACK;
+            break;
         case 0xC2:
             INST_NAME("CMPPD Gx, Ex, Ib");
             nextop = F8;

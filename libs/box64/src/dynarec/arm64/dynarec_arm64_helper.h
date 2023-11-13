@@ -789,7 +789,17 @@ extern void x86Int(x64emu_t *emu, int code);
     x87_do_pop(dyn, ninst, scratch);
 
 #define SET_DFNONE(S)    if(!dyn->f.dfnone) {STRw_U12(wZR, xEmu, offsetof(x64emu_t, df)); dyn->f.dfnone=1;}
-#define SET_DF(S, N)     if((N)!=d_none) {MOVZw(S, (N)); STRw_U12(S, xEmu, offsetof(x64emu_t, df)); dyn->f.dfnone=0;} else SET_DFNONE(S)
+#define SET_DF(S, N)        \
+    if((N)!=d_none) {       \
+        MOVZw(S, (N));      \
+        STRw_U12(S, xEmu, offsetof(x64emu_t, df)); \
+        if(dyn->f.pending==SF_PENDING && dyn->insts[ninst].x64.need_after && !(dyn->insts[ninst].x64.need_after&X_PEND)) {  \
+            CALL_(UpdateFlags, -1, 0);              \
+            dyn->f.pending = SF_SET;                \
+            SET_NODF();     \
+        }                   \
+        dyn->f.dfnone=0;    \
+    } else SET_DFNONE(S)
 #define SET_NODF()          dyn->f.dfnone = 0
 #define SET_DFOK()          dyn->f.dfnone = 1
 
@@ -932,6 +942,8 @@ void* arm64_next(x64emu_t* emu, uintptr_t addr);
 #define dynarec64_DF       STEPNAME(dynarec64_DF)
 #define dynarec64_F0       STEPNAME(dynarec64_F0)
 #define dynarec64_660F     STEPNAME(dynarec64_660F)
+#define dynarec64_66F20F   STEPNAME(dynarec64_66F20F)
+#define dynarec64_66F30F   STEPNAME(dynarec64_66F30F)
 #define dynarec64_6664     STEPNAME(dynarec64_6664)
 #define dynarec64_66F0     STEPNAME(dynarec64_66F0)
 #define dynarec64_F20F     STEPNAME(dynarec64_F20F)
@@ -1013,8 +1025,24 @@ void* arm64_next(x64emu_t* emu, uintptr_t addr);
 #define emit_shr32      STEPNAME(emit_shr32)
 #define emit_shr32c     STEPNAME(emit_shr32c)
 #define emit_sar32c     STEPNAME(emit_sar32c)
+#define emit_shl8       STEPNAME(emit_shl8)
+#define emit_shl8c      STEPNAME(emit_shl8c)
+#define emit_shr8       STEPNAME(emit_shr8)
+#define emit_shr8c      STEPNAME(emit_shr8c)
+#define emit_sar8       STEPNAME(emit_sar8)
+#define emit_sar8c      STEPNAME(emit_sar8c)
+#define emit_shl16      STEPNAME(emit_shl16)
+#define emit_shl16c     STEPNAME(emit_shl16c)
+#define emit_shr16      STEPNAME(emit_shr16)
+#define emit_shr16c     STEPNAME(emit_shr16c)
+#define emit_sar16      STEPNAME(emit_sar16)
+#define emit_sar16c     STEPNAME(emit_sar16c)
 #define emit_rol32c     STEPNAME(emit_rol32c)
 #define emit_ror32c     STEPNAME(emit_ror32c)
+#define emit_rol8c      STEPNAME(emit_rol8c)
+#define emit_ror8c      STEPNAME(emit_ror8c)
+#define emit_rol16c     STEPNAME(emit_rol16c)
+#define emit_ror16c     STEPNAME(emit_ror16c)
 #define emit_shrd32c    STEPNAME(emit_shrd32c)
 #define emit_shld32c    STEPNAME(emit_shld32c)
 
@@ -1043,6 +1071,7 @@ void* arm64_next(x64emu_t* emu, uintptr_t addr);
 #define sse_get_reg_empty STEPNAME(sse_get_reg_empty)
 #define sse_forget_reg   STEPNAME(sse_forget_reg)
 #define sse_purge07cache STEPNAME(sse_purge07cache)
+#define sse_reflect_reg  STEPNAME(sse_reflect_reg)
 
 #define fpu_pushcache   STEPNAME(fpu_pushcache)
 #define fpu_popcache    STEPNAME(fpu_popcache)
@@ -1141,8 +1170,24 @@ void emit_shl32c(dynarec_arm_t* dyn, int ninst, rex_t rex, int s1, uint32_t c, i
 void emit_shr32(dynarec_arm_t* dyn, int ninst, rex_t rex, int s1, int s2, int s3, int s4);
 void emit_shr32c(dynarec_arm_t* dyn, int ninst, rex_t rex, int s1, uint32_t c, int s3, int s4);
 void emit_sar32c(dynarec_arm_t* dyn, int ninst, rex_t rex, int s1, uint32_t c, int s3, int s4);
+void emit_shl8(dynarec_arm_t* dyn, int ninst, int s1, int s2, int s3, int s4);
+void emit_shl8c(dynarec_arm_t* dyn, int ninst, int s1, uint32_t c, int s3, int s4);
+void emit_shr8(dynarec_arm_t* dyn, int ninst, int s1, int s2, int s3, int s4);
+void emit_shr8c(dynarec_arm_t* dyn, int ninst, int s1, uint32_t c, int s3, int s4);
+void emit_sar8(dynarec_arm_t* dyn, int ninst, int s1, int s2, int s3, int s4);
+void emit_sar8c(dynarec_arm_t* dyn, int ninst, int s1, uint32_t c, int s3, int s4);
+void emit_shl16(dynarec_arm_t* dyn, int ninst, int s1, int s2, int s3, int s4);
+void emit_shl16c(dynarec_arm_t* dyn, int ninst, int s1, uint32_t c, int s3, int s4);
+void emit_shr16(dynarec_arm_t* dyn, int ninst, int s1, int s2, int s3, int s4);
+void emit_shr16c(dynarec_arm_t* dyn, int ninst, int s1, uint32_t c, int s3, int s4);
+void emit_sar16(dynarec_arm_t* dyn, int ninst, int s1, int s2, int s3, int s4);
+void emit_sar16c(dynarec_arm_t* dyn, int ninst, int s1, uint32_t c, int s3, int s4);
 void emit_rol32c(dynarec_arm_t* dyn, int ninst, rex_t rex, int s1, uint32_t c, int s3, int s4);
 void emit_ror32c(dynarec_arm_t* dyn, int ninst, rex_t rex, int s1, uint32_t c, int s3, int s4);
+void emit_rol8c(dynarec_arm_t* dyn, int ninst, int s1, uint32_t c, int s3, int s4);
+void emit_ror8c(dynarec_arm_t* dyn, int ninst, int s1, uint32_t c, int s3, int s4);
+void emit_rol16c(dynarec_arm_t* dyn, int ninst, int s1, uint32_t c, int s3, int s4);
+void emit_ror16c(dynarec_arm_t* dyn, int ninst, int s1, uint32_t c, int s3, int s4);
 void emit_shrd32c(dynarec_arm_t* dyn, int ninst, rex_t rex, int s1, int s2, uint32_t c, int s3, int s4);
 void emit_shld32c(dynarec_arm_t* dyn, int ninst, rex_t rex, int s1, int s2, uint32_t c, int s3, int s4);
 
@@ -1234,7 +1279,8 @@ int sse_get_reg_empty(dynarec_arm_t* dyn, int ninst, int s1, int a);
 void sse_forget_reg(dynarec_arm_t* dyn, int ninst, int a);
 // purge the XMM0..XMM7 cache (before function call)
 void sse_purge07cache(dynarec_arm_t* dyn, int ninst, int s1);
-
+// Push current value to the cache
+void sse_reflect_reg(dynarec_arm_t* dyn, int ninst, int a);
 // common coproc helpers
 // reset the cache
 void fpu_reset(dynarec_arm_t* dyn);
@@ -1270,7 +1316,9 @@ uintptr_t dynarec64_DD(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
 uintptr_t dynarec64_DE(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int ninst, rex_t rex, int rep, int* ok, int* need_epilog);
 uintptr_t dynarec64_DF(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int ninst, rex_t rex, int rep, int* ok, int* need_epilog);
 uintptr_t dynarec64_F0(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int ninst, rex_t rex, int rep, int* ok, int* need_epilog);
-uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int ninst, rex_t rex, int rep, int* ok, int* need_epilog);
+uintptr_t dynarec64_66F20F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int ninst, rex_t rex, int* ok, int* need_epilog);
+uintptr_t dynarec64_66F30F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int ninst, rex_t rex, int* ok, int* need_epilog);
+uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int ninst, rex_t rex, int* ok, int* need_epilog);
 uintptr_t dynarec64_6664(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int ninst, rex_t rex, int seg, int* ok, int* need_epilog);
 uintptr_t dynarec64_66F0(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int ninst, rex_t rex, int rep, int* ok, int* need_epilog);
 uintptr_t dynarec64_F20F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int ninst, rex_t rex, int* ok, int* need_epilog);
