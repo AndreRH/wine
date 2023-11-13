@@ -18,6 +18,14 @@ SOURCES = \
        src/dynarec/arm64/dynarec_arm64_66f0_1.c \
        src/dynarec/arm64/dynarec_arm64_66f0_2.c \
        src/dynarec/arm64/dynarec_arm64_66f0_3.c \
+       src/dynarec/arm64/dynarec_arm64_66f20f_0.c \
+       src/dynarec/arm64/dynarec_arm64_66f20f_1.c \
+       src/dynarec/arm64/dynarec_arm64_66f20f_2.c \
+       src/dynarec/arm64/dynarec_arm64_66f20f_3.c \
+       src/dynarec/arm64/dynarec_arm64_66f30f_0.c \
+       src/dynarec/arm64/dynarec_arm64_66f30f_1.c \
+       src/dynarec/arm64/dynarec_arm64_66f30f_2.c \
+       src/dynarec/arm64/dynarec_arm64_66f30f_3.c \
        src/dynarec/arm64/dynarec_arm64_f20f_0.c \
        src/dynarec/arm64/dynarec_arm64_f20f_1.c \
        src/dynarec/arm64/dynarec_arm64_f20f_2.c \
@@ -122,6 +130,7 @@ SOURCES = \
        src/dynarec/dynarec_native_pass_1.c \
        src/dynarec/dynarec_native_pass_2.c \
        src/dynarec/dynarec_native_pass_3.c \
+       src/emu/x64compstrings.c \
        src/emu/x64emu.c \
        src/emu/x64primop.c \
        src/emu/x64run.c \
@@ -133,6 +142,8 @@ SOURCES = \
        src/emu/x64run66d9.c \
        src/emu/x64run66dd.c \
        src/emu/x64run66f0.c \
+       src/emu/x64run66f20f.c \
+       src/emu/x64run66f30f.c \
        src/emu/x64run670f.c \
        src/emu/x64run6766.c \
        src/emu/x64run67660f.c \
