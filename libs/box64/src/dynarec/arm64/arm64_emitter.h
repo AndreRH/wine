@@ -240,6 +240,7 @@
 #define LDRxw_REG(Rt, Rn, Rm)           EMIT(LDR_REG_gen(0b10+rex.w, Rm, 0b011, 0, Rn, Rt))
 #define LDRz_REG(Rt, Rn, Rm)            EMIT(LDR_REG_gen(rex.is32bits?0b10:0b11, Rm, 0b011, 0, Rn, Rt))
 #define LDRB_REG(Rt, Rn, Rm)            EMIT(LDR_REG_gen(0b00, Rm, 0b011, 0, Rn, Rt))
+#define LDRB_REG_UXTW(Rt, Rn, Rm)       EMIT(LDR_REG_gen(0b00, Rm, 0b010, 0, Rn, Rt))
 #define LDRH_REG(Rt, Rn, Rm)            EMIT(LDR_REG_gen(0b01, Rm, 0b011, 0, Rn, Rt))
 
 #define LDRS_U12_gen(size, op1, opc, imm12, Rn, Rt)    ((size)<<30 | 0b111<<27 | (op1)<<24 | (opc)<<22 | (imm12)<<10 | (Rn)<<5 | (Rt))
@@ -1496,7 +1497,6 @@
 #define VTRNQ1_32(Vd, Vn, Vm)       EMIT(TRN_gen(1, 0b10, Vm, 0, Vn, Vd))
 #define VTRNQ1_16(Vd, Vn, Vm)       EMIT(TRN_gen(1, 0b01, Vm, 0, Vn, Vd))
 #define VTRNQ1_8(Vd, Vn, Vm)        EMIT(TRN_gen(1, 0b00, Vm, 0, Vn, Vd))
-#define VSWP(Vd, Vn)                VTRNQ1_64(Vd, Vn, Vn)
 #define VTRNQ2_64(Vd, Vn, Vm)       EMIT(TRN_gen(1, 0b11, Vm, 1, Vn, Vd))
 #define VTRNQ2_32(Vd, Vn, Vm)       EMIT(TRN_gen(1, 0b10, Vm, 1, Vn, Vd))
 #define VTRNQ2_16(Vd, Vn, Vm)       EMIT(TRN_gen(1, 0b01, Vm, 1, Vn, Vd))
@@ -2091,6 +2091,7 @@
 #define STUMINH(Rs, Rn)                  EMIT(ATOMIC_gen(0b01, 0, 0, Rs, 0b111, Rn, 0b11111))
 #define STUMINLH(Rs, Rn)                 EMIT(ATOMIC_gen(0b01, 0, 1, Rs, 0b111, Rn, 0b11111))
 
+// SWAPxx(Xs, Xt, Xn) : [Xn] => Xt, Xs => [Xn]
 #define SWAP_gen(size, A, R, Rs, Rn, Rt)    ((size)<<30 | 0b111<<27 | (A)<<23 | (R)<<22 | 1<<21 | (Rs)<<16 | 1<<15 | (Rn)<<5 | (Rt))
 #define SWPxw(Rs, Rt, Rn)               EMIT(SWAP_gen(0b10+rex.w, 0, 0, Rs, Rn, Rt))
 #define SWPAxw(Rs, Rt, Rn)              EMIT(SWAP_gen(0b10+rex.w, 1, 0, Rs, Rn, Rt))
@@ -2165,5 +2166,42 @@
 #define CRC32CW(Wd, Wn, Wm)         EMIT(CRC32C_gen(0, Wm, 0b10, Wn, Wd))
 #define CRC32CX(Wd, Wn, Xm)         EMIT(CRC32C_gen(1, Xm, 0b11, Wn, Wd))
 #define CRC32Cxw(Wd, Wn, Rm)        EMIT(CRC32C_gen(rex.w, Rm, 0b10|rex.w, Wn, Wd))
+
+// SHA1 extension
+#define SHA1H_gen(Rn, Rd)       (0b01011110<<24 | 0b10100<<17 | 0b10<<10 | (Rn)<<5 | (Rd))
+// SHA1 fixed rotate (ROL 30 of 32bits value)
+#define SHA1H(Sd, Sn)           EMIT(SHA1H_gen(Sn, Sd))
+
+#define SHA1SU1_gen(Rn, Rd)     (0b01011110<<24 | 0b10100<<17 | 0b00001<<12 | 0b10<<10 | (Rn)<<5 | (Rd))
+// SHA1 schedule update 1
+#define SHA1SU1(Vd, Vn)         EMIT(SHA1SU1_gen(Vn, Vd))
+
+#define SHA1C_gen(Rm, Rn, Rd)   (0b01011110<<24 | (Rm)<<16 | (Rn)<<5 | (Rd))
+// SHA1 hash update (choose)
+#define SHA1C(Qd, Sn, Vm)       EMIT(SHA1C_gen(Vm, Sn, Qd))
+
+#define SHA1M_gen(Rm, Rn, Rd)   (0b01011110<<24 | (Rm)<<16 | 0b010<<12 | (Rn)<<5 | (Rd))
+// SHA1 hash update (majority)
+#define SHA1M(Qd, Sn, Vm)       EMIT(SHA1M_gen(Vm, Sn, Qd))
+
+#define SHA1P_gen(Rm, Rn, Rd)   (0b01011110<<24 | (Rm)<<16 | 0b001<<12 | (Rn)<<5 | (Rd))
+// SHA1 hash update (parity)
+#define SHA1P(Qd, Sn, Vm)       EMIT(SHA1P_gen(Vm, Sn, Qd))
+
+#define SHA256SU0_gen(Rn,Rd)    (0b01011110<<24 | 0b10100<<17 | 0b00010<<12 | 0b10<<10 | (Rn)<<5 | (Rd))
+//SHA256 schedule update 0
+#define SHA256SU0(Vd, Vn)       EMIT(SHA256SU0_gen(Vn, Vd))
+
+#define SHA256SU1_gen(Rm, Rn, Rd)   (0b01011110<<24 | (Rm)<<16 | 0b110<<12 | (Rn)<<5 | (Rd))
+//SHA256 schedule update 1
+#define SHA256SU1(Vd, Vn, Vm)       EMIT(SHA256SU1_gen(Vm, Vn, Vd))
+
+#define SHA256H_gen(Rm, Rn, Rd) (0b01011110<<24 | (Rm)<<16 | 0b100<<12 | (Rn)<<5 | (Rd))
+//SHA256 hash update (part 1)
+#define SHA256H(Vd, Vn, Vm)     EMIT(SHA256H_gen(Vm, Vn, Vd))
+
+#define SHA256H2_gen(Rm, Rn, Rd)    (0b01011110<<24 | (Rm)<<16 | 0b101<<12 | (Rn)<<5 | (Rd))
+//SHA256 hash update (part 2)
+#define SHA256H2(Vd, Vn, Vm)        EMIT(SHA256H2_gen(Vm, Vn, Vd))
 
 #endif  //__ARM64_EMITTER_H__
