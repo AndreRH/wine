@@ -80,7 +80,8 @@ static void init_thread_cpu(void)
 
 static NTSTATUS attach( void *args )
 {
-    static char default_lib[] = "/opt/libqemu-i386.so";
+    static char default_lib[] = "libqemu-i386.so";
+    static char deprecated_lib[] = "/opt/libqemu-i386.so";
     char *holib, *qemu_log;
     int log_mask;
 
@@ -89,7 +90,15 @@ static NTSTATUS attach( void *args )
     holib = getenv("HOLIB");
     if (!holib)
         holib = default_lib;
-    if (!(emuapi_handle = dlopen( holib, RTLD_NOW ))) return STATUS_DLL_NOT_FOUND;
+
+    if (!(emuapi_handle = dlopen( holib, RTLD_NOW )))
+    {
+		if (!(emuapi_handle = dlopen( deprecated_lib, RTLD_NOW )))
+		{
+			FIXME("%s\n", dlerror());
+			return STATUS_DLL_NOT_FOUND;
+		}
+    }
 
 #define LOAD_FUNCPTR(f) if((p##f = dlsym(emuapi_handle, #f)) == NULL) {ERR(#f " %p\n", p##f);return STATUS_ENTRYPOINT_NOT_FOUND;}
 #define LOAD_FUNCPTR_OPT(f) if((p##f = dlsym(emuapi_handle, #f)) == NULL) {ERR(#f " %p\n", p##f);}
