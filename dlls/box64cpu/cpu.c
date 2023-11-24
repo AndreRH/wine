@@ -77,7 +77,7 @@ int box64_dynarec_aligned_atomics = 0;
 int arm64_atomics = 0;
 int arm64_crc32 = 0;
 int arm64_flagm = 0;
-int arm64_aes = 1;
+int arm64_aes = 0;
 int arm64_pmull = 0;
 int box64_log = 1;
 uintptr_t box64_pagesize = 4096;
@@ -403,29 +403,9 @@ uint64_t ReadTSC( x64emu_t *emu )
 
 void my_cpuid(x64emu_t* emu, uint32_t tmp32u)
 {
+    static char branding[3*4*4+1] = "Box64 on Hangover";
+    int ncpu = NtCurrentTeb()->Peb->NumberOfProcessors;
     emu->regs[_AX].dword[1] = emu->regs[_DX].dword[1] = emu->regs[_CX].dword[1] = emu->regs[_BX].dword[1] = 0;
-    int ncpu = 4; // FIXME getNCpu();
-    static char branding[3*4*4+1] = "";
-    static int done = 0;
-    if(!done) {
-        done = 1;
-        const char* name = "Cortex-A72"; // FIXME getCpuName();
-        if(strstr(name, "MHz") || strstr(name, "GHz")) {
-            // name already have the speed in it
-            snprintf(branding, 3*4*4, "Box64 on %s", name);
-        } else {
-            int MHz = 1800; // FIXME get_cpuMhz();
-            if(MHz>15000) { // swiches to GHz display...
-                snprintf(branding, 3*4*4, "Box64 on %s @%1.2f GHz", name, MHz/1000.);
-            } else {
-                snprintf(branding, 3*4*4, "Box64 on %s @%04d MHz", name, MHz);
-            }
-        }
-        while(strlen(branding)<3*4*4) {
-            memmove(branding+1, branding, strlen(branding));
-            branding[0] = ' ';
-        }
-    }
     if(ncpu>255) ncpu = 255;
     if(!ncpu) ncpu = 1;
     switch(tmp32u) {
@@ -703,7 +683,6 @@ void WINAPI BTCpuSimulate(void)
     x64emu_t *emu = NtCurrentTeb()->TlsSlots[0];  // FIXME
     WOW64_CPURESERVED *cpu = NtCurrentTeb()->TlsSlots[WOW64_TLS_CPURESERVED];
     I386_CONTEXT *ctx = (I386_CONTEXT *)(cpu + 1);
-    XMM_SAVE_AREA32 *fpu = (XMM_SAVE_AREA32 *)ctx->ExtendedRegisters;
 
     TRACE( "START %lx\n", ctx->Eip );
 
@@ -737,6 +716,55 @@ void WINAPI BTCpuSimulate(void)
     TRACE("finished eip %llx stack %x\n", R_RIP, R_ESP);
 }
 
+/* Note: This works on Linux by emulating the access to the register,
+ * other platforms might have issues here
+ * https://www.kernel.org/doc/html/latest/arch/arm64/cpu-feature-registers.html
+*/
+static void box64_detect_cpu_features(void)
+{
+    uint64_t isar0, feat;
+
+    asm("mrs %0, ID_AA64ISAR0_EL1" : "=r" (isar0));
+    TRACE("ID_AA64ISAR0_EL1: 0x%016llx\n", isar0);
+
+    /* AES & PMULL */
+    feat = (isar0 >> 4) & 0x03;
+    if (feat > 0)
+    {
+        TRACE("AES supported\n");
+        arm64_aes = TRUE;
+    }
+    if (feat > 1)
+    {
+        TRACE("PMULL supported\n");
+        arm64_pmull = TRUE;
+    }
+
+    /* CRC32 */
+    feat = (isar0 >> 16) & 0x01;
+    if (feat > 0)
+    {
+        TRACE("CRC32 supported\n");
+        arm64_crc32 = TRUE;
+    }
+
+    /* Atomic */
+    feat = (isar0 >> 20) & 0x03;
+    if (feat > 0)
+    {
+        TRACE("Atomics supported\n");
+        arm64_atomics = TRUE;
+    }
+
+    /* TS */
+    feat = (isar0 >> 52) & 0x03;
+    if (feat > 0)
+    {
+        TRACE("FlagM supported\n");
+        arm64_flagm = TRUE;
+    }
+}
+
 /**********************************************************************
  *           BTCpuProcessInit  (box64cpu.@)
  */
@@ -747,6 +775,8 @@ NTSTATUS WINAPI BTCpuProcessInit(void)
     void **p__wine_unix_call_dispatcher;
 
     MESSAGE("starting Box64 based box64cpu.dll\n");
+
+    box64_detect_cpu_features();
 
     if (TRACE_ON(box64dump))
     {
