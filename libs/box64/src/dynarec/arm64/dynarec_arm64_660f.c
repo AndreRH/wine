@@ -2159,24 +2159,30 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
             BFIw(xFlags, x1, F_CF, 1);
             break;
         case 0xA4:
+            INST_NAME("SHLD Ew, Gw, Ib");
+            SETFLAGS(X_ALL, SF_SET_PENDING);
+            GETEW(x1, 1);
+            GETGW(x2);
+            u8 = F8;
+            emit_shld16c(dyn, ninst, ed, gd, u8, x4, x5);
+            EWBACK;
+            break;
         case 0xA5:
             nextop = F8;
-            if(opcode==0xA4) {
-                INST_NAME("SHLD Ew, Gw, Ib");
-            } else {
-                INST_NAME("SHLD Ew, Gw, CL");
-                UXTBw(x3, xRCX);
-            }
-            MESSAGE(LOG_DUMP, "Need Optimization\n");
-            SETFLAGS(X_ALL, SF_SET);
-            GETEWW(x4, x1, (opcode==0xA4)?1:0);
+            INST_NAME("SHLD Ew, Gw, CL");
+            SETFLAGS(X_ALL, SF_SET_PENDING);    // some flags are left undefined
+            if(box64_dynarec_safeflags>1)
+                MAYSETFLAGS();
             GETGW(x2);
-            if(opcode==0xA4) {
-                u8 = F8;
-                MOV32w(x3, u8);
+            GETEW(x1, 0);
+            UFLAG_IF {
+                ANDSw_mask(x4, xRCX, 0, 0b00100);  //mask=0x00000001f
+                B_NEXT(cEQ);
+            } else {
+                ANDw_mask(x4, xRCX, 0, 0b00100);  //mask=0x00000001f
             }
-            CALL_(shld16, x1, wback);
-            EWBACKW(x1);
+            emit_shld16(dyn, ninst, ed, gd, x4, x5, x6);
+            EWBACK;
             break;
 
         case 0xAB:
@@ -2209,24 +2215,30 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
             }
             break;
         case 0xAC:
+            INST_NAME("SHRD Ew, Gw, Ib");
+            SETFLAGS(X_ALL, SF_SET_PENDING);
+            GETEW(x1, 1);
+            GETGW(x2);
+            u8 = F8;
+            emit_shrd16c(dyn, ninst, ed, gd, u8, x4, x5);
+            EWBACK;
+            break;
         case 0xAD:
             nextop = F8;
-            if(opcode==0xAC) {
-                INST_NAME("SHRD Ew, Gw, Ib");
-            } else {
-                INST_NAME("SHRD Ew, Gw, CL");
-                UXTBw(x3, xRCX);
-            }
-            MESSAGE(LOG_DUMP, "Need Optimization\n");
-            SETFLAGS(X_ALL, SF_SET);
-            GETEWW(x4, x1, (opcode==0xAC)?1:0);
+            INST_NAME("SHRD Ew, Gw, CL");
+            SETFLAGS(X_ALL, SF_SET_PENDING);    // some flags are left undefined
+            if(box64_dynarec_safeflags>1)
+                MAYSETFLAGS();
             GETGW(x2);
-            if(opcode==0xAC) {
-                u8 = F8;
-                MOV32w(x3, u8);
+            GETEW(x1, 0);
+            UFLAG_IF {
+                ANDSw_mask(x4, xRCX, 0, 0b00100);  //mask=0x00000001f
+                B_NEXT(cEQ);
+            } else {
+                ANDw_mask(x4, xRCX, 0, 0b00100);  //mask=0x00000001f
             }
-            CALL_(shrd16, x1, wback);
-            EWBACKW(x1);
+            emit_shrd16(dyn, ninst, ed, gd, x4, x5, x6);
+            EWBACK;
             break;
 
         case 0xAF:
@@ -2262,8 +2274,6 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
             ANDw_mask(x2, gd, 0, 0b000011);  // mask=0x0f
             LSRw_REG(x1, ed, x2);
             BFIw(xFlags, x1, F_CF, 1);
-            ANDSw_mask(x1, x1, 0, 0);  //mask=1
-            B_NEXT(cEQ);
             MOV32w(x1, 1);
             LSLxw_REG(x1, x1, x2);
             BICx_REG(ed, ed, x1);
@@ -2330,12 +2340,12 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
                     GETEW(x1, 1);
                     u8 = F8;
                     u8&=(rex.w?0x3f:0x0f);
-                    BFXILxw(xFlags, ed, u8, 1);  // inject 1 bit from u8 to F_CF (i.e. pos 0)
-                    TBNZ_MARK3(xFlags, 0); // bit already set, jump to next instruction
+                    IFX(X_CF) {
+                        BFXILxw(xFlags, ed, u8, 1);  // inject 1 bit from u8 to F_CF (i.e. pos 0)
+                    }
                     MOV32w(x4, 1);
-                    ORRxw_REG_LSL(ed, ed, x4, u8);
+                    BFIxw(ed, x4, u8, 1);
                     EWBACK(x1);
-                    MARK3;
                     break;
                 case 6:
                     INST_NAME("BTR Ew, Ib");
@@ -2344,12 +2354,11 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
                     GETEW(x1, 1);
                     u8 = F8;
                     u8&=(rex.w?0x3f:0x0f);
-                    BFXILxw(xFlags, ed, u8, 1);  // inject 1 bit from u8 to F_CF (i.e. pos 0)
-                    TBZ_MARK3(xFlags, 0); // bit already clear, jump to next instruction
-                    MOV32w(x4, 1);
-                    BICxw_REG_LSL(ed, ed, x4, u8);
+                    IFX(X_CF) {
+                        BFXILxw(xFlags, ed, u8, 1);  // inject 1 bit from u8 to F_CF (i.e. pos 0)
+                    }
+                    BFCxw(ed, u8, 1);
                     EWBACK(x1);
-                    MARK3;
                     break;
                 case 7:
                     INST_NAME("BTC Ew, Ib");
@@ -2358,7 +2367,9 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
                     GETEW(x1, 1);
                     u8 = F8;
                     u8&=(rex.w?0x3f:0x0f);
-                    BFXILxw(xFlags, ed, u8, 1);  // inject 1 bit from u8 to F_CF (i.e. pos 0)
+                    IFX(X_CF) {
+                        BFXILxw(xFlags, ed, u8, 1);  // inject 1 bit from u8 to F_CF (i.e. pos 0)
+                    }
                     MOV32w(x4, 1);
                     EORxw_REG_LSL(ed, ed, x4, u8);
                     EWBACK(x1);
@@ -2386,9 +2397,10 @@ uintptr_t dynarec64_660F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
                 ed = x4;
             }
             ANDw_mask(x2, gd, 0, 0b000011);  // mask=0x0f
-            LSRw_REG(x1, ed, x2);
-            BFIw(xFlags, x1, F_CF, 1);
-            ANDw_mask(x1, x1, 0, 0);  //mask=1
+            IFX(X_CF) {
+                LSRw_REG(x1, ed, x2);
+                BFIw(xFlags, x1, F_CF, 1);
+            }
             MOV32w(x1, 1);
             LSLxw_REG(x1, x1, x2);
             EORx_REG(ed, ed, x1);
