@@ -44,7 +44,8 @@ static void *emuapi_handle;
 
 static NTSTATUS attach( void *args )
 {
-    static char default_lib[] = "/opt/libFEXCore.so";
+    static char default_lib[] = "libFEXCore.so";
+    static char deprecated_lib[] = "/opt/libFEXCore.so";
     char *holib;
 
     MESSAGE("starting FEX based fexcore.dll\n");
@@ -55,8 +56,11 @@ static NTSTATUS attach( void *args )
 
     if (!(emuapi_handle = dlopen( holib, RTLD_NOW )))
     {
-        FIXME("%s\n", dlerror());
-        return STATUS_DLL_NOT_FOUND;
+		if (!(emuapi_handle = dlopen( deprecated_lib, RTLD_NOW )))
+		{
+			FIXME("%s\n", dlerror());
+			return STATUS_DLL_NOT_FOUND;
+		}
     }
 
 #define LOAD_FUNCPTR(f) if((p##f = dlsym(emuapi_handle, #f)) == NULL) {ERR(#f " %p\n", p##f);return STATUS_ENTRYPOINT_NOT_FOUND;}
