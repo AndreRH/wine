@@ -1362,7 +1362,7 @@ x64emurun:
             STEP2
             break;
         case 0xC4:                      /* LES Gd,Ed */
-            if(rex.is32bits) {
+            if(rex.is32bits && !(PK(0)&0x80)) {
                 nextop = F8;
                 GETED(0);
                 GETGD;
@@ -1375,7 +1375,7 @@ x64emurun:
             }
             break;
         case 0xC5:                      /* LDS Gd,Ed */
-            if(rex.is32bits) {
+            if(rex.is32bits && !(PK(0)&0x80)) {
                 nextop = F8;
                 GETED(0);
                 GETGD;
@@ -1575,7 +1575,10 @@ x64emurun:
             };
             break;
         case 0xD7:                      /* XLAT */
-            R_AL = *(uint8_t*)(R_RBX + R_AL);
+            if(rex.w || rex.is32bits)
+                R_AL = *(uint8_t*)(R_RBX + R_AL);
+            else
+                R_AL = *(uint8_t*)((uintptr_t)R_EBX + R_AL);
             break;
         case 0xD8:                      /* x87 opcodes */
             #ifdef TEST_INTERPRETER
@@ -2084,7 +2087,7 @@ fini:
         goto x64emurun;
     }
     // setcontext handling
-    else if(emu->uc_link) {
+    else if(emu->quit && emu->uc_link) {
         emu->quit = 0;
         my_setcontext(emu, emu->uc_link);
         addr = R_RIP;
