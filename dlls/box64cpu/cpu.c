@@ -79,6 +79,8 @@ int arm64_crc32 = 0;
 int arm64_flagm = 0;
 int arm64_aes = 0;
 int arm64_pmull = 0;
+int arm64_sha1 = 0;
+int arm64_sha2 = 0;
 int box64_log = 1;
 uintptr_t box64_pagesize = 4096;
 uint32_t default_gs = 0x2b;
@@ -719,6 +721,7 @@ void WINAPI BTCpuSimulate(void)
 /* Note: This works on Linux by emulating the access to the register,
  * other platforms might have issues here
  * https://www.kernel.org/doc/html/latest/arch/arm64/cpu-feature-registers.html
+ * https://developer.arm.com/documentation/ddi0595/2021-12/AArch64-Registers/ID-AA64ISAR0-EL1--AArch64-Instruction-Set-Attribute-Register-0
 */
 static void box64_detect_cpu_features(void)
 {
@@ -738,6 +741,22 @@ static void box64_detect_cpu_features(void)
     {
         TRACE("PMULL supported\n");
         arm64_pmull = TRUE;
+    }
+
+    /* SHA1 */
+    feat = (isar0 >> 8) & 0x01;
+    if (feat > 0)
+    {
+        TRACE("SHA1 supported\n");
+        arm64_sha1 = TRUE;
+    }
+
+    /* SHA2 */
+    feat = (isar0 >> 12) & 0x03;
+    if (feat > 0)
+    {
+        TRACE("SHA2 supported\n");
+        arm64_sha2 = TRUE;
     }
 
     /* CRC32 */

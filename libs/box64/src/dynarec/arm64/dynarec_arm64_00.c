@@ -1041,8 +1041,8 @@ uintptr_t dynarec64_00(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             INST_NAME("(LOCK)XCHG Eb, Gb");
             // Do the swap
             nextop = F8;
+            GETGB(x4);
             if(MODREG) {
-                GETGB(x4);
                 if(rex.rex) {
                     ed = xRAX+(nextop&7)+(rex.b<<3);
                     eb1 = ed;
@@ -1054,10 +1054,8 @@ uintptr_t dynarec64_00(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                 }
                 UBFXw(x1, eb1, eb2, 8);
                 // do the swap 14 -> ed, 1 -> gd
-                BFIx(gb1, x1, gb2, 8);
                 BFIx(eb1, x4, eb2, 8);
             } else {
-                GETGB(x4);
                 addr = geted(dyn, addr, ninst, nextop, &ed, x2, &fixedaddress, NULL, 0, 0, rex, LOCK_LOCK, 0, 0);
                 if(arm64_atomics) {
                     SWPALB(x4, x1, ed);
@@ -1069,8 +1067,8 @@ uintptr_t dynarec64_00(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                     STLXRB(x3, x4, ed);
                     CBNZx_MARKLOCK(x3);
                 }
-                BFIx(gb1, x1, gb2, 8);
             }
+            BFIx(gb1, x1, gb2, 8);
             break;
         case 0x87:
             INST_NAME("(LOCK)XCHG Ed, Gd");
@@ -2112,7 +2110,7 @@ uintptr_t dynarec64_00(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                 SETFLAGS(X_ALL, SF_SET);    // Hack to set flags in "don't care" state
                 GETIP(ip);
                 STORE_XEMU_CALL(xRIP);
-                CALL(native_priv, -1);
+                CALL(native_int, -1);
                 LOAD_XEMU_CALL(xRIP);
                 jump_to_epilog(dyn, 0, xRIP, ninst);
                 *need_epilog = 0;
@@ -2273,8 +2271,7 @@ uintptr_t dynarec64_00(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                     UFLAG_IF {  // calculate flags directly
                         CMPSw_U12(x2, 7);
                         B_MARK(cNE);
-                            LSRxw(x3, ed, 7);
-                            ADDxw_REG(x3, x3, ed);
+                            ADDxw_REG_LSR(x3, ed, ed, 7);
                             BFIw(xFlags, x3, F_OF, 1);
                         MARK;
                         BFIw(xFlags, ed, F_CF, 1);
@@ -2409,8 +2406,7 @@ uintptr_t dynarec64_00(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                     UFLAG_IF {  // calculate flags directly
                         CMPSw_U12(x3, rex.w?63:31);
                         B_MARK(cNE);
-                            LSRxw(x1, ed, rex.w?63:31);
-                            ADDxw_REG(x1, x1, ed);
+                            ADDxw_REG_LSR(x1, ed, ed, rex.w?63:31);
                             BFIw(xFlags, x1, F_OF, 1);
                         MARK;
                         BFIw(xFlags, ed, F_CF, 1);
@@ -2574,6 +2570,16 @@ uintptr_t dynarec64_00(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             }
             break;
 
+        case 0xD7:
+            INST_NAME("XLAT");
+            UXTBw(x1, xRAX);
+            if(rex.w || rex.is32bits) {
+                LDRB_REG(x1, xRBX, x1);
+            } else {
+                LDRB_REG_UXTW(x1, x1, xRBX);
+            }
+            BFIx(xRAX, x1, 0, 8);
+            break;
         case 0xD8:
             addr = dynarec64_D8(dyn, addr, ip, ninst, rex, rep, ok, need_epilog);
             break;
@@ -2874,18 +2880,24 @@ uintptr_t dynarec64_00(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                     break;
                 case 6:
                     INST_NAME("DIV Eb");
-                    MESSAGE(LOG_DUMP, "Need Optimization\n");
                     SETFLAGS(X_ALL, SF_SET);
                     GETEB(x1, 0);
-                    CALL(div8, -1);
+                    UXTHw(x2, xRAX);
+                    UDIVw(x3, x2, ed);
+                    MSUBw(x4, x3, ed, x2);  // x4 = x2 mod ed (i.e. x2 - x3*ed)
+                    BFIx(xRAX, x3, 0, 8);
+                    BFIx(xRAX, x4, 8, 8);
                     break;
                 case 7:
                     INST_NAME("IDIV Eb");
                     SKIPTEST(x1);
-                    MESSAGE(LOG_DUMP, "Need Optimization\n");
                     SETFLAGS(X_ALL, SF_SET);
-                    GETEB(x1, 0);
-                    CALL(idiv8, -1);
+                    GETSEB(x1, 0);
+                    SXTHw(x2, xRAX);
+                    SDIVw(x3, x2, ed);
+                    MSUBw(x4, x3, ed, x2);  // x4 = x2 mod ed (i.e. x2 - x3*ed)
+                    BFIx(xRAX, x3, 0, 8);
+                    BFIx(xRAX, x4, 8, 8);
                     break;
             }
             break;
