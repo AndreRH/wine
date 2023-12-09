@@ -51,15 +51,15 @@ extern void x86Int(x64emu_t *emu, int code);
 // Opcode has wrote (strongmem>1 only)
 #define SMWRITE2()   if(box64_dynarec_strongmem>SMREAD_MIN) dyn->smwrite=1
 // Opcode has wrote with option forced lock
-#define SMWRITELOCK(lock)   if(lock || (box64_dynarec_strongmem>SMWRITE_MIN /*&& (!ninst || dyn->smlastdmb!=ninst-1)*/)) {SMDMB();} else dyn->smwrite=1
+#define SMWRITELOCK(lock)   if(lock || (box64_dynarec_strongmem>SMWRITE_MIN)) {SMDMB();} else dyn->smwrite=1
 // Opcode might have wrote (depend on nextop)
 #define SMMIGHTWRITE()   if(!MODREG) {SMWRITE();}
 // Start of sequence
 #define SMSTART()   SMEND()
 // End of sequence
-#define SMEND()     if(dyn->smwrite && box64_dynarec_strongmem) {DMB_ISH();} dyn->smwrite=0; dyn->smread=0;
+#define SMEND()     if(dyn->smwrite && box64_dynarec_strongmem) {if(box64_dynarec_strongmem){DSB_ISH();}else{DMB_ISH();}} dyn->smwrite=0; dyn->smread=0;
 // Force a Data memory barrier (for LOCK: prefix)
-#define SMDMB()     DMB_ISH(); dyn->smwrite=0; dyn->smread=1; dyn->smlastdmb = ninst
+#define SMDMB()     if(box64_dynarec_strongmem){DSB_ISH();}else{DMB_ISH();} dyn->smwrite=0; dyn->smread=1
 
 //LOCK_* define
 #define LOCK_LOCK   (int*)1
@@ -1466,5 +1466,31 @@ uintptr_t dynarec64_F30F(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int n
             rex.rex = opcode;                   \
             opcode = F8;                        \
         }
+
+#define COMP_ZFSF(s1, A)                        \
+    IFX(X_ZF|X_SF) {                            \
+        if(arm64_flagm) {                       \
+            SETF##A(s1);                        \
+            IFX(X_ZF) {                         \
+                CSETw(s3, cEQ);                 \
+                BFIw(xFlags, s3, F_ZF, 1);      \
+            }                                   \
+            IFX(X_SF) {                         \
+                CSETw(s3, cMI);                 \
+                BFIw(xFlags, s3, F_SF, 1);      \
+            }                                   \
+        } else {                                \
+            IFX(X_ZF) {                         \
+                ANDSw_mask(s1, s1, 0, (A)-1);   \
+                CSETw(s3, cEQ);                 \
+                BFIw(xFlags, s3, F_ZF, 1);      \
+            }                                   \
+            IFX(X_SF) {                         \
+                LSRw(s3, s1, (A)-1);            \
+                BFIw(xFlags, s3, F_SF, 1);      \
+            }                                   \
+        }                                       \
+    }
+
 
 #endif //__DYNAREC_ARM64_HELPER_H__
