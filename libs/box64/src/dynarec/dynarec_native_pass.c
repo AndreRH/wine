@@ -45,7 +45,6 @@ uintptr_t native_pass(dynarec_native_t* dyn, uintptr_t addr, int alternate, int 
     dyn->forward_to = 0;
     dyn->forward_size = 0;
     dyn->forward_ninst = 0;
-    dyn->smlastdmb = ~0;
     fpu_reset(dyn);
     ARCH_INIT();
     int reset_n = -1;
@@ -112,12 +111,13 @@ uintptr_t native_pass(dynarec_native_t* dyn, uintptr_t addr, int alternate, int 
 
         rep = 0;
         uint8_t pk = PK(0);
-        while((pk==0xF2) || (pk==0xF3)) {
-            rep = pk-0xF1;
-            ++addr;
-            pk = PK(0);
-        }
-        while(pk==0x3E || pk==0x26) {   //Branch Taken Hint ignored, same for ES: prefix
+        while((pk==0xF2) || (pk==0xF3) || (pk==0x3E) || (pk==0x26)) {
+            switch(pk) {
+                case 0xF2: rep = 1; break;
+                case 0xF3: rep = 2; break;
+                case 0x3E:
+                case 0x26: /* ignored */ break;
+            }
             ++addr;
             pk = PK(0);
         }
