@@ -86,12 +86,15 @@ x64emurun:
         opcode = F8;
         
         rep = 0;
-        while((opcode==0xF2) || (opcode==0xF3)) {
-            rep = opcode-0xF1;
+        while((opcode==0xF2) || (opcode==0xF3) || (opcode==0x3E) || (opcode==0x26)) {
+            switch (opcode) {
+                case 0xF2: rep = 1; break;
+                case 0xF3: rep = 2; break;
+                case 0x3E:
+                case 0x26: /* ignored*/ break;
+            }
             opcode = F8;
         }
-        while((opcode==0x3E) || (opcode==0x26))   //Branch Taken Hint ignored
-            opcode = F8;
         rex.rex = 0;
         rex.is32bits = is32bits;
         if(!is32bits)
@@ -520,79 +523,13 @@ x64emurun:
                 GD->q[0] = imul32(emu, ED->dword[0], (uint32_t)tmp64s);
             break;
         case 0x6C:                      /* INSB DX */
-            if(rex.is32bits) {
-                tmp32u = rep?R_ECX:1;
-                while(tmp32u--) {
-                    *(int8_t*)(R_EDI+GetESBaseEmu(emu)) = 0;   // faking port read, using explicit ES segment
-                    if(ACCESS_FLAG(F_DF))
-                        R_EDI-=1;
-                    else
-                        R_EDI+=1;
-                }
-                if(rep)
-                    R_ECX = 0;
-            } else {
-                // this is a privilege opcode in 64bits, but not in 32bits...
-                #ifndef TEST_INTERPRETOR
-                
-                emit_signal(emu, SIGSEGV, (void*)R_RIP, 0);
-                STEP;
-                #endif
-            }
-            break;
-        case 0x6D:                      /* INSL DX */
-            if(rex.is32bits) {
-                tmp32u = rep?R_ECX:1;
-                while(tmp32u--) {
-                    *(int32_t*)(R_EDI+GetESBaseEmu(emu)) = 0;   // faking port read, using explicit ES segment
-                    if(ACCESS_FLAG(F_DF))
-                        R_EDI-=4;
-                    else
-                        R_EDI+=4;
-                }
-                if(rep)
-                    R_ECX = 0;
-            } else {
-                // this is a privilege opcode in 64bits, but not in 32bits...
-                #ifndef TEST_INTERPRETOR
-                emit_signal(emu, SIGSEGV, (void*)R_RIP, 0);
-                STEP;
-                #endif
-            }
-            break;
+        case 0x6D:                      /* INSD DX */
         case 0x6E:                      /* OUTSB DX */
-            if(rex.is32bits) {
-                // faking port write, using explicit ES segment
-                if(ACCESS_FLAG(F_DF))
-                    R_ESI-=rep?R_ECX:1;
-                else
-                    R_ESI+=1?R_ECX:1;
-                if(rep)
-                    R_ECX = 0;
-            } else {
-                // this is a privilege opcode in 64bits, but not in 32bits...
-                #ifndef TEST_INTERPRETOR
-                emit_signal(emu, SIGSEGV, (void*)R_RIP, 0);
-                STEP;
-                #endif
-            }
-            break;
-        case 0x6F:                      /* OUTSL DX */
-            if(rex.is32bits) {
-                // faking port write, using explicit ES segment
-                if(ACCESS_FLAG(F_DF))
-                    R_ESI-=(rep?R_ECX:1)*4;
-                else
-                    R_ESI+=(rep?R_ECX:1)*4;
-                if(rep)
-                    R_ECX = 0;
-            } else {
-                // this is a privilege opcode in 64bits, but not in 32bits...
-                #ifndef TEST_INTERPRETOR
-                emit_signal(emu, SIGSEGV, (void*)R_RIP, 0);
-                STEP;
-                #endif
-            }
+        case 0x6F:                      /* OUTSD DX */
+            #ifndef TEST_INTERPRETOR
+            emit_signal(emu, SIGSEGV, (void*)R_RIP, 0);
+            STEP;
+            #endif
             break;
 
         GOCOND(0x70
@@ -1746,6 +1683,7 @@ x64emurun:
             else
                 Push64(emu, addr);
             addr += tmp32s;
+            addr = (uintptr_t)getAlternate((void*)addr);
             STEP2
             break;
         case 0xE9:                      /* JMP Id */
@@ -1820,9 +1758,13 @@ x64emurun:
                     imul8(emu, EB->byte[0]);
                     break;
                 case 6:                 /* DIV Eb */
+                    if(!EB->byte[0])
+                        emit_div0(emu, (void*)R_RIP, 0);
                     div8(emu, EB->byte[0]);
                     break;
                 case 7:                 /* IDIV Eb */
+                    if(!EB->byte[0])
+                        emit_div0(emu, (void*)R_RIP, 0);
                     idiv8(emu, EB->byte[0]);
                     break;
             }
@@ -1851,9 +1793,13 @@ x64emurun:
                         imul64_rax(emu, ED->q[0]);
                         break;
                     case 6:                 /* DIV Ed */
+                        if(!ED->q[0])
+                            emit_div0(emu, (void*)R_RIP, 0);
                         div64(emu, ED->q[0]);
                         break;
                     case 7:                 /* IDIV Ed */
+                        if(!ED->q[0])
+                            emit_div0(emu, (void*)R_RIP, 0);
                         idiv64(emu, ED->q[0]);
                         break;
                 }
@@ -1887,11 +1833,15 @@ x64emurun:
                         emu->regs[_DX].dword[1] = 0;
                         break;
                     case 6:                 /* DIV Ed */
+                        if(!ED->dword[0])
+                            emit_div0(emu, (void*)R_RIP, 0);
                         div32(emu, ED->dword[0]);
                         //emu->regs[_AX].dword[1] = 0;  // already put high regs to 0
                         //emu->regs[_DX].dword[1] = 0;
                         break;
                     case 7:                 /* IDIV Ed */
+                        if(!ED->dword[0])
+                            emit_div0(emu, (void*)R_RIP, 0);
                         idiv32(emu, ED->dword[0]);
                         //emu->regs[_AX].dword[1] = 0;
                         //emu->regs[_DX].dword[1] = 0;
