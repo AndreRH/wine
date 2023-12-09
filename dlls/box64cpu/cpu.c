@@ -123,6 +123,19 @@ void emit_interruption(x64emu_t* emu, int num, void* addr)
     ERR( "got interrupt %i @ %p\n", num, addr );
 }
 
+void emit_div0(x64emu_t* emu, void* addr, int code)
+{
+    EXCEPTION_RECORD rec;
+
+    ERR( "got division by 0\n" );
+    rec.ExceptionCode = EXCEPTION_INT_DIVIDE_BY_ZERO; // FIXME: Might be EXCEPTION_FLT_DIVIDE_BY_ZERO
+    rec.ExceptionFlags   = EH_NONCONTINUABLE;
+    rec.ExceptionRecord  = NULL;
+    rec.ExceptionAddress = addr;
+    rec.NumberParameters = 0;
+    RtlRaiseException( &rec );
+}
+
 void emit_signal( x64emu_t *emu, int sig, void *addr, int code )
 {
     EXCEPTION_RECORD rec;

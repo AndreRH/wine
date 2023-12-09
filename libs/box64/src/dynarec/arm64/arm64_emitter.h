@@ -92,24 +92,24 @@
 
 // MOVZ
 #define MOVZ_gen(sf, hw, imm16, Rd)         ((sf)<<31 | 0b10<<29 | 0b100101<<23 | (hw)<<21 | (imm16)<<5 | (Rd))
-#define MOVZx(Rd, imm16)                    EMIT(MOVZ_gen(1, 0, ((uint16_t)imm16)&0xffff, Rd))
-#define MOVZx_LSL(Rd, imm16, shift)         EMIT(MOVZ_gen(1, (shift)/16, ((uint16_t)imm16)&0xffff, Rd))
-#define MOVZw(Rd, imm16)                    EMIT(MOVZ_gen(0, 0, ((uint16_t)imm16)&0xffff, Rd))
-#define MOVZw_LSL(Rd, imm16, shift)         EMIT(MOVZ_gen(0, (shift)/16, ((uint16_t)imm16)&0xffff, Rd))
+#define MOVZx(Rd, imm16)                    EMIT(MOVZ_gen(1, 0, ((uint16_t)(imm16))&0xffff, Rd))
+#define MOVZx_LSL(Rd, imm16, shift)         EMIT(MOVZ_gen(1, (shift)/16, ((uint16_t)(imm16))&0xffff, Rd))
+#define MOVZw(Rd, imm16)                    EMIT(MOVZ_gen(0, 0, ((uint16_t)(imm16))&0xffff, Rd))
+#define MOVZw_LSL(Rd, imm16, shift)         EMIT(MOVZ_gen(0, (shift)/16, ((uint16_t)(imm16))&0xffff, Rd))
 
 // MOVN
 #define MOVN_gen(sf, hw, imm16, Rd)         ((sf)<<31 | 0b00<<29 | 0b100101<<23 | (hw)<<21 | (imm16)<<5 | (Rd))
-#define MOVNx(Rd, imm16)                    EMIT(MOVN_gen(1, 0, ((uint16_t)imm16)&0xffff, Rd))
-#define MOVNx_LSL(Rd, imm16, shift)         EMIT(MOVN_gen(1, (shift)/16, ((uint16_t)imm16)&0xffff, Rd))
-#define MOVNw(Rd, imm16)                    EMIT(MOVN_gen(0, 0, ((uint16_t)imm16)&0xffff, Rd))
-#define MOVNw_LSL(Rd, imm16, shift)         EMIT(MOVN_gen(0, (shift)/16, ((uint16_t)imm16)&0xffff, Rd))
+#define MOVNx(Rd, imm16)                    EMIT(MOVN_gen(1, 0, ((uint16_t)(imm16))&0xffff, Rd))
+#define MOVNx_LSL(Rd, imm16, shift)         EMIT(MOVN_gen(1, (shift)/16, ((uint16_t)(imm16))&0xffff, Rd))
+#define MOVNw(Rd, imm16)                    EMIT(MOVN_gen(0, 0, ((uint16_t)(imm16))&0xffff, Rd))
+#define MOVNw_LSL(Rd, imm16, shift)         EMIT(MOVN_gen(0, (shift)/16, ((uint16_t)(imm16))&0xffff, Rd))
 
 // MOVK
 #define MOVK_gen(sf, hw, imm16, Rd)         ((sf)<<31 | 0b11<<29 | 0b100101<<23 | (hw)<<21 | (imm16)<<5 | (Rd))
-#define MOVKx(Rd, imm16)                    EMIT(MOVK_gen(1, 0, ((uint16_t)imm16)&0xffff, Rd))
-#define MOVKx_LSL(Rd, imm16, shift)         EMIT(MOVK_gen(1, (shift)/16, ((uint16_t)imm16)&0xffff, Rd))
-#define MOVKw(Rd, imm16)                    EMIT(MOVK_gen(0, 0, ((uint16_t)imm16)&0xffff, Rd))
-#define MOVKw_LSL(Rd, imm16, shift)         EMIT(MOVK_gen(0, (shift)/16, ((uint16_t)imm16)&0xffff, Rd))
+#define MOVKx(Rd, imm16)                    EMIT(MOVK_gen(1, 0, ((uint16_t)(imm16))&0xffff, Rd))
+#define MOVKx_LSL(Rd, imm16, shift)         EMIT(MOVK_gen(1, (shift)/16, ((uint16_t)(imm16))&0xffff, Rd))
+#define MOVKw(Rd, imm16)                    EMIT(MOVK_gen(0, 0, ((uint16_t)(imm16))&0xffff, Rd))
+#define MOVKw_LSL(Rd, imm16, shift)         EMIT(MOVK_gen(0, (shift)/16, ((uint16_t)(imm16))&0xffff, Rd))
 
 // This macro will give a -Wsign-compare warning, probably bug #38341
 #define MOV32w(Rd, imm32) \
@@ -199,6 +199,12 @@
 #define SBCSx_REG(Rd, Rn, Rm)       EMIT(ADDSUBC_gen(1, 1, 1, Rm, Rn, Rd))
 #define SBCSw_REG(Rd, Rn, Rm)       EMIT(ADDSUBC_gen(0, 1, 1, Rm, Rn, Rd))
 #define SBCSxw_REG(Rd, Rn, Rm)      EMIT(ADDSUBC_gen(rex.w, 1, 1, Rm, Rn, Rd))
+
+// CCMP compare if cond is true, set nzcv if false
+#define CCMP_reg(sf, Rm, cond, Rn, nzcv)    ((sf)<<31 | 1<<30 | 1<<29 | 0b11010010<<21 | (Rm)<<16 | (cond)<<12 | (Rn)<<5 | (nzcv))
+#define CCMPw(Wn, Wm, nzcv, cond)   EMIT(CCMP_reg(0, Wm, cond, Wn, nzcv))
+#define CCMPx(Xn, Xm, nzcv, cond)   EMIT(CCMP_reg(1, Xm, cond, Xn, nzcv))
+#define CCMPxw(Xn, Xm, nzcv, cond)  EMIT(CCMP_reg(rex.w, Xm, cond, Xn, nzcv))
 
 // ADR
 #define ADR_gen(immlo, immhi, Rd)   ((immlo)<<29 | 0b10000<<24 | (immhi)<<5 | (Rd))
@@ -430,6 +436,12 @@
 #define DMB_ISH()                       EMIT(DMB_gen(0b1011))
 #define DMB_SY()                        EMIT(DMB_gen(0b1111))
 
+// Data Synchronization Barrier
+#define DSB_gen(CRm)                    (0b1101010100<<22 | 0b011<<16 | 0b0011<<12 | (CRm)<<8 | 1<<7 | 0b00<<5 | 0b11111)
+#define DSB_ISH()                       EMIT(DSB_gen(0b1011))
+#define DSB_ISHST()                     EMIT(DSB_gen(0b1010))
+#define DSB_SY()                        EMIT(DSB_gen(0b1111))
+
 // Break
 #define BRK_gen(imm16)                  (0b11010100<<24 | 0b001<<21 | (((imm16)&0xffff)<<5))
 #define BRK(imm16)                      EMIT(BRK_gen(imm16))
@@ -595,12 +607,12 @@
 #define BFMx(Rd, Rn, immr, imms)        EMIT(BFM_gen(1, 0b01, 1, immr, imms, Rn, Rd))
 #define BFMw(Rd, Rn, immr, imms)        EMIT(BFM_gen(0, 0b01, 0, immr, imms, Rn, Rd))
 #define BFMxw(Rd, Rn, immr, imms)       EMIT(BFM_gen(rex.w, 0b01, rex.w, immr, imms, Rn, Rd))
-#define BFIx(Rd, Rn, lsb, width)        BFMx(Rd, Rn, ((-lsb)%64)&0x3f, (width)-1)
-#define BFIw(Rd, Rn, lsb, width)        BFMw(Rd, Rn, ((-lsb)%32)&0x1f, (width)-1)
+#define BFIx(Rd, Rn, lsb, width)        BFMx(Rd, Rn, ((-(lsb))%64)&0x3f, (width)-1)
+#define BFIw(Rd, Rn, lsb, width)        BFMw(Rd, Rn, ((-(lsb))%32)&0x1f, (width)-1)
 #define BFIxw(Rd, Rn, lsb, width)       if(rex.w) {BFIx(Rd, Rn, lsb, width);} else {BFIw(Rd, Rn, lsb, width);}
-#define BFCx(Rd, lsb, width)            BFMx(Rd, xZR, ((-lsb)%64)&0x3f, (width)-1)
-#define BFCw(Rd, lsb, width)            BFMw(Rd, xZR, ((-lsb)%32)&0x1f, (width)-1)
-#define BFCxw(Rd, lsb, width)           BFMxw(Rd, xZR, rex.w?(((-lsb)%64)&0x3f):(((-lsb)%32)&0x1f), (width)-1)
+#define BFCx(Rd, lsb, width)            BFMx(Rd, xZR, ((-(lsb))%64)&0x3f, (width)-1)
+#define BFCw(Rd, lsb, width)            BFMw(Rd, xZR, ((-(lsb))%32)&0x1f, (width)-1)
+#define BFCxw(Rd, lsb, width)           BFMxw(Rd, xZR, rex.w?(((-(lsb))%64)&0x3f):(((-(lsb))%32)&0x1f), (width)-1)
 // Insert lsb:width part of Rn into low part of Rd (leaving rest of Rd untouched)
 #define BFXILx(Rd, Rn, lsb, width)      EMIT(BFM_gen(1, 0b01, 1, (lsb), (lsb)+(width)-1, Rn, Rd))
 // Insert lsb:width part of Rn into low part of Rd (leaving rest of Rd untouched)
@@ -639,9 +651,9 @@
 #define SBFMx(Rd, Rn, immr, imms)       EMIT(SBFM_gen(1, 1, immr, imms, Rn, Rd))
 #define SBFMw(Rd, Rn, immr, imms)       EMIT(SBFM_gen(0, 0, immr, imms, Rn, Rd))
 #define SBFMxw(Rd, Rn, immr, imms)      EMIT(SBFM_gen(rex.w, rex.w, immr, imms, Rn, Rd))
-#define SBFXx(Rd, Rn, lsb, width)       SBFMx(Rd, Rn, lsb, lsb+width-1)
-#define SBFXw(Rd, Rn, lsb, width)       SBFMw(Rd, Rn, lsb, lsb+width-1)
-#define SBFXxw(Rd, Rn, lsb, width)      SBFMxw(Rd, Rn, lsb, lsb+width-1)
+#define SBFXx(Rd, Rn, lsb, width)       SBFMx(Rd, Rn, lsb, (lsb)+(width)-1)
+#define SBFXw(Rd, Rn, lsb, width)       SBFMw(Rd, Rn, lsb, (lsb)+(width)-1)
+#define SBFXxw(Rd, Rn, lsb, width)      SBFMxw(Rd, Rn, lsb, (lsb)+(width)-1)
 #define SXTBx(Rd, Rn)                   SBFMx(Rd, Rn, 0, 7)
 #define SXTBw(Rd, Rn)                   SBFMw(Rd, Rn, 0, 7)
 #define SXTHx(Rd, Rn)                   SBFMx(Rd, Rn, 0, 15)
@@ -785,13 +797,13 @@
 // imm16 must be 4-aligned
 #define VLDR128_U12(Qt, Rn, imm16)          EMIT(VMEM_gen(0b00, 0b11, ((uint32_t)((imm16)>>4))&0xfff, Rn, Qt))
 // (imm14) must be 3-aligned
-#define VSTR32_U12(Dt, Rn, imm14)           EMIT(VMEM_gen(0b10, 0b00, ((uint32_t)(imm14>>2))&0xfff, Rn, Dt))
+#define VSTR32_U12(Dt, Rn, imm14)           EMIT(VMEM_gen(0b10, 0b00, ((uint32_t)((imm14)>>2))&0xfff, Rn, Dt))
 // (imm15) must be 3-aligned
-#define VSTR64_U12(Dt, Rn, imm15)           EMIT(VMEM_gen(0b11, 0b00, ((uint32_t)(imm15>>3))&0xfff, Rn, Dt))
+#define VSTR64_U12(Dt, Rn, imm15)           EMIT(VMEM_gen(0b11, 0b00, ((uint32_t)((imm15)>>3))&0xfff, Rn, Dt))
 // imm16 must be 4-aligned
 #define VSTR128_U12(Qt, Rn, imm16)          EMIT(VMEM_gen(0b00, 0b10, ((uint32_t)((imm16)>>4))&0xfff, Rn, Qt))
 // (imm13) must be 1-aligned
-#define VSTR16_U12(Ht, Rn, imm13)           EMIT(VMEM_gen(0b01, 0b00, ((uint32_t)(imm13>>1))&0xfff, Rn, Ht))
+#define VSTR16_U12(Ht, Rn, imm13)           EMIT(VMEM_gen(0b01, 0b00, ((uint32_t)((imm13)>>1))&0xfff, Rn, Ht))
 
 #define VMEMUR_vector(size, opc, imm9, Rn, Rt)  ((size)<<30 | 0b111<<27 | 1<<26 | (opc)<<22 | (imm9)<<12 | (Rn)<<5 | (Rt))
 // signed offset, no alignement!
