@@ -34,7 +34,7 @@ uintptr_t geted(dynarec_arm_t* dyn, uintptr_t addr, int ninst, uint8_t nextop, u
 {
     MAYUSE(dyn); MAYUSE(ninst); MAYUSE(delta);
 
-    if(l==LOCK_LOCK) { SMDMB(); }
+    if(l==LOCK_LOCK) { /*SMDMB();*/DMB_ISH(); }
 
     if(rex.is32bits)
         return geted_32(dyn, addr, ninst, nextop, ed, hint, fixaddress, unscaled, absmax, mask, l, s);
@@ -2034,7 +2034,7 @@ static void flagsCacheTransform(dynarec_arm_t* dyn, int ninst, int s1)
     if(dyn->f.dfnone)  // flags are fully known, nothing we can do more
         return;
     MESSAGE(LOG_DUMP, "\tFlags fetch ---- ninst=%d -> %d\n", ninst, jmp);
-    int go = 0;
+    int go = (dyn->insts[jmp].f_entry.dfnone && !dyn->f.dfnone)?1:0;
     switch (dyn->insts[jmp].f_entry.pending) {
         case SF_UNKNOWN: break;
         case SF_SET:
@@ -2052,12 +2052,10 @@ static void flagsCacheTransform(dynarec_arm_t* dyn, int ninst, int s1)
             && dyn->f.pending!=SF_SET_PENDING
             && dyn->f.pending!=SF_PENDING)
                 go = 1;
-            else
-                go = (dyn->insts[jmp].f_entry.dfnone  == dyn->f.dfnone)?0:1;
+            else if (dyn->insts[jmp].f_entry.dfnone !=dyn->f.dfnone)
+                go = 1;
             break;
     }
-    if(dyn->insts[jmp].f_entry.dfnone && !dyn->f.dfnone)
-        go = 1;
     if(go) {
         if(dyn->f.pending!=SF_PENDING) {
             LDRw_U12(s1, xEmu, offsetof(x64emu_t, df));
@@ -2105,7 +2103,7 @@ void emit_pf(dynarec_arm_t* dyn, int ninst, int s1, int s3, int s4)
     // PF: (((emu->x64emu_parity_tab[(res) / 32] >> ((res) % 32)) & 1) == 0)
     ANDw_mask(s3, s1, 0b011011, 0b000010); // mask=0xE0
     LSRw(s3, s3, 5);
-    MOV64x(s4, (uintptr_t)GetParityTab());
+    TABLE64(s4, (uintptr_t)GetParityTab());
     LDRw_REG_LSL2(s4, s4, s3);
     ANDw_mask(s3, s1, 0, 0b000100); //0x1f
     LSRw_REG(s4, s4, s3);
