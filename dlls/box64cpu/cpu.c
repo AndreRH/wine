@@ -618,88 +618,22 @@ typedef struct dynablock_s {
     void*           jmpnext;    // a branch jmpnext code when block is marked
 } dynablock_t;
 
-static LONG CALLBACK emu_veh(EXCEPTION_POINTERS *ExceptionInfo)
-{
-    CONTEXT *ctx = ExceptionInfo->ContextRecord;
-    PEXCEPTION_RECORD rec = ExceptionInfo->ExceptionRecord;
-    void* addr = NULL;
-    dynablock_t* db = NULL;
-    dynablock_t* db2 = NULL;
-    uint32_t prot;
-    ERR("EXCEPTION\n");
-    ERR("ExceptionCode %x\n", rec->ExceptionCode);
-    if (rec->ExceptionCode == EXCEPTION_FLT_INEXACT_RESULT)
-    {
-        return EXCEPTION_CONTINUE_SEARCH;
-    }
-    ERR("ExceptionFlags %x\n", rec->ExceptionFlags);
-    ERR("ExceptionAddress %p\n", rec->ExceptionAddress);
-    if (rec->ExceptionCode != EXCEPTION_ACCESS_VIOLATION || rec->NumberParameters != 2)
-    {
-        return EXCEPTION_CONTINUE_SEARCH;
-    }
-    ERR("NumberParameters %x\n", rec->NumberParameters);
-    if (rec->NumberParameters == 2 && rec->ExceptionInformation[0] == 1)
-    {
-        addr = (void*)rec->ExceptionInformation[1];
-    }
-    ERR("addr %p\n", addr);
-    db = FindDynablockFromNativeAddress(rec->ExceptionAddress);
-    ERR("db ExceptionAddress %p\n", db);
-    if (db)
-    {
-        ERR("db block %p\n", db->block);
-        ERR("db actual_block %p\n", db->actual_block);
-        ERR("db x64_addr %p\n", db->x64_addr);
-        ERR("db dirty %x\n", db->dirty);
-    }
-    if (!addr || !db)
-    {
-        return EXCEPTION_CONTINUE_SEARCH;
-    }
-    prot = getProtection((uintptr_t)addr);
-    db2 = FindDynablockFromNativeAddress((void*)addr);
-    ERR("db addr %p prot %x\n", db2, prot);
-    if (db2)
-    {
-        ERR("db block %p\n", db2->block);
-        ERR("db actual_block %p\n", db2->actual_block);
-        ERR("db x64_addr %p\n", db2->x64_addr);
-        ERR("db dirty %x\n", db2->dirty);
-    }
-    if (addr)
-    {
-        int db_need_test;
-        unprotectDB((uintptr_t)addr, 1, 1);    // unprotect 1 byte... But then, the whole page will be unprotected
-        db_need_test = (db && !box64_dynarec_fastpage)?getNeedTest((uintptr_t)db->x64_addr):0;
-        prot = getProtection((uintptr_t)addr);
-        ERR("addr prot %x\n", prot);
-        ERR("db_need_test %x\n", db_need_test);
-        if(db && ((addr>=db->x64_addr && addr<(db->x64_addr+db->x64_size)) || db_need_test))
-        {
-            x64emu_t *emu = NtCurrentTeb()->TlsSlots[0];  // FIXME
-            ERR("emu->jmpbuf %p\n", emu->jmpbuf);
-        }
-
-        ERR(" ctx->Sp   %16llx\n",  ctx->Sp  );
-        ERR(" ctx->Pc   %16llx\n",  ctx->Pc  );
-
-        return EXCEPTION_CONTINUE_EXECUTION;
-    }
-    return EXCEPTION_CONTINUE_SEARCH;
-    //return EXCEPTION_EXECUTE_HANDLER;
-}
-
 /**********************************************************************
  *           BTCpuProcessInit  (box64cpu.@)
  */
 void WINAPI BTCpuSimulate(void)
 {
-    x64emu_t *emu = NtCurrentTeb()->TlsSlots[0];  // FIXME
     WOW64_CPURESERVED *cpu = NtCurrentTeb()->TlsSlots[WOW64_TLS_CPURESERVED];
+	CONTEXT *tlsctx = NtCurrentTeb()->TlsSlots[WOW64_TLS_MAX_NUMBER]; // FIXME
+    x64emu_t *emu = NtCurrentTeb()->TlsSlots[0]; // FIXME
     I386_CONTEXT *ctx = (I386_CONTEXT *)(cpu + 1);
+	CONTEXT entry_context;
 
     TRACE( "START %lx\n", ctx->Eip );
+
+	RtlCaptureContext(&entry_context);
+	if (!tlsctx || tlsctx->Sp <= entry_context.Sp)
+		NtCurrentTeb()->TlsSlots[WOW64_TLS_MAX_NUMBER] = &entry_context;
 
     R_EAX = ctx->Eax;
     R_EBX = ctx->Ebx;
@@ -729,6 +663,38 @@ void WINAPI BTCpuSimulate(void)
     else
         Run(emu, 0);
     TRACE("finished eip %llx stack %x\n", R_RIP, R_ESP);
+}
+
+static uint8_t box64_is_addr_in_jit(void* addr)
+{
+	if (!addr)
+		return FALSE;
+    return !!FindDynablockFromNativeAddress(addr);
+}
+
+uintptr_t getX64Address(dynablock_t* db, uintptr_t arm_addr)
+{
+    uintptr_t x64addr = (uintptr_t)db->x64_addr;
+    uintptr_t armaddr = (uintptr_t)db->block;
+    int i = 0;
+    do {
+        int x64sz = 0;
+        int armsz = 0;
+        do {
+            x64sz+=db->instsize[i].x64;
+            armsz+=db->instsize[i].nat*4;
+            ++i;
+        } while((db->instsize[i-1].x64==15) || (db->instsize[i-1].nat==15));
+        // if the opcode is a NOP on ARM side (so armsz==0), it cannot be an address to find
+        if(armsz) {
+            if((arm_addr>=armaddr) && (arm_addr<(armaddr+armsz)))
+                return x64addr;
+            armaddr+=armsz;
+            x64addr+=x64sz;
+        } else
+            x64addr+=x64sz;
+    } while(db->instsize[i].x64 || db->instsize[i].nat);
+    return x64addr;
 }
 
 /* Note: This works on Linux by emulating the access to the register,
@@ -843,8 +809,6 @@ NTSTATUS WINAPI BTCpuProcessInit(void)
 
     InitX64Trace(&box64_context);
 
-    RtlAddVectoredExceptionHandler(TRUE, &emu_veh);
-
     return STATUS_SUCCESS;
 }
 
@@ -920,8 +884,67 @@ NTSTATUS WINAPI BTCpuSetContext( HANDLE thread, HANDLE process, void *unknown, I
 NTSTATUS WINAPI BTCpuResetToConsistentState( EXCEPTION_POINTERS *ptrs )
 {
     x64emu_t *emu = NtCurrentTeb()->TlsSlots[0];  // FIXME
-    FIXME( "NYI\n" );
-    ERR("\n%s\n", DumpCPURegs(emu, ptrs->ContextRecord->Pc, 1));
+    EXCEPTION_RECORD *rec = ptrs->ExceptionRecord;
+    CONTEXT *ctx = ptrs->ContextRecord;
+
+    TRACE("\n%s\n", DumpCPURegs(emu, ctx->Pc, 1));
+
+    if (rec->ExceptionCode == EXCEPTION_ACCESS_VIOLATION)
+    {
+        dynablock_t *db = NULL, *db2 = NULL;
+        void* addr = NULL;
+        uint32_t prot;
+
+        if (rec->NumberParameters == 2 && rec->ExceptionInformation[0] == 1)
+            addr = ULongToPtr(rec->ExceptionInformation[1]);
+
+        db = FindDynablockFromNativeAddress(rec->ExceptionAddress);
+        ERR("db ExceptionAddress %p\n", db);
+        if (db)
+        {
+            ERR("db block %p\n", db->block);
+            ERR("db actual_block %p\n", db->actual_block);
+            ERR("db x64_addr %p\n", db->x64_addr);
+            ERR("db dirty %x\n", db->dirty);
+        }
+        if (addr)
+        {
+            prot = getProtection((uintptr_t)addr);
+            db2 = FindDynablockFromNativeAddress((void*)addr);
+            ERR("db addr %p prot %x\n", db2, prot);
+            if (db2)
+            {
+                ERR("db block %p\n", db2->block);
+                ERR("db actual_block %p\n", db2->actual_block);
+                ERR("db x64_addr %p\n", db2->x64_addr);
+                ERR("db dirty %x\n", db2->dirty);
+            }
+            if (addr)
+            {
+                int db_need_test;
+                unprotectDB((uintptr_t)addr, 1, 1);    // unprotect 1 byte... But then, the whole page will be unprotected
+                db_need_test = (db && !box64_dynarec_fastpage)?getNeedTest((uintptr_t)db->x64_addr):0;
+                prot = getProtection((uintptr_t)addr);
+                ERR("addr prot %x\n", prot);
+                ERR("db_need_test %x\n", db_need_test);
+                if(db && ((addr>=db->x64_addr && addr<(db->x64_addr+db->x64_size)) || db_need_test))
+                {
+                    x64emu_t *emu = NtCurrentTeb()->TlsSlots[0];  // FIXME
+                    ERR("emu->jmpbuf %p\n", emu->jmpbuf);
+                }
+
+                ERR(" ctx->Sp   %16llx\n",  ctx->Sp  );
+                ERR(" ctx->Pc   %16llx\n",  ctx->Pc  );
+                NtContinue(ctx, FALSE);
+            }
+        }
+    }
+
+    if (!box64_is_addr_in_jit(ULongToPtr(ctx->Pc)))
+        return STATUS_SUCCESS;
+
+    /* Replace the host context with one captured before JIT entry so host code can unwind */
+    memcpy(ctx, NtCurrentTeb()->TlsSlots[WOW64_TLS_MAX_NUMBER], sizeof(*ctx));
     return STATUS_SUCCESS;
 }
 
