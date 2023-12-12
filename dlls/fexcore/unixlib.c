@@ -101,7 +101,7 @@ static NTSTATUS emu_run( void *args )
     return 0;
 }
 
-static void invalidate_code_range ( void *args )
+static NSTATUS invalidate_code_range ( void *args )
 {
     const struct invalidate_code_range_params *params = args;
     phangover_fex_invalidate_code_range(params->base, params->length);
