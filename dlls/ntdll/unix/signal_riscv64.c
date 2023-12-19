@@ -90,7 +90,7 @@ struct syscall_frame
     ULONG                 restore_flags;  /* 100 */
     ULONG                 align1;         /* 104 */
     struct syscall_frame *prev_frame;     /* 108 */
-    SYSTEM_SERVICE_TABLE *syscall_table;  /* 110 */
+    void                 *syscall_cfa;    /* 110 */
     //NEON128               v[32];          /* 130 */
 };
 
@@ -98,13 +98,11 @@ struct syscall_frame
 
 struct riscv64_thread_data
 {
-    void                 *exit_frame;    /* 02f0 exit frame pointer */
-    struct syscall_frame *syscall_frame; /* 02f8 frame pointer on syscall entry */
+    struct syscall_frame *syscall_frame; /* 02f0 frame pointer on syscall entry */
 };
 
 C_ASSERT( sizeof(struct riscv64_thread_data) <= sizeof(((struct ntdll_thread_data *)0)->cpu_data) );
-C_ASSERT( offsetof( TEB, GdiTebBatch ) + offsetof( struct riscv64_thread_data, exit_frame ) == 0x2f0 );
-C_ASSERT( offsetof( TEB, GdiTebBatch ) + offsetof( struct riscv64_thread_data, syscall_frame ) == 0x2f8 );
+C_ASSERT( offsetof( TEB, GdiTebBatch ) + offsetof( struct riscv64_thread_data, syscall_frame ) == 0x2f0 );
 
 static inline struct riscv64_thread_data *riscv64_thread_data(void)
 {
@@ -1090,32 +1088,49 @@ __ASM_GLOBAL_FUNC( call_user_mode_callback,
                    "addi sp, sp, -0xc0\n\t"
                    "sd fp, 0xb0(sp)\n\t"
                    "sd ra, 0xb8(sp)\n\t"
+                   //__ASM_CFI(".cfi_def_cfa_offset 0xc0\n\t")
+                   //__ASM_CFI(".cfi_offset 29,-0xc0\n\t")
+                   //__ASM_CFI(".cfi_offset 30,-0xb8\n\t")
                    "mv fp, sp\n\t"
+                   //__ASM_CFI(".cfi_def_cfa_register 29\n\t")
                    "sd s0, 0x00(fp)\n\t"
                    "sd s1, 0x08(fp)\n\t"
+                   //__ASM_CFI(".cfi_rel_offset 19,0x10\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 20,0x18\n\t")
                    "sd s2, 0x10(fp)\n\t"
                    "sd s3, 0x18(fp)\n\t"
+                   //__ASM_CFI(".cfi_rel_offset 21,0x20\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 22,0x28\n\t")
                    "sd s4, 0x20(fp)\n\t"
                    "sd s5, 0x28(fp)\n\t"
+                   //__ASM_CFI(".cfi_rel_offset 23,0x30\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 24,0x38\n\t")
                    "sd s6, 0x30(fp)\n\t"
                    "sd s7, 0x38(fp)\n\t"
+                   //__ASM_CFI(".cfi_rel_offset 25,0x40\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 26,0x48\n\t")
                    "sd s8, 0x40(fp)\n\t"
                    "sd s9, 0x48(fp)\n\t"
+                   //__ASM_CFI(".cfi_rel_offset 27,0x50\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 28,0x58\n\t")
                    "sd s10, 0x50(fp)\n\t"
                    "sd s11, 0x58(fp)\n\t"
+                   //__ASM_CFI(".cfi_rel_offset 27,0x50\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 28,0x58\n\t")
                    "sd a3, 0x90(fp)\n\t" /* ret_ptr */
                    "sd a4, 0x98(fp)\n\t" /* ret_len */
                    //"mv tp, a6\n\t"              /* teb */
                    "ld a4, 0(a6)\n\t"            /* teb->Tib.ExceptionList */
                    "sd a4, 0xa8(fp)\n\t"
 
-                   "ld a7, 0x2f8(a6)\n\t"    /* riscv64_thread_data()->syscall_frame */
+                   "ld a7, 0x2f0(a6)\n\t"    /* riscv64_thread_data()->syscall_frame */
                    "addi a3, sp, -0x330\n\t"       /* sizeof(struct syscall_frame) */   // TODO: 330
-                   "sd a3, 0x2f8(a6)\n\t"    /* riscv64_thread_data()->syscall_frame */
-                   "ld t0, 0x110(a7)\n\t"     /* prev_frame->syscall_table */
-                   "mv sp, a1\n\t"               /* stack */
+                   "sd a3, 0x2f0(a6)\n\t"    /* riscv64_thread_data()->syscall_frame */
                    "sd a7, 0x108(a3)\n\t" /* frame->prev_frame */
-                   "sd t0, 0x110(a3)\n\t" /* frame->syscall_table */
+                   "addi t0, fp, 0xc0\n\t"
+                   "sd t0, 0x110(a3)\n\t" /* frame->syscall_cfa */
+                   /* switch to user stack */
+                   "mv sp, a1\n\t"               /* stack */
                    "jr a5" )
 
 /***********************************************************************
@@ -1124,24 +1139,50 @@ __ASM_GLOBAL_FUNC( call_user_mode_callback,
 extern void DECLSPEC_NORETURN user_mode_callback_return( void *ret_ptr, ULONG ret_len,
                                                          NTSTATUS status, TEB *teb );
 __ASM_GLOBAL_FUNC( user_mode_callback_return,
-                   "ld a4, 0x2f8(a3)\n\t"     /* riscv64_thread_data()->syscall_frame */
+                   "ld a4, 0x2f0(a3)\n\t"     /* riscv64_thread_data()->syscall_frame */
                    "ld a5, 0x108(a4)\n\t"     /* prev_frame */
-                   "sd a5, 0x2f8(a3)\n\t"     /* riscv64_thread_data()->syscall_frame */
-                   "addi fp, a4, 0x330\n\t"      /* sizeof(struct syscall_frame) */ // TODO: 330
+                   "ld fp, 0x110(a4)\n\t"     /* syscall_cfa */
+                   "sd a5, 0x2f0(a3)\n\t"     /* riscv64_thread_data()->syscall_frame */
+                   "addi fp, fp, -0xc0\n\t"
+                   //__ASM_CFI(".cfi_def_cfa_register 29\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 29,0x00\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 30,0x08\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 19,0x10\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 20,0x18\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 21,0x20\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 22,0x28\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 23,0x30\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 24,0x38\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 25,0x40\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 26,0x48\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 27,0x50\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 28,0x58\n\t")
                    "ld a6, 0xb8(fp)\n\t"
                    "sd a6, 0(a3)\n\t"     /* teb->Tib.ExceptionList */
                    "ld s0, 0x00(fp)\n\t"  // FIXME s0==fp
                    "ld s1, 0x08(fp)\n\t"
+                   //__ASM_CFI(".cfi_same_value 19\n\t")
+                   //__ASM_CFI(".cfi_same_value 20\n\t")
                    "ld s2, 0x10(fp)\n\t"
                    "ld s3, 0x18(fp)\n\t"
+                   //__ASM_CFI(".cfi_same_value 21\n\t")
+                   //__ASM_CFI(".cfi_same_value 22\n\t")
                    "ld s4, 0x20(fp)\n\t"
                    "ld s5, 0x28(fp)\n\t"
+                   //__ASM_CFI(".cfi_same_value 23\n\t")
+                   //__ASM_CFI(".cfi_same_value 24\n\t")
                    "ld s6, 0x30(fp)\n\t"
                    "ld s7, 0x38(fp)\n\t"
+                   //__ASM_CFI(".cfi_same_value 25\n\t")
+                   //__ASM_CFI(".cfi_same_value 26\n\t")
                    "ld s8, 0x40(fp)\n\t"
                    "ld s9, 0x48(fp)\n\t"
+                   //__ASM_CFI(".cfi_same_value 27\n\t")
+                   //__ASM_CFI(".cfi_same_value 28\n\t")
                    "ld s10, 0x50(fp)\n\t"
                    "ld s11, 0x58(fp)\n\t"
+                   //__ASM_CFI(".cfi_same_value 27\n\t")
+                   //__ASM_CFI(".cfi_same_value 28\n\t")
                    "ld a5, 0x90(fp)\n\t" /* ret_ptr */
                    "ld a6, 0x98(fp)\n\t" /* ret_len */
                    "sd a0, 0(a5)\n\t"    /* ret_ptr */
@@ -1152,6 +1193,31 @@ __ASM_GLOBAL_FUNC( user_mode_callback_return,
                    "ld fp, 0xb0(sp)\n\t"
                    "addi sp, sp, 0xc0\n\t"
                    "ret" )
+
+
+/***********************************************************************
+ *           user_mode_abort_thread
+ */
+extern void DECLSPEC_NORETURN user_mode_abort_thread( NTSTATUS status, struct syscall_frame *frame );
+__ASM_GLOBAL_FUNC( user_mode_abort_thread,
+                   "ld a1, 0x110(a1)\n\t"    /* frame->syscall_cfa */
+                   "addi fp, a1, -0xc0\n\t"
+                   /* switch to kernel stack */
+                   "mv sp, fp\n\t"
+                   //__ASM_CFI(".cfi_def_cfa 29,0xc0\n\t")
+                   //__ASM_CFI(".cfi_offset 29,-0xc0\n\t")
+                   //__ASM_CFI(".cfi_offset 30,-0xb8\n\t")
+                   //__ASM_CFI(".cfi_offset 19,-0xb0\n\t")
+                   //__ASM_CFI(".cfi_offset 20,-0xa8\n\t")
+                   //__ASM_CFI(".cfi_offset 21,-0xa0\n\t")
+                   //__ASM_CFI(".cfi_offset 22,-0x98\n\t")
+                   //__ASM_CFI(".cfi_offset 23,-0x90\n\t")
+                   //__ASM_CFI(".cfi_offset 24,-0x88\n\t")
+                   //__ASM_CFI(".cfi_offset 25,-0x80\n\t")
+                   //__ASM_CFI(".cfi_offset 26,-0x78\n\t")
+                   //__ASM_CFI(".cfi_offset 27,-0x70\n\t")
+                   //__ASM_CFI(".cfi_offset 28,-0x68\n\t")
+                   "jal " __ASM_NAME("abort_thread") )
 
 
 /***********************************************************************
@@ -1382,6 +1448,7 @@ ERR("abrt...\n");
  */
 static void quit_handler( int signal, siginfo_t *siginfo, void *sigcontext )
 {
+    if (!is_inside_syscall( sigcontext )) user_mode_abort_thread( 0, riscv64_thread_data()->syscall_frame );
     abort_thread(0);
 }
 
@@ -1550,10 +1617,9 @@ void syscall_dispatcher_return_slowpath(void)
 /***********************************************************************
  *           call_init_thunk
  */
-void call_init_thunk( LPTHREAD_START_ROUTINE entry, void *arg, BOOL suspend, TEB *teb )
+void call_init_thunk( LPTHREAD_START_ROUTINE entry, void *arg, BOOL suspend, TEB *teb,
+					  struct syscall_frame *frame, void *syscall_cfa )
 {
-    struct riscv64_thread_data *thread_data = (struct riscv64_thread_data *)&teb->GdiTebBatch;
-    struct syscall_frame *frame = thread_data->syscall_frame;
     CONTEXT *ctx, context = { CONTEXT_ALL };
     I386_CONTEXT *i386_context;
     ARM_CONTEXT *arm_context;
@@ -1605,10 +1671,9 @@ void call_init_thunk( LPTHREAD_START_ROUTINE entry, void *arg, BOOL suspend, TEB
     frame->x[0]  = (ULONG64)pLdrInitializeThunk;
     frame->x[10] = (ULONG64)ctx;
     //frame->x[4]  = (ULONG64)teb;
-    frame->prev_frame = NULL;
     frame->restore_flags |= CONTEXT_INTEGER;
+    frame->syscall_cfa    = syscall_cfa;
     syscall_frame_fixup_for_fastpath( frame );
-    frame->syscall_table = KeServiceDescriptorTable;
 
     pthread_sigmask( SIG_UNBLOCK, &server_block_set, NULL );
     __wine_syscall_dispatcher_return( frame, 0 );
@@ -1619,34 +1684,46 @@ void call_init_thunk( LPTHREAD_START_ROUTINE entry, void *arg, BOOL suspend, TEB
  *           signal_start_thread
  */
 __ASM_GLOBAL_FUNC( signal_start_thread,
-                   "addi sp, sp, -16\n\t"
+                   "addi sp, sp, -0xc0\n\t"
                    "sd ra, 8(sp)\n\t"
                    "sd fp, 0(sp)\n\t"
-                   /* store exit frame */
+                   //__ASM_CFI(".cfi_def_cfa_offset 0xc0\n\t")
+                   //__ASM_CFI(".cfi_offset 29,-0xc0\n\t")
+                   //__ASM_CFI(".cfi_offset 30,-0xb8\n\t")
                    "mv fp, sp\n\t"
-                   "sd fp, 0x2f0(a3)\n\t"  /* riscv64_thread_data()->exit_frame */
+                   "sd s0, 0x00(fp)\n\t"
+                   "sd s1, 0x08(fp)\n\t"
+                   //__ASM_CFI(".cfi_rel_offset 19,0x10\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 20,0x18\n\t")
+                   "sd s2, 0x10(fp)\n\t"
+                   "sd s3, 0x18(fp)\n\t"
+                   //__ASM_CFI(".cfi_rel_offset 21,0x20\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 22,0x28\n\t")
+                   "sd s4, 0x20(fp)\n\t"
+                   "sd s5, 0x28(fp)\n\t"
+                   //__ASM_CFI(".cfi_rel_offset 23,0x30\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 24,0x38\n\t")
+                   "sd s6, 0x30(fp)\n\t"
+                   "sd s7, 0x38(fp)\n\t"
+                   //__ASM_CFI(".cfi_rel_offset 25,0x40\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 26,0x48\n\t")
+                   "sd s8, 0x40(fp)\n\t"
+                   "sd s9, 0x48(fp)\n\t"
+                   //__ASM_CFI(".cfi_rel_offset 27,0x50\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 28,0x58\n\t")
+                   "sd s10, 0x50(fp)\n\t"
+                   "sd s11, 0x58(fp)\n\t"
+                   //__ASM_CFI(".cfi_rel_offset 27,0x50\n\t")
+                   //__ASM_CFI(".cfi_rel_offset 28,0x58\n\t")
+                   "addi a5, fp, 0xc0\n\t"     /* syscall_cfa */
                    /* set syscall frame */
-                   "ld t0, 0x2f8(a3)\n\t"   /* riscv64_thread_data()->syscall_frame */
-                   "bnez t0, 1f\n\t"
-                   "addi t0, sp, -0x330\n\t"     /* sizeof(struct syscall_frame) */ // TODO: 0x330 is expected sizeof(struct syscall_frame) !!!
-                   "sd t0, 0x2f8(a3)\n\t"   /* riscv64_thread_data()->syscall_frame */
-                   "1:\tmv sp, t0\n\t"
+                   "ld a4, 0x2f0(a3)\n\t"   /* riscv64_thread_data()->syscall_frame */
+                   "bnez a4, 1f\n\t"
+                   "addi a4, sp, -0x330\n\t"     /* sizeof(struct syscall_frame) */ // TODO: 0x330 is expected sizeof(struct syscall_frame) !!!
+                   "sd a4, 0x2f0(a3)\n\t"   /* riscv64_thread_data()->syscall_frame */
+                   /* switch to kernel stack */
+                   "1:\tmv sp, a4\n\t"
                    "jal " __ASM_NAME("call_init_thunk") )
-
-/***********************************************************************
- *           signal_exit_thread
- */
-__ASM_GLOBAL_FUNC( signal_exit_thread,
-                   "addi sp, sp, -16\n\t"
-                   "sd ra, 8(sp)\n\t"
-                   "sd fp, 0(sp)\n\t"
-                   "ld a3, 0x2f0(a2)\n\t"   /* riscv64_thread_data()->exit_frame */
-                   "sd zero, 0x2f0(a2)\n\t"
-                   "beqz a3, 1f\n\t"
-                   "mv sp, a3\n\t"
-                   "1:\tld ra, 8(sp)\n\t"
-                   "ld fp, 0(sp)\n\t"
-                   "jr a1" )
 
 
 /***********************************************************************
@@ -1667,7 +1744,7 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
                    "sd t0, 0x40(sp)\n\t"
                    "sd t1, 0x48(sp)\n\t"
                    "jal " __ASM_NAME("NtCurrentTeb") "\n\t"
-                   "ld t2, 0x2f8(a0)\n\t"   /* riscv64_thread_data()->syscall_frame */
+                   "ld t2, 0x2f0(a0)\n\t"   /* riscv64_thread_data()->syscall_frame */
                    "ld a0, 0x00(sp)\n\t"
                    "ld a1, 0x08(sp)\n\t"
                    "ld a2, 0x10(sp)\n\t"
@@ -1682,7 +1759,7 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
                    "ld ra, 0x58(sp)\n"
                    "addi sp, sp, 0x60\n"
 
-                   //"ld t2, 0x2f8(tp)\n\t"   /* riscv64_thread_data()->syscall_frame */
+                   //"ld t2, 0x2f0(tp)\n\t"   /* riscv64_thread_data()->syscall_frame */
                    "sd ra, 0x00(t2)\n\t"
                    "sd t1, 0x08(t2)\n\t"
                    "sd sp, 0x10(t2)\n\t"
@@ -1717,19 +1794,34 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
                    "sd t6, 0xf8(t2)\n\t"
                    "sw zero, 0x100(t2)\n\t"   /* frame->restore_flags */ // fixme: not obv documented in arm64
                    "mv s2, sp\n\t"
+                   "mv s11, t2\n\t"
+                   /* switch to kernel stack */
                    "mv sp, t2\n\t"
+                   /* we're now on the kernel stack, stitch unwind info with previous frame */
+                   //__ASM_CFI_CFA_IS_AT2(x22, 0x98, 0x02) /* frame->syscall_cfa */
+                   //__ASM_CFI(".cfi_offset 29, -0xc0\n\t")
+                   //__ASM_CFI(".cfi_offset 30, -0xb8\n\t")
+                   //__ASM_CFI(".cfi_offset 19, -0xb0\n\t")
+                   //__ASM_CFI(".cfi_offset 20, -0xa8\n\t")
+                   //__ASM_CFI(".cfi_offset 21, -0xa0\n\t")
+                   //__ASM_CFI(".cfi_offset 22, -0x98\n\t")
+                   //__ASM_CFI(".cfi_offset 23, -0x90\n\t")
+                   //__ASM_CFI(".cfi_offset 24, -0x88\n\t")
+                   //__ASM_CFI(".cfi_offset 25, -0x80\n\t")
+                   //__ASM_CFI(".cfi_offset 26, -0x78\n\t")
+                   //__ASM_CFI(".cfi_offset 27, -0x70\n\t")
+                   //__ASM_CFI(".cfi_offset 28, -0x68\n\t")
                    "slli t3, t0, 52\n\t"
                    "srli t3, t3, 52\n\t"  /* syscall number */
                    "li t5, 0x3000\n\t"
                    "and t0, t0, t5\n\t"
                    "srli t0, t0, 12\n\t"     /* syscall table number */
-                   "ld t5, 0x110(t2)\n\t"    /* frame->syscall_table */
+                   "la t5, " __ASM_NAME("KeServiceDescriptorTable") "\n\t"
                    "slli t0, t0, 5\n\t"
                    "add t0, t5, t0\n\t"
                    "ld t5, 0x10(t0)\n\t"     /* table->ServiceLimit */
                    "bge t3, t5, 4f\n\t"
                    //"ld tp, 0x118(t2)\n\t"
-                   "mv s11, sp\n\t"
                    "ld t5, 0x18(t0)\n\t"     /* table->ArgumentTable */
                    "li t4, 0\n\t" // FIXME: might not be needed
                    "add s1, t5, t3\n\t"
@@ -1752,6 +1844,7 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
                    "ld t5, 0(s1)\n\t"
                    "jalr t5\n\t"
                    "mv sp, s11\n\t"
+                   //__ASM_CFI_CFA_IS_AT2(sp, 0x98, 0x02) /* frame->syscall_cfa */
                    //"sd a0, 0x50(sp)\n\t" // fixme: not analogue to arm64, but why
                    __ASM_LOCAL_LABEL("__wine_syscall_dispatcher_return") ":\n\t"
 
@@ -1799,6 +1892,7 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
                    "ld s10, 0xd0(sp)\n\t"
                    "ld s11, 0xd8(sp)\n\t"
                    "ld t5, 0x00(sp)\n\t"
+                   /* switch to user stack */
                    "ld sp, 0x10(sp)\n\t"
                    "jr t5\n\t"
                    "4:\tli a0, 0xc0000000\n\t" /* STATUS_INVALID_PARAMETER */
@@ -1822,7 +1916,7 @@ __ASM_GLOBAL_FUNC( __wine_unix_call_dispatcher,
                    "sd a1, 0x08(sp)\n\t"
                    "sd a2, 0x10(sp)\n\t"
                    "jal " __ASM_NAME("NtCurrentTeb") "\n\t"
-                   "ld t0, 0x2f8(a0)\n\t"   /* riscv64_thread_data()->syscall_frame */
+                   "ld t0, 0x2f0(a0)\n\t"   /* riscv64_thread_data()->syscall_frame */
                    "ld a0, 0x00(sp)\n\t"
                    "ld a1, 0x08(sp)\n\t"
                    "ld a2, 0x10(sp)\n\t"
@@ -1830,7 +1924,7 @@ __ASM_GLOBAL_FUNC( __wine_unix_call_dispatcher,
                    "ld ra, 0x28(sp)\n"
                    "addi sp, sp, 0x30\n"
 
-                   //"ld t0, 0x2f8(tp)\n\t"   /* riscv64_thread_data()->syscall_frame */
+                   //"ld t0, 0x2f0(tp)\n\t"   /* riscv64_thread_data()->syscall_frame */
                    "sd ra, 0x08(t0)\n\t"
                    "sd sp, 0x10(t0)\n\t"
                    "sd gp, 0x18(t0)\n\t"
@@ -1863,7 +1957,23 @@ __ASM_GLOBAL_FUNC( __wine_unix_call_dispatcher,
                    "sd t5, 0xf0(t0)\n\t"
                    "sd t6, 0xf8(t0)\n\t"
                    "sw zero, 0x100(t0)\n\t"   /* frame->restore_flags */ // fixme: not obv documented in arm64
+                   "mv s1, t0\n\t"
+                   /* switch to kernel stack */
                    "mv sp, t0\n\t"
+                   /* we're now on the kernel stack, stitch unwind info with previous frame */
+                   //__ASM_CFI_CFA_IS_AT2(x19, 0x98, 0x02) /* frame->syscall_cfa */
+                   //__ASM_CFI(".cfi_offset 29, -0xc0\n\t")
+                   //__ASM_CFI(".cfi_offset 30, -0xb8\n\t")
+                   //__ASM_CFI(".cfi_offset 19, -0xb0\n\t")
+                   //__ASM_CFI(".cfi_offset 20, -0xa8\n\t")
+                   //__ASM_CFI(".cfi_offset 21, -0xa0\n\t")
+                   //__ASM_CFI(".cfi_offset 22, -0x98\n\t")
+                   //__ASM_CFI(".cfi_offset 23, -0x90\n\t")
+                   //__ASM_CFI(".cfi_offset 24, -0x88\n\t")
+                   //__ASM_CFI(".cfi_offset 25, -0x80\n\t")
+                   //__ASM_CFI(".cfi_offset 26, -0x78\n\t")
+                   //__ASM_CFI(".cfi_offset 27, -0x70\n\t")
+                   //__ASM_CFI(".cfi_offset 28, -0x68\n\t")
                    //"ld tp, 0x118(t0)\n\t"
                    "slli t0, a1, 3\n\t"
                    "add t0, t0, a0\n\t"
@@ -1873,7 +1983,10 @@ __ASM_GLOBAL_FUNC( __wine_unix_call_dispatcher,
                    "lw t1, 0x100(sp)\n\t"   /* frame->restore_flags */
                    "bnez t1, " __ASM_LOCAL_LABEL("__wine_syscall_dispatcher_return") "\n\t"
                    //"ld tp, 0x20(sp)\n\t"
+                   //__ASM_CFI_CFA_IS_AT2(sp, 0x98, 0x02) /* frame->syscall_cfa */
+                   "ld s1, 0x48(sp)\n\t"
                    "ld ra, 0x08(sp)\n\t"
+                   /* switch to user stack */
                    "ld sp, 0x10(sp)\n\t"
                    "ret" )
 
