@@ -192,7 +192,7 @@ static BOOL riscv64_fetch_minidump_module(struct dump_context* dc, unsigned inde
     return FALSE;
 }
 
-DECLSPEC_HIDDEN struct cpu cpu_riscv64 = {
+struct cpu cpu_riscv64 = {
     IMAGE_FILE_MACHINE_RISCV64,
     8,
     CV_REG_NONE, /* FIXME */
