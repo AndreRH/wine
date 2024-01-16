@@ -18,7 +18,7 @@
  */
 
 #define DYNAREC
-#define ARM64
+#define RV64
 
 #include <string.h>
 #include <stdarg.h>
@@ -74,6 +74,9 @@ int box64_dynarec_missing = 0;
 int box64_dynarec_trace = 0;
 int box64_dynarec_aligned_atomics = 0;
 
+int box64_log = 1;
+
+#ifdef ARM64
 int arm64_atomics = 0;
 int arm64_crc32 = 0;
 int arm64_flagm = 0;
@@ -81,7 +84,25 @@ int arm64_aes = 0;
 int arm64_pmull = 0;
 int arm64_sha1 = 0;
 int arm64_sha2 = 0;
-int box64_log = 1;
+#elif defined(RV64)
+int rv64_zba = 0;
+int rv64_zbb = 0;
+int rv64_zbs = 0;
+/*
+int rv64_zbc = 0;
+*/
+int rv64_xtheadba = 0;
+int rv64_xtheadbb = 0;
+int rv64_xtheadbs = 0;
+int rv64_xtheadmempair = 0;
+/*
+int rv64_xtheadcondmov = 0;
+int rv64_xtheadmemidx = 0;
+int rv64_xtheadfmemidx = 0;
+int rv64_xtheadmac = 0;
+int rv64_xtheadfmv = 0;
+*/
+#endif
 uintptr_t box64_pagesize = 4096;
 uint32_t default_gs = 0x2b;
 uintptr_t box64_nodynarec_start = 0;
@@ -704,6 +725,7 @@ uintptr_t getX64Address(dynablock_t* db, uintptr_t arm_addr)
 */
 static void box64_detect_cpu_features(void)
 {
+#ifdef __aarch64__
     uint64_t isar0, feat;
 
     asm("mrs %0, ID_AA64ISAR0_EL1" : "=r" (isar0));
@@ -761,6 +783,7 @@ static void box64_detect_cpu_features(void)
         TRACE("FlagM supported\n");
         arm64_flagm = TRUE;
     }
+#endif
 }
 
 /**********************************************************************
@@ -792,6 +815,8 @@ NTSTATUS WINAPI BTCpuProcessInit(void)
     if ((ULONG_PTR)bopcode >> 32 || (ULONG_PTR)unxcode >> 32)
     {
         ERR( "box64cpu loaded above 4G, disabling\n" );
+        ERR( "box64cpu loaded above 4G, disabling %p\n", bopcode );
+        while(TRUE) Sleep(1000);
         return STATUS_INVALID_ADDRESS;
     }
 

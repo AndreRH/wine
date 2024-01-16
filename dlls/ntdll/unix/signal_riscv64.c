@@ -698,8 +698,6 @@ NTSTATUS WINAPI NtGetContextThread( HANDLE handle, CONTEXT *context )
  */
 NTSTATUS set_thread_wow64_context( HANDLE handle, const void *ctx, ULONG size )
 {
-    FIXME("NYI\n");
-#if 0
     BOOL self = (handle == GetCurrentThread());
     USHORT machine;
     void *frame;
@@ -815,7 +813,6 @@ NTSTATUS set_thread_wow64_context( HANDLE handle, const void *ctx, ULONG size )
     }
 
     }
-#endif
     return STATUS_SUCCESS;
 }
 
@@ -825,8 +822,6 @@ NTSTATUS set_thread_wow64_context( HANDLE handle, const void *ctx, ULONG size )
  */
 NTSTATUS get_thread_wow64_context( HANDLE handle, void *ctx, ULONG size )
 {
-    FIXME("NYI\n");
-#if 0
     BOOL self = (handle == GetCurrentThread());
     USHORT machine;
     void *frame;
@@ -944,14 +939,9 @@ NTSTATUS get_thread_wow64_context( HANDLE handle, void *ctx, ULONG size )
     }
 
     }
-#endif
     return STATUS_SUCCESS;
 }
 
-#undef __ASM_CFI_REG_IS_AT2
-#define __ASM_CFI_REG_IS_AT2(a, b, c, d)
-#undef __ASM_CFI_CFA_IS_AT2
-#define __ASM_CFI_CFA_IS_AT2(a, b, c)
 /* Note, unwind_builtin_dll above has hardcoded assumptions on how this
  * function stores a CONTEXT pointer in s11; if modified, modify that one in
  * sync as well. */

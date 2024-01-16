@@ -4,6 +4,12 @@
 #include <string.h>
 //#include <dlfcn.h>
 #include <signal.h>
+
+#ifndef __clockid_t_defined
+//#define __clockid_t_defined 1
+typedef int clockid_t;
+#endif
+
 #include <pthread.h>
 #include <errno.h>
 

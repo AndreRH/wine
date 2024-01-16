@@ -34,7 +34,7 @@
 #define native_lock_get_dd(A)               arm64_lock_get_dd(A)
 
 #elif defined(RV64)
-//#include "rv64/rv64_lock.h"
+#include "rv64/rv64_lock.h"
 
 #define USE_CAS
 // RV64 is quite strict (or at least strongly recommand) on what you can do between an LD.A and an SD.A

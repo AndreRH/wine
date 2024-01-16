@@ -38,9 +38,9 @@
 #define OTHER_CACHE()   \
     if (fpuCacheNeedsTransform(dyn, ninst)) ret|=2;
 
-//#include "rv64/rv64_printer.h"
-//#include "rv64/dynarec_rv64_private.h"
-//#include "rv64/dynarec_rv64_functions.h"
+#include "rv64/rv64_printer.h"
+#include "rv64/dynarec_rv64_private.h"
+#include "rv64/dynarec_rv64_functions.h"
 #else
 #error Unsupported platform
 #endif

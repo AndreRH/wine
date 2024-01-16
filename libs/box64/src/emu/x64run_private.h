@@ -2,6 +2,7 @@
 #define __X86RUN_PRIVATE_H_
 
 #include <stdint.h>
+#include <stdarg.h>
 #include "regs.h"
 #include "x64emu_private.h"
 #include "box64context.h"

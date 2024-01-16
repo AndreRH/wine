@@ -134,6 +134,7 @@ ldiv_t __cdecl ldiv(long num, long denom)
 static void _setfp( unsigned int *cw, unsigned int cw_mask,
         unsigned int *sw, unsigned int sw_mask )
 {
+#ifdef __aarch64__
     ULONG_PTR old_fpsr = 0, fpsr = 0, old_fpcr = 0, fpcr = 0;
     unsigned int flags;
 
@@ -212,6 +213,9 @@ static void _setfp( unsigned int *cw, unsigned int cw_mask,
         __asm__ __volatile__( "msr fpsr, %0" :: "r" (fpsr) );
     if (old_fpcr != fpcr)
         __asm__ __volatile__( "msr fpcr, %0" :: "r" (fpcr) );
+#else
+#warning TODO
+#endif
 }
 
 unsigned int CDECL _control87(unsigned int newval, unsigned int mask)

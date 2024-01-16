@@ -1,6 +1,12 @@
 #ifndef __BOX64CONTEXT_H_
 #define __BOX64CONTEXT_H_
 #include <stdint.h>
+
+#ifndef __clockid_t_defined
+//#define __clockid_t_defined 1
+typedef int clockid_t;
+#endif
+
 #include <pthread.h>
 #include "pathcoll.h"
 #include "dictionnary.h"
@@ -46,8 +52,12 @@ typedef void* (*vkprocaddess_t)(void* instance, const char* name);
 #define MAX_SIGNAL 64
 
 #ifdef _WIN32
+#ifdef RV64
+// TODO?
+#else
 typedef __builtin_ms_va_list va_list;
 typedef __builtin_va_list va_list;
+#endif
 #include "windef.h"
 #include "winternl.h"
 #define pthread_mutex_t RTL_CRITICAL_SECTION
