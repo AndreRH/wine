@@ -132,6 +132,7 @@ struct context_data
                  unsigned int cs, ss, flags, __pad; } x86_64_regs;
         struct { unsigned int sp, lr, pc, cpsr; } arm_regs;
         struct { unsigned __int64 sp, pc, pstate; } arm64_regs;
+        struct { unsigned __int64 pc; } riscv64_regs;
     } ctl;
     union
     {
@@ -140,6 +141,7 @@ struct context_data
                                   r8, r9, r10, r11, r12, r13, r14, r15; } x86_64_regs;
         struct { unsigned int r[13]; } arm_regs;
         struct { unsigned __int64 x0[18], x19[12]; } arm64_regs;
+        struct { unsigned __int64 x[31]; } riscv64_regs;
     } integer;
     union
     {
