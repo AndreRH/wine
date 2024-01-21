@@ -787,6 +787,7 @@ LDDLLFLAGS
 DLLFLAGS
 OPENGL_LIBS
 I386_LIBS
+ATOMIC_LIBS
 ICOTOOL
 CONVERT
 RSVG
@@ -7633,6 +7634,50 @@ esac
 enable_po=${enable_po:-no}
 fi
 
+if test "$HOST_ARCH" = "riscv64"
+then
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for __atomic_compare_exchange_16 in -latomic" >&5
+printf %s "checking for __atomic_compare_exchange_16 in -latomic... " >&6; }
+if test ${ac_cv_lib_atomic___atomic_compare_exchange_16+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-latomic  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char __atomic_compare_exchange_16 ();
+int
+main (void)
+{
+return __atomic_compare_exchange_16 ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_atomic___atomic_compare_exchange_16=yes
+else $as_nop
+  ac_cv_lib_atomic___atomic_compare_exchange_16=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_atomic___atomic_compare_exchange_16" >&5
+printf "%s\n" "$ac_cv_lib_atomic___atomic_compare_exchange_16" >&6; }
+if test "x$ac_cv_lib_atomic___atomic_compare_exchange_16" = xyes
+then :
+  ATOMIC_LIBS="-latomic"
+
+fi
+
+fi
 
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for i386_set_ldt in -li386" >&5
 printf %s "checking for i386_set_ldt in -li386... " >&6; }
@@ -23753,6 +23798,7 @@ FONTFORGE = $FONTFORGE
 RSVG = $RSVG
 CONVERT = $CONVERT
 ICOTOOL = $ICOTOOL
+ATOMIC_LIBS = $ATOMIC_LIBS
 I386_LIBS = $I386_LIBS
 OPENGL_LIBS = $OPENGL_LIBS
 DLLFLAGS = $DLLFLAGS

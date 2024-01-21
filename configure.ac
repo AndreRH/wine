@@ -404,6 +404,11 @@ WINE_WARNING_WITH(gettext,[test "$MSGFMT" = false],
                   [enable_po])
 
 dnl **** Check for some libraries ****
+if test "$HOST_ARCH" = "riscv64"
+then
+dnl Check for -latomic on RISC-V
+AC_CHECK_LIB(atomic,__atomic_compare_exchange_16,[AC_SUBST(ATOMIC_LIBS, "-latomic")])
+fi
 
 dnl Check for -li386 for NetBSD and OpenBSD
 AC_CHECK_LIB(i386,i386_set_ldt,[AC_SUBST(I386_LIBS, "-li386")])
