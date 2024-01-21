@@ -231,8 +231,71 @@ __ASM_GLOBAL_FUNC( __wine_longjmp,
                    "mov x0, x1\n\t"                /* retval */
                    "ret" )
 
-#else
+#elif defined(__riscv64__)
 
+__ASM_GLOBAL_FUNC( __wine_setjmpex,  // FIXME: fpcr fpsr
+                   "sd a1, 0(a0)\n\t"       /* jmp_buf->Frame */
+                   "sd ra, 0x10(a0)\n\t"    /* jmp_buf->__pc */
+                   "sd s0, 0x18(a0)\n\t"
+                   "sd s1, 0x20(a0)\n\t"
+                   "sd s2, 0x28(a0)\n\t"
+                   "sd s3, 0x30(a0)\n\t"
+                   "sd s4, 0x38(a0)\n\t"
+                   "sd s5, 0x40(a0)\n\t"
+                   "sd s6, 0x48(a0)\n\t"
+                   "sd s7, 0x50(a0)\n\t"
+                   "sd s8, 0x58(a0)\n\t"
+                   "sd s9, 0x60(a0)\n\t"
+                   "sd s10, 0x68(a0)\n\t"
+                   "sd s11, 0x70(a0)\n\t"
+                   "sd sp, 0x78(a0)\n\t"
+                   "fsd fs0, 0x80(a0)\n\t"
+                   "fsd fs1, 0x88(a0)\n\t"
+                   "fsd fs2, 0x90(a0)\n\t"
+                   "fsd fs3, 0x98(a0)\n\t"
+                   "fsd fs4, 0xa0(a0)\n\t"
+                   "fsd fs5, 0xa8(a0)\n\t"
+                   "fsd fs6, 0xb0(a0)\n\t"
+                   "fsd fs7, 0xb8(a0)\n\t"
+                   "fsd fs8, 0xc0(a0)\n\t"
+                   "fsd fs9, 0xc8(a0)\n\t"
+                   "fsd fs10, 0xd0(a0)\n\t"
+                   "fsd fs11, 0xd8(a0)\n\t"
+                   "li a0, 0\n\t"
+                   "ret" )
+
+
+__ASM_GLOBAL_FUNC( __wine_longjmp,  // FIXME: fpcr fpsr
+                   "ld ra, 0x10(a0)\n\t"    /* jmp_buf->__pc */
+                   "ld s0, 0x18(a0)\n\t"
+                   "ld s1, 0x20(a0)\n\t"
+                   "ld s2, 0x28(a0)\n\t"
+                   "ld s3, 0x30(a0)\n\t"
+                   "ld s4, 0x38(a0)\n\t"
+                   "ld s5, 0x40(a0)\n\t"
+                   "ld s6, 0x48(a0)\n\t"
+                   "ld s7, 0x50(a0)\n\t"
+                   "ld s8, 0x58(a0)\n\t"
+                   "ld s9, 0x60(a0)\n\t"
+                   "ld s10, 0x68(a0)\n\t"
+                   "ld s11, 0x70(a0)\n\t"
+                   "ld sp, 0x78(a0)\n\t"
+                   "fld fs0, 0x80(a0)\n\t"
+                   "fld fs1, 0x88(a0)\n\t"
+                   "fld fs2, 0x90(a0)\n\t"
+                   "fld fs3, 0x98(a0)\n\t"
+                   "fld fs4, 0xa0(a0)\n\t"
+                   "fld fs5, 0xa8(a0)\n\t"
+                   "fld fs6, 0xb0(a0)\n\t"
+                   "fld fs7, 0xb8(a0)\n\t"
+                   "fld fs8, 0xc0(a0)\n\t"
+                   "fld fs9, 0xc8(a0)\n\t"
+                   "fld fs10, 0xd0(a0)\n\t"
+                   "fld fs11, 0xd8(a0)\n\t"
+                   "mv a0, a1\n\t"          /* retval */
+                   "ret" )
+
+#else
 int __cdecl __wine_setjmpex( __wine_jmp_buf *buf, EXCEPTION_REGISTRATION_RECORD *frame )
 {
     return setjmp( buf );
