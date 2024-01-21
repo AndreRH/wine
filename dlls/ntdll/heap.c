@@ -973,7 +973,7 @@ static void *allocate_region( struct heap *heap, ULONG flags, SIZE_T *region_siz
 
     if (heap && !(flags & HEAP_GROWABLE))
     {
-        WARN( "Heap %p isn't growable, cannot allocate %#Ix bytes\n", heap, *region_size );
+        ERR( "Heap %p isn't growable, cannot allocate %#Ix bytes\n", heap, *region_size );
         return NULL;
     }
 
@@ -981,13 +981,13 @@ static void *allocate_region( struct heap *heap, ULONG flags, SIZE_T *region_siz
     if ((status = NtAllocateVirtualMemory( NtCurrentProcess(), &addr, 0, region_size, MEM_RESERVE,
                                            get_protection_type( flags ) )))
     {
-        WARN( "Could not allocate %#Ix bytes, status %#lx\n", *region_size, status );
+        ERR( "Could not allocate %#Ix bytes, status %#lx\n", *region_size, status );
         return NULL;
     }
     if ((status = NtAllocateVirtualMemory( NtCurrentProcess(), &addr, 0, commit_size, MEM_COMMIT,
                                            get_protection_type( flags ) )))
     {
-        WARN( "Could not commit %#Ix bytes, status %#lx\n", *commit_size, status );
+        ERR( "Could not commit %#Ix bytes, status %#lx\n", *commit_size, status );
         return NULL;
     }
 

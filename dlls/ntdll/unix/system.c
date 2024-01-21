@@ -564,6 +564,14 @@ static void get_cpuinfo( SYSTEM_CPU_INFORMATION *info )
     info->ProcessorFeatureBits = cpu_features.ProcessorFeatureBits = features;
 }
 
+#elif defined(__riscv64__)
+
+static void get_cpuinfo( SYSTEM_CPU_INFORMATION *info )
+{
+    info->ProcessorArchitecture = PROCESSOR_ARCHITECTURE_RISCV64;
+    FIXME("CPU Feature detection not implemented.\n");
+}
+
 #endif /* End architecture specific feature detection for CPUs */
 
 static BOOL grow_logical_proc_buf(void)

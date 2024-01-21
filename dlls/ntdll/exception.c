@@ -165,10 +165,10 @@ LONG call_vectored_handlers( EXCEPTION_RECORD *rec, CONTEXT *context )
         RtlFreeHeap( GetProcessHeap(), 0, to_free );
         to_free = NULL;
 
-        TRACE( "calling handler at %p code=%lx flags=%lx\n",
+        ERR( "calling handler at %p code=%lx flags=%lx\n",
                func, rec->ExceptionCode, rec->ExceptionFlags );
         ret = func( &except_ptrs );
-        TRACE( "handler at %p returned %lx\n", func, ret );
+        ERR( "handler at %p returned %lx\n", func, ret );
 
         RtlEnterCriticalSection( &vectored_handlers_section );
         ptr = list_next( &vectored_exception_handlers, ptr );
@@ -193,7 +193,7 @@ LONG call_vectored_handlers( EXCEPTION_RECORD *rec, CONTEXT *context )
 void DECLSPEC_NORETURN raise_status( NTSTATUS status, EXCEPTION_RECORD *rec )
 {
     EXCEPTION_RECORD ExceptionRec;
-
+    ERR("%p raise_status\n", raise_status);
     ExceptionRec.ExceptionCode    = status;
     ExceptionRec.ExceptionFlags   = EH_NONCONTINUABLE;
     ExceptionRec.ExceptionRecord  = rec;
@@ -220,6 +220,7 @@ NTSTATUS WINAPI KiRaiseUserExceptionDispatcher(void)
 {
     DWORD code = NtCurrentTeb()->ExceptionCode;
     EXCEPTION_RECORD rec = { code };
+    ERR("%p KiRaiseUserExceptionDispatcher\n", KiRaiseUserExceptionDispatcher);
     RtlRaiseException( &rec );
     return code;
 }
@@ -301,7 +302,7 @@ EXCEPTION_DISPOSITION WINAPI call_unhandled_exception_handler( EXCEPTION_RECORD 
 }
 
 
-#if defined(__x86_64__) || defined(__arm__) || defined(__aarch64__)
+#if defined(__x86_64__) || defined(__arm__) || defined(__aarch64__) || defined(__riscv64__)
 
 struct dynamic_unwind_entry
 {
@@ -346,7 +347,7 @@ static ULONG_PTR get_runtime_function_end( RUNTIME_FUNCTION *func, ULONG_PTR add
         } *info = (struct unwind_info *)(addr + func->UnwindData);
         return func->BeginAddress + info->function_length * 2;
     }
-#else  /* __aarch64__ */
+#elif defined(__aarch64__)
     if (func->Flag) return func->BeginAddress + func->FunctionLength * 4;
     else
     {
@@ -361,6 +362,8 @@ static ULONG_PTR get_runtime_function_end( RUNTIME_FUNCTION *func, ULONG_PTR add
         } *info = (struct unwind_info *)(addr + func->UnwindData);
         return func->BeginAddress + info->function_length * 4;
     }
+#else  /* __riscv64__ */
+    return NULL;
 #endif
 }
 
@@ -660,6 +663,7 @@ void __cdecl __wine_spec_unimplemented_stub( const char *module, const char *fun
 {
     EXCEPTION_RECORD record;
 
+    ERR("%p __wine_spec_unimplemented_stub\n", __wine_spec_unimplemented_stub);
     record.ExceptionCode    = EXCEPTION_WINE_STUB;
     record.ExceptionFlags   = EH_NONCONTINUABLE;
     record.ExceptionRecord  = NULL;

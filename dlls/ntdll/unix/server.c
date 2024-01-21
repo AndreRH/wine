@@ -1661,8 +1661,10 @@ size_t server_init_process(void)
 
     set_thread_id( NtCurrentTeb(), pid, tid );
 
+ERR("info size %x\n", info_size);
+
     for (i = 0; i < supported_machines_count; i++)
-        if (supported_machines[i] == current_machine) return info_size;
+        if (supported_machines[i] == current_machine) {ERR("found\n");return info_size;}
 
     fatal_error( "wineserver doesn't support the %04x architecture\n", current_machine );
 }

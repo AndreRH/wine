@@ -102,6 +102,8 @@ static const char so_dir[] = "/x86_64-unix";
 static const char so_dir[] = "/arm-unix";
 #elif defined(__aarch64__)
 static const char so_dir[] = "/aarch64-unix";
+#elif defined(__riscv64__)
+static const char so_dir[] = "/riscv64-unix";
 #else
 static const char so_dir[] = "";
 #endif
@@ -331,6 +333,7 @@ static const char *get_pe_dir( WORD machine )
     case IMAGE_FILE_MACHINE_AMD64: return "/x86_64-windows";
     case IMAGE_FILE_MACHINE_ARMNT: return "/arm-windows";
     case IMAGE_FILE_MACHINE_ARM64: return "/aarch64-windows";
+    case IMAGE_FILE_MACHINE_RISCV64: return "/riscv64-windows";
     default: return "";
     }
 }
@@ -1541,6 +1544,13 @@ static void load_ntdll_functions( HMODULE module )
     *p__wine_syscall_dispatcher = __wine_syscall_dispatcher;
     *p__wine_unix_call_dispatcher = __wine_unix_call_dispatcher;
     *p__wine_unixlib_handle = (UINT_PTR)unix_call_funcs;
+#ifdef __riscv64__
+    {
+        void **p__wine_current_teb;
+        GET_FUNC( __wine_current_teb );
+        *p__wine_current_teb = NtCurrentTeb;
+    }
+#endif
 #undef GET_FUNC
 }
 

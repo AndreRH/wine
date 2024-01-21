@@ -209,6 +209,7 @@ static BOOL get_so_file_info( int fd, pe_image_info_t *info )
         case 40:  info->machine = IMAGE_FILE_MACHINE_ARMNT; break;
         case 62:  info->machine = IMAGE_FILE_MACHINE_AMD64; break;
         case 183: info->machine = IMAGE_FILE_MACHINE_ARM64; break;
+        case 243: info->machine = IMAGE_FILE_MACHINE_RISCV64; break;
         }
         if (header.elf.type != 3 /* ET_DYN */) return FALSE;
         if (header.elf.class == 2 /* ELFCLASS64 */)

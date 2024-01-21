@@ -383,6 +383,8 @@ enum reg_rule
 #define NB_FRAME_REGS 41
 #elif defined(__aarch64__)
 #define NB_FRAME_REGS 96
+#elif defined(__riscv64__)
+#define NB_FRAME_REGS 128
 #else
 #error Unsupported architecture
 #endif
@@ -431,6 +433,23 @@ static const char *dwarf_reg_names[NB_FRAME_REGS] =
 /* 72-79 */ "v8",  "v9",  "v10", "v11", "v12", "v13", "v14", "v15",
 /* 80-87 */ "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
 /* 88-95 */ "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31",
+#elif defined(__riscv64__)
+/*  0-7  */ "x0",  "x1",  "x2",  "x3",  "x4",  "x5",  "x6",  "x7",
+/*  8-15 */ "x8",  "x9",  "x10", "x11", "x12", "x13", "x14", "x15",
+/* 16-23 */ "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23",
+/* 24-31 */ "x24", "x25", "x26", "x27", "x28", "x29", "x30", "x31",
+/* 32-39 */ "f0",  "f1",  "f2",  "f3",  "f4",  "f5",  "f6",  "f7",
+/* 40-47 */ "f8",  "f9",  "f10", "f11", "f12", "f13", "f14", "f15",
+/* 48-55 */ "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
+/* 56-63 */ "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31",
+/* 64-71 */ NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,
+/* 72-79 */ NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,
+/* 80-87 */ NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,
+/* 88-95 */ NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,
+/* 96-103 */ NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,
+/* 104-111 */ NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,
+/* 112-119 */ NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,
+/* 120-127 */ NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,
 #endif
 };
 
@@ -749,6 +768,71 @@ static void *get_context_reg( CONTEXT *context, ULONG_PTR dw_reg )
     case 94:
     case 95:
         return &context->V[dw_reg - 64];
+#elif defined(__riscv64__)
+    case 0:  return &context->X[0];
+    case 1:  return &context->X[1];
+    case 2:  return &context->X[2];
+    case 3:  return &context->X[3];
+    case 4:  return &context->X[4];
+    case 5:  return &context->X[5];
+    case 6:  return &context->X[6];
+    case 7:  return &context->X[7];
+    case 8:  return &context->X[8];
+    case 9:  return &context->X[9];
+    case 10: return &context->X[10];
+    case 11: return &context->X[11];
+    case 12: return &context->X[12];
+    case 13: return &context->X[13];
+    case 14: return &context->X[14];
+    case 15: return &context->X[15];
+    case 16: return &context->X[16];
+    case 17: return &context->X[17];
+    case 18: return &context->X[18];
+    case 19: return &context->X[19];
+    case 20: return &context->X[20];
+    case 21: return &context->X[21];
+    case 22: return &context->X[22];
+    case 23: return &context->X[23];
+    case 24: return &context->X[24];
+    case 25: return &context->X[25];
+    case 26: return &context->X[26];
+    case 27: return &context->X[27];
+    case 28: return &context->X[28];
+    case 29: return &context->X[29];
+    case 30: return &context->X[30];
+    case 31: return &context->X[31];
+    case 32: return &context->F[0];
+    case 33: return &context->F[1];
+    case 34: return &context->F[2];
+    case 35: return &context->F[3];
+    case 36: return &context->F[4];
+    case 37: return &context->F[5];
+    case 38: return &context->F[6];
+    case 39: return &context->F[7];
+    case 40: return &context->F[8];
+    case 41: return &context->F[9];
+    case 42: return &context->F[10];
+    case 43: return &context->F[11];
+    case 44: return &context->F[12];
+    case 45: return &context->F[13];
+    case 46: return &context->F[14];
+    case 47: return &context->F[15];
+    case 48: return &context->F[16];
+    case 49: return &context->F[17];
+    case 50: return &context->F[18];
+    case 51: return &context->F[19];
+    case 52: return &context->F[20];
+    case 53: return &context->F[21];
+    case 54: return &context->F[22];
+    case 55: return &context->F[23];
+    case 56: return &context->F[24];
+    case 57: return &context->F[25];
+    case 58: return &context->F[26];
+    case 59: return &context->F[27];
+    case 60: return &context->F[28];
+    case 61: return &context->F[29];
+    case 62: return &context->F[30];
+    case 63: return &context->F[31];
 #endif
     default: return NULL;
     }
@@ -869,6 +953,71 @@ static void set_context_reg( CONTEXT *context, ULONG_PTR dw_reg, void *val )
     case 95:
         memcpy( &context->V[dw_reg - 64], val, sizeof(ARM64_NT_NEON128) );
         break;
+#elif defined(__riscv64__)
+    case 0:  context->X[0]  = *(DWORD64 *)val; break;
+    case 1:  context->X[1]  = *(DWORD64 *)val; break;
+    case 2:  context->X[2]  = *(DWORD64 *)val; break;
+    case 3:  context->X[3]  = *(DWORD64 *)val; break;
+    case 4:  context->X[4]  = *(DWORD64 *)val; break;
+    case 5:  context->X[5]  = *(DWORD64 *)val; break;
+    case 6:  context->X[6]  = *(DWORD64 *)val; break;
+    case 7:  context->X[7]  = *(DWORD64 *)val; break;
+    case 8:  context->X[8]  = *(DWORD64 *)val; break;
+    case 9:  context->X[9]  = *(DWORD64 *)val; break;
+    case 10: context->X[10] = *(DWORD64 *)val; break;
+    case 11: context->X[11] = *(DWORD64 *)val; break;
+    case 12: context->X[12] = *(DWORD64 *)val; break;
+    case 13: context->X[13] = *(DWORD64 *)val; break;
+    case 14: context->X[14] = *(DWORD64 *)val; break;
+    case 15: context->X[15] = *(DWORD64 *)val; break;
+    case 16: context->X[16] = *(DWORD64 *)val; break;
+    case 17: context->X[17] = *(DWORD64 *)val; break;
+    case 18: context->X[18] = *(DWORD64 *)val; break;
+    case 19: context->X[19] = *(DWORD64 *)val; break;
+    case 20: context->X[20] = *(DWORD64 *)val; break;
+    case 21: context->X[21] = *(DWORD64 *)val; break;
+    case 22: context->X[22] = *(DWORD64 *)val; break;
+    case 23: context->X[23] = *(DWORD64 *)val; break;
+    case 24: context->X[24] = *(DWORD64 *)val; break;
+    case 25: context->X[25] = *(DWORD64 *)val; break;
+    case 26: context->X[26] = *(DWORD64 *)val; break;
+    case 27: context->X[27] = *(DWORD64 *)val; break;
+    case 28: context->X[28] = *(DWORD64 *)val; break;
+    case 29: context->X[29] = *(DWORD64 *)val; break;
+    case 30: context->X[30] = *(DWORD64 *)val; break;
+    case 31: context->X[31] = *(DWORD64 *)val; break;
+    case 32: context->F[0]  = *(DWORD64 *)val; break;
+    case 33: context->F[1]  = *(DWORD64 *)val; break;
+    case 34: context->F[2]  = *(DWORD64 *)val; break;
+    case 35: context->F[3]  = *(DWORD64 *)val; break;
+    case 36: context->F[4]  = *(DWORD64 *)val; break;
+    case 37: context->F[5]  = *(DWORD64 *)val; break;
+    case 38: context->F[6]  = *(DWORD64 *)val; break;
+    case 39: context->F[7]  = *(DWORD64 *)val; break;
+    case 40: context->F[8]  = *(DWORD64 *)val; break;
+    case 41: context->F[9]  = *(DWORD64 *)val; break;
+    case 42: context->F[10] = *(DWORD64 *)val; break;
+    case 43: context->F[11] = *(DWORD64 *)val; break;
+    case 44: context->F[12] = *(DWORD64 *)val; break;
+    case 45: context->F[13] = *(DWORD64 *)val; break;
+    case 46: context->F[14] = *(DWORD64 *)val; break;
+    case 47: context->F[15] = *(DWORD64 *)val; break;
+    case 48: context->F[16] = *(DWORD64 *)val; break;
+    case 49: context->F[17] = *(DWORD64 *)val; break;
+    case 50: context->F[18] = *(DWORD64 *)val; break;
+    case 51: context->F[19] = *(DWORD64 *)val; break;
+    case 52: context->F[20] = *(DWORD64 *)val; break;
+    case 53: context->F[21] = *(DWORD64 *)val; break;
+    case 54: context->F[22] = *(DWORD64 *)val; break;
+    case 55: context->F[23] = *(DWORD64 *)val; break;
+    case 56: context->F[24] = *(DWORD64 *)val; break;
+    case 57: context->F[25] = *(DWORD64 *)val; break;
+    case 58: context->F[26] = *(DWORD64 *)val; break;
+    case 59: context->F[27] = *(DWORD64 *)val; break;
+    case 60: context->F[28] = *(DWORD64 *)val; break;
+    case 61: context->F[29] = *(DWORD64 *)val; break;
+    case 62: context->F[30] = *(DWORD64 *)val; break;
+    case 63: context->F[31] = *(DWORD64 *)val; break;
 #endif
     }
 }
@@ -983,6 +1132,8 @@ static void apply_frame_state( CONTEXT *context, struct frame_state *state,
 #ifdef __x86_64__
     new_context.Rsp = cfa;
 #elif defined(__aarch64__)
+    new_context.Sp = cfa;
+#elif defined(__riscv64__)
     new_context.Sp = cfa;
 #endif
 

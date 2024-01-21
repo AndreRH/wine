@@ -61,6 +61,9 @@ static const USHORT current_machine = IMAGE_FILE_MACHINE_ARMNT;
 #elif defined __aarch64__
 static const WCHAR pe_dir[] = L"\\aarch64-windows";
 static const USHORT current_machine = IMAGE_FILE_MACHINE_ARM64;
+#elif defined __riscv64__
+static const WCHAR pe_dir[] = L"\\riscv64-windows";
+static const USHORT current_machine = IMAGE_FILE_MACHINE_RISCV64;
 #else
 static const WCHAR pe_dir[] = L"";
 static const USHORT current_machine = IMAGE_FILE_MACHINE_UNKNOWN;
@@ -4321,7 +4324,7 @@ void loader_init( CONTEXT *context, void **entry )
         status = NtOpenEvent( &event, EVENT_ALL_ACCESS, &attr );
         if (NT_SUCCESS(status))
             status = NtQueryEvent( event, EventBasicInformation, &ebi, sizeof(ebi), NULL );
- 
+
         if (NT_SUCCESS(status) && !ebi.EventState)
         {
             if (NtCurrentTeb()->WowTebOffset) WARN("Activated a hack for the hack\n");

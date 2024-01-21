@@ -722,6 +722,7 @@ typedef DWORD FLONG;
 #define PROCESSOR_ARCHITECTURE_ARM64            12
 #define PROCESSOR_ARCHITECTURE_ARM32_ON_WIN64   13
 #define PROCESSOR_ARCHITECTURE_IA32_ON_ARM64    14
+#define PROCESSOR_ARCHITECTURE_RISCV64          0x20
 #define PROCESSOR_ARCHITECTURE_UNKNOWN	0xFFFF
 
 /* dwProcessorType */
@@ -2640,11 +2641,7 @@ static FORCEINLINE struct _TEB * WINAPI NtCurrentTeb(void)
     return (struct _TEB *)(ULONG_PTR)_MoveFromCoprocessor(15, 0, 13, 0, 2);
 }
 #elif defined(__riscv64__)
-register struct _TEB *__wine_current_teb __asm__("tp");
-static FORCEINLINE struct _TEB * WINAPI NtCurrentTeb(void)
-{
-    return __wine_current_teb;
-}
+extern struct _TEB * WINAPI NtCurrentTeb(void);
 #elif !defined(RC_INVOKED)
 # error You must define NtCurrentTeb() for your architecture
 #endif
@@ -7396,6 +7393,25 @@ static FORCEINLINE unsigned char InterlockedCompareExchange128( volatile __int64
                           : "m" (dest[0]), "m" (dest[1]), "3" (compare[0]), "4" (compare[1]),
                             "c" (xchg_high), "b" (xchg_low) );
     return ret;
+#elif defined(__riscv64__)
+#if 0
+#warning FIXME
+    struct tmp128_1 {__int64 h; __int64 l;} *d = (void*)dest;
+    struct tmp128_2 {__int64 h; __int64 l;} *c = (void*)compare;
+    if (__sync_bool_compare_and_swap( &d->h, c->h, xchg_high ))
+    {
+        d->l = xchg_low;
+        return TRUE;
+    }
+    return FALSE;
+#else
+    struct tmp128_1 {__int64 h; __int64 l;} oldcompare;
+    memcpy(&oldcompare, compare, sizeof(oldcompare));
+    if (__atomic_compare_exchange_16( (__int128 *)dest, (__int128 *)compare, ((__int128)xchg_high << 64) | xchg_low, FALSE, __ATOMIC_RELEASE, __ATOMIC_RELAXED ))
+        return TRUE;
+    memcpy(compare, &oldcompare, sizeof(oldcompare));
+    return FALSE;
+#endif
 #else
     return __sync_bool_compare_and_swap( (__int128 *)dest, *(__int128 *)compare, ((__int128)xchg_high << 64) | xchg_low );
 #endif

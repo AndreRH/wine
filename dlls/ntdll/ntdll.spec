@@ -196,7 +196,7 @@
 @ stdcall -syscall NtCreateTransaction(ptr long ptr ptr long long long long ptr ptr)
 @ stdcall -syscall NtCreateUserProcess(ptr ptr long long ptr ptr long long ptr ptr ptr)
 # @ stub NtCreateWaitablePort
-@ stdcall -arch=i386 NtCurrentTeb()
+@ stdcall -arch=i386,riscv64 NtCurrentTeb()
 @ stdcall -syscall NtDebugActiveProcess(long long)
 @ stdcall -syscall NtDebugContinue(long ptr long)
 @ stdcall -syscall NtDelayExecution(long ptr)
@@ -1717,6 +1717,7 @@
 @ extern -private __wine_syscall_dispatcher
 @ extern -private __wine_unix_call_dispatcher
 @ extern -private __wine_unixlib_handle
+@ extern -arch=riscv64 __wine_current_teb
 
 # Debugging
 @ stdcall -norelay __wine_dbg_write(ptr long)
