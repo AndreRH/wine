@@ -604,6 +604,28 @@ static NTSTATUS context_to_server( context_t *to, USHORT to_machine, const void 
     case MAKELONG( IMAGE_FILE_MACHINE_I386, IMAGE_FILE_MACHINE_ARM64 ):
         return STATUS_SUCCESS;
 
+    case MAKELONG( IMAGE_FILE_MACHINE_RISCV64, IMAGE_FILE_MACHINE_RISCV64 ):
+    {
+        const RISCV64_CONTEXT *from = src;
+
+        flags = from->ContextFlags & ~CONTEXT_RISCV64;
+        if (flags & CONTEXT_RISCV64_CONTROL)
+        {
+            to->flags |= SERVER_CTX_CONTROL;
+            to->integer.riscv64_regs.x[8 - 1] = from->Fp;
+            to->integer.riscv64_regs.x[2 - 1] = from->Sp;
+            to->integer.riscv64_regs.x[1 - 1] = from->Ra;
+            to->ctl.riscv64_regs.pc = from->Pc;
+        }
+        if (flags & CONTEXT_RISCV64_INTEGER)
+        {
+            to->flags |= SERVER_CTX_INTEGER;
+            for (i = 3; i < 8; i++) to->integer.riscv64_regs.x[i - 1] = from->X[i];
+            for (i = 9; i < 32; i++) to->integer.riscv64_regs.x[i - 1] = from->X[i];
+        }
+        return STATUS_SUCCESS;
+    }
+
     default:
         return STATUS_INVALID_PARAMETER;
     }
@@ -1022,6 +1044,28 @@ static NTSTATUS context_from_server( void *dst, const context_t *from, USHORT ma
     case MAKELONG( IMAGE_FILE_MACHINE_ARM64, IMAGE_FILE_MACHINE_I386 ):
     case MAKELONG( IMAGE_FILE_MACHINE_I386, IMAGE_FILE_MACHINE_ARM64 ):
         return STATUS_SUCCESS;
+
+    case MAKELONG( IMAGE_FILE_MACHINE_RISCV64, IMAGE_FILE_MACHINE_RISCV64 ):
+    {
+        RISCV64_CONTEXT *to = dst;
+
+        to_flags = to->ContextFlags & ~CONTEXT_RISCV64;
+        if ((from->flags & SERVER_CTX_CONTROL) && (to_flags & CONTEXT_RISCV64_CONTROL))
+        {
+            to->ContextFlags |= CONTEXT_RISCV64_CONTROL;
+            to->Fp   = from->integer.riscv64_regs.x[8 - 1];
+            to->Sp   = from->integer.riscv64_regs.x[2 - 1];
+            to->Ra   = from->integer.riscv64_regs.x[1 - 1];
+            to->Pc   = from->ctl.riscv64_regs.pc;
+        }
+        if ((from->flags & SERVER_CTX_INTEGER) && (to_flags & CONTEXT_RISCV64_INTEGER))
+        {
+            to->ContextFlags |= CONTEXT_RISCV64_INTEGER;
+            for (i = 3; i < 8; i++) to->X[i] = from->integer.riscv64_regs.x[i - 1];
+            for (i = 9; i < 32; i++) to->X[i] = from->integer.riscv64_regs.x[i - 1];
+        }
+        return STATUS_SUCCESS;
+    }
 
     default:
         return STATUS_INVALID_PARAMETER;
