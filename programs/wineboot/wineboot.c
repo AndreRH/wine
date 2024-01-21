@@ -796,6 +796,9 @@ static void create_hardware_registry_keys(void)
         swprintf( id, ARRAY_SIZE(id), L"ARM Family %u Model %u Revision %u",
                   sci.ProcessorLevel, HIBYTE(sci.ProcessorRevision), LOBYTE(sci.ProcessorRevision) );
         break;
+    case PROCESSOR_ARCHITECTURE_RISCV64:
+        swprintf( id, ARRAY_SIZE(id), L"RISC-V 64" );
+        break;
 
     case PROCESSOR_ARCHITECTURE_AMD64:
         get_identifier( id, ARRAY_SIZE(id), !wcscmp(vendorid, L"AuthenticAMD") ? L"AMD64" : L"Intel64" );
@@ -819,6 +822,9 @@ static void create_hardware_registry_keys(void)
     case PROCESSOR_ARCHITECTURE_ARM:
     case PROCESSOR_ARCHITECTURE_ARM64:
         set_reg_value( system_key, L"Identifier", L"ARM processor family" );
+        break;
+    case PROCESSOR_ARCHITECTURE_RISCV64:
+        set_reg_value( system_key, L"Identifier", L"RISC-V 64 processor family" );
         break;
 
     case PROCESSOR_ARCHITECTURE_INTEL:
@@ -923,6 +929,9 @@ static void create_environment_registry_keys( void )
     case PROCESSOR_ARCHITECTURE_ARM64:
         swprintf( buffer, ARRAY_SIZE(buffer), L"ARM Family %u Model %u Revision %u",
                   sci.ProcessorLevel, HIBYTE(sci.ProcessorRevision), LOBYTE(sci.ProcessorRevision) );
+        break;
+    case PROCESSOR_ARCHITECTURE_RISCV64:
+        swprintf( buffer, ARRAY_SIZE(buffer), L"RISC-V 64 Family" );
         break;
 
     case PROCESSOR_ARCHITECTURE_AMD64:
