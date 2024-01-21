@@ -788,6 +788,7 @@ LDDLLFLAGS
 DLLFLAGS
 OPENGL_LIBS
 I386_LIBS
+ATOMIC_LIBS
 DLLEXT
 PE_ARCHS
 MSGFMT
@@ -10504,6 +10505,58 @@ case $HOST_ARCH-$host_os in
  ;;
 esac
 
+if test "$HOST_ARCH" = "riscv64"
+then
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for __atomic_compare_exchange_16 in -latomic" >&5
+printf %s "checking for __atomic_compare_exchange_16 in -latomic... " >&6; }
+if test ${ac_cv_lib_atomic___atomic_compare_exchange_16+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e) ac_check_lib_save_LIBS=$LIBS
+LIBS="-latomic  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.
+   The 'extern "C"' is for builds by C++ compilers;
+   although this is not generally supported in C code supporting it here
+   has little cost and some practical benefit (sr 110532).  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char __atomic_compare_exchange_16 (void);
+int
+main (void)
+{
+return __atomic_compare_exchange_16 ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_atomic___atomic_compare_exchange_16=yes
+else case e in #(
+  e) ac_cv_lib_atomic___atomic_compare_exchange_16=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS ;;
+esac
+fi
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_atomic___atomic_compare_exchange_16" >&5
+printf '%s\n' "$ac_cv_lib_atomic___atomic_compare_exchange_16" >&6; }
+if test "x$ac_cv_lib_atomic___atomic_compare_exchange_16" = xyes
+then :
+  ATOMIC_LIBS="-latomic"
+
+fi
+
+fi
 
 { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for i386_set_ldt in -li386" >&5
 printf %s "checking for i386_set_ldt in -li386... " >&6; }
@@ -24507,6 +24560,7 @@ ICOTOOL = $ICOTOOL
 MSGFMT = $MSGFMT
 PE_ARCHS = $PE_ARCHS
 DLLEXT = $DLLEXT
+ATOMIC_LIBS = $ATOMIC_LIBS
 I386_LIBS = $I386_LIBS
 OPENGL_LIBS = $OPENGL_LIBS
 DLLFLAGS = $DLLFLAGS
