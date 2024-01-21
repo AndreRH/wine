@@ -385,6 +385,29 @@ __ASM_GLOBAL_FUNC( raise_exception,
                    "add x4, sp, #32\n\t"          /* orig stack pointer */
                    "stp x4, x5, [x1, #0x100]\n\t" /* context->Sp, Pc */
                    "bl " __ASM_NAME("NtRaiseException") )
+#elif defined(__riscv64__)
+__ASM_GLOBAL_FUNC( raise_exception,
+                   "addi sp, sp, -0x20\n\t"
+                   "sd fp, 0x10(sp)\n\t"
+                   "sd ra, 0x18(sp)\n\t"
+                   //__ASM_CFI(".cfi_def_cfa 8, 32\n\t")
+                   //__ASM_CFI(".cfi_offset 1, -8\n\t")
+                   //__ASM_CFI(".cfi_offset 8, -16\n\t")
+                   "mv fp, sp\n\t"
+                   "sd a0, 0x00(sp)\n\t"
+                   "sd a1, 0x08(sp)\n\t"
+                   "mv a0, a1\n\t"
+                   "jal " __ASM_NAME("RtlCaptureContext") "\n\t"
+                   "ld a0, 0x00(sp)\n\t" /* orig parameters */
+                   "ld a1, 0x08(sp)\n\t" /* orig parameters */
+                   "ld a4, 0x10(sp)\n\t" /* frame pointer */
+                   "ld a5, 0x18(sp)\n\t" /* return address */
+                   "sd a4, 0x48(sp)\n\t" /* context->Fp */
+                   "sd a5, 0x10(sp)\n\t" /* context->Ra */
+                   "addi a4, sp, 0x20\n\t"          /* orig stack pointer */
+                   "sd a4, 0x18(sp)\n\t" /* context->Sp */
+                   "sd a5, 0x08(sp)\n\t" /* context->Pc */
+                   "jal " __ASM_NAME("NtRaiseException") )
 #endif
 
 
