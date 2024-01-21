@@ -193,6 +193,46 @@ __ASM_GLOBAL_FUNC( call_stubless_func,
     "mov w16,#("#num")\n\t" \
     "b " __ASM_NAME("call_stubless_func") "\n\t"
 
+#elif defined(__riscv64__)
+
+extern void call_stubless_func(void);
+__ASM_GLOBAL_FUNC( call_stubless_func,
+                   "addi sp,sp,-0x90\n\t"
+                   "sd fp, 0x80(sp)\n\t"
+                   "sd ra, 0x88(sp)\n\t"
+                   "mv fp, sp\n\t"
+                   "sd a0, 0x00(sp)\n\t"
+                   "sd a1, 0x08(sp)\n\t"
+                   "sd a2, 0x10(sp)\n\t"
+                   "sd a3, 0x18(sp)\n\t"
+                   "sd a4, 0x20(sp)\n\t"
+                   "sd a5, 0x28(sp)\n\t"
+                   "sd a6, 0x30(sp)\n\t"
+                   "sd a7, 0x38(sp)\n\t"
+                   "ld a0, 0(a0)\n\t"                /* This->lpVtbl */
+                   "ld a0, -0x10(a0)\n\t"          /* MIDL_STUBLESS_PROXY_INFO */
+                   "ld a1, 0x08(a0)\n\t"          /* info->ProcFormatString */
+                   "ld a4, 0x10(a0)\n\t"          /* info->FormatStringOffset */
+                   "slli a5, t6, 1\n\t"
+                   "add a7, a4, a5\n\t"
+                   "lw a4, 0(a7)\n\t"          /* info->FormatStringOffset[index] */
+                   "add a1, a1, a4\n\t"              /* info->ProcFormatString + offset */
+                   "ld a0, 0(a0)\n\t"                /* info->pStubDesc */
+                   "mv a2, sp\n\t"           /* stack */
+                   "addi a3, sp, 0x40\n\t"           /* TODO: fpu_stack */
+                   "jal " __ASM_NAME("ndr_client_call") "\n\t"
+                   "ld ra, 0x88(sp)\n\t"
+                   "ld fp, 0x80(sp)\n\t"
+                   "ret" )
+
+#define THUNK_ENTRY_SIZE 8
+#define THUNK_ENTRY(num) \
+    ".option push\n\t" \
+    ".option norvc\n\t" \
+    "li t6, "#num"\n\t" \
+    "j " __ASM_NAME("call_stubless_func") "\n\t" \
+    ".option pop\n\t"
+
 #else  /* __i386__ */
 
 #warning You must implement stubless proxies for your CPU

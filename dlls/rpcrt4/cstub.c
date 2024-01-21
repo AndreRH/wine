@@ -164,6 +164,57 @@ static ULONG WINAPI delegating_Release(IUnknown *pUnk)
     "ldr x16, [x16, x17, lsl #3]\n\t" \
     "br x16\n\t"
 
+#elif defined(__riscv64__)
+
+#define THUNK_ENTRY_SIZE 32
+#define THUNK_ENTRY(num) \
+    ".option push\n\t" \
+    ".option norvc\n\t" \
+    "ld a0, 0x20(a0)\n\t" \
+    "ld t5, 0(a0)\n\t" \
+    "li t6, "#num"\n\t" \
+    "slli t6, t6, 3\n\t" \
+    "add t6, t5, t6\n\t" \
+    "ld t5, 0(t6)\n\t" \
+    "jr t5\n\t" \
+    "nop\n\t" \
+    ".option pop\n\t"
+
+#if 0
+/*
+000000000000001c <cstub>:
+  1c:	00000f97          	auipc	t6,0x0
+  20:	6108                	ld	a0,0(a0)
+  22:	0001                	nop
+  24:	00053f03          	ld	t5,0(a0)
+  28:	01cfef83          	lwu	t6,28(t6) # 38 <cstub+0x1c>
+  2c:	9f7e                	add	t5,t5,t6
+  2e:	0001                	nop
+  30:	000f3f03          	ld	t5,0(t5)
+  34:	8f02                	jr	t5
+  36:	0001                	nop
+  38:	deadbeef          	.word	0xdeadbeef
+
+*/
+#warning CorrectEndian?
+static const DWORD opcodes[] =
+{
+    0x00000f97,   /* ldr x0, [x0,#32] */
+    0x00016108,   /* ldr x16, [x0] */
+    0x00053f03,   /* ldr w17, offset */
+    0x01cfef83,   /* ldr x16, [x16,x17] */
+    0x00019f7e,   /* br x16 */
+    0x000f3f03,   /* br x16 */
+    0x00018f02    /* br x16 */
+};
+
+typedef struct
+{
+    DWORD opcodes[ARRAY_SIZE(opcodes)];
+    DWORD offset;
+} vtbl_method_t;
+#endif
+
 #else
 
 #warning You must implement delegated proxies/stubs for your CPU
