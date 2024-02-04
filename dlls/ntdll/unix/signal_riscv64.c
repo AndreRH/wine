@@ -91,10 +91,10 @@ struct syscall_frame
     ULONG                 align1;         /* 104 */
     struct syscall_frame *prev_frame;     /* 108 */
     void                 *syscall_cfa;    /* 110 */
-    //NEON128               v[32];          /* 130 */
+    ULONG64               f[32];          /* 118 */
 };
 
-// TODO: C_ASSERT( sizeof( struct syscall_frame ) == 0x330 );
+C_ASSERT( sizeof( struct syscall_frame ) == 0x218 );
 
 struct riscv64_thread_data
 {
@@ -452,10 +452,6 @@ NTSTATUS unwind_builtin_dll( void *args )
  */
 static void syscall_frame_fixup_for_fastpath( struct syscall_frame *frame )
 {
-    /*
-    frame->x[16] = frame->pc;
-    frame->x[17] = frame->sp;
-    */
     frame->x[30] = frame->x[0];
     frame->x[31] = frame->x[2];
 }
@@ -467,7 +463,10 @@ static void syscall_frame_fixup_for_fastpath( struct syscall_frame *frame )
  */
 static void save_fpu( CONTEXT *context, const ucontext_t *sigcontext )
 {
-    FIXME("NYI\n");
+    context->ContextFlags |= CONTEXT_FLOATING_POINT;
+    /*context->Fpcr = fp->fpcr;
+    context->Fpsr = fp->fpsr;*/
+    memcpy( context->F, &sigcontext->uc_mcontext.__fpregs.__d, sizeof(context->F) );
 }
 
 
@@ -478,7 +477,9 @@ static void save_fpu( CONTEXT *context, const ucontext_t *sigcontext )
  */
 static void restore_fpu( const CONTEXT *context, ucontext_t *sigcontext )
 {
-    FIXME("NYI\n");
+    /*fp->fpcr = context->Fpcr;
+    fp->fpsr = context->Fpsr;*/
+    memcpy( &sigcontext->uc_mcontext.__fpregs.__d, context->F, sizeof(context->F) );
 }
 
 
@@ -602,23 +603,17 @@ ERR("not self\n");
         frame->x[0]  = context->Pc;
         if (0)
         {
-			int i;
-			for (i=0; i < 32; i++)
-				ERR("X%02d = %16lx\n", i, frame->x[i]);
-		}
+            int i;
+            for (i=0; i < 32; i++)
+                ERR("X%02d = %16lx\n", i, frame->x[i]);
+        }
     }
     if (flags & CONTEXT_FLOATING_POINT)
     {
         // FIXME: frame->fpcr = context->Fpcr;
         // FIXME: frame->fpsr = context->Fpsr;
-        //memcpy( frame->f, context->F, sizeof(frame->f) );
+        memcpy( frame->f, context->F, sizeof(frame->f) );
     }
-    /* FIXME: Make the same for X4?
-    if (flags & CONTEXT_ARM64_X18)
-    {
-        frame->x[18] = context->X[18];
-    }
-    */
     if (flags & CONTEXT_DEBUG_REGISTERS) FIXME( "debug registers not supported\n" );
     frame->restore_flags |= flags & ~CONTEXT_INTEGER;
     return STATUS_SUCCESS;
@@ -685,7 +680,7 @@ NTSTATUS WINAPI NtGetContextThread( HANDLE handle, CONTEXT *context )
     {
         // FIXME: context->Fpcr = frame->fpcr;
         // FIXME: context->Fpsr = frame->fpsr;
-        //memcpy( context->F, frame->f, sizeof(context->F) );
+        memcpy( context->F, frame->f, sizeof(context->F) );
         context->ContextFlags |= CONTEXT_FLOATING_POINT;
     }
     if (needed_flags & CONTEXT_DEBUG_REGISTERS) FIXME( "debug registers not supported\n" );
@@ -1107,6 +1102,7 @@ __ASM_GLOBAL_FUNC( call_user_mode_callback,
                    "sd s11, 0x58(fp)\n\t"
                    //__ASM_CFI(".cfi_rel_offset 27,0x50\n\t")
                    //__ASM_CFI(".cfi_rel_offset 28,0x58\n\t")
+                   // FIXME: FLOATINGPOINT
                    "sd a3, 0x90(fp)\n\t" /* ret_ptr */
                    "sd a4, 0x98(fp)\n\t" /* ret_len */
                    //"mv tp, a6\n\t"              /* teb */
@@ -1173,6 +1169,7 @@ __ASM_GLOBAL_FUNC( user_mode_callback_return,
                    "ld s11, 0x58(fp)\n\t"
                    //__ASM_CFI(".cfi_same_value 27\n\t")
                    //__ASM_CFI(".cfi_same_value 28\n\t")
+                   // FIXME: FLOATINGPOINT
                    "ld a5, 0x90(fp)\n\t" /* ret_ptr */
                    "ld a6, 0x98(fp)\n\t" /* ret_len */
                    "sd a0, 0(a5)\n\t"    /* ret_ptr */
@@ -1248,8 +1245,54 @@ static BOOL handle_syscall_fault( ucontext_t *context, EXCEPTION_RECORD *rec )
     DWORD i;
 
     if (!is_inside_syscall( context )) return FALSE;
-    FIXME("NYI\n");
-return FALSE;
+
+    TRACE( "code=%x flags=%x addr=%p pc=%p tid=%04x\n",
+           rec->ExceptionCode, rec->ExceptionFlags, rec->ExceptionAddress,
+           (void *)PC_sig(context), GetCurrentThreadId() );
+    for (i = 0; i < rec->NumberParameters; i++)
+        TRACE( " info[%d]=%016lx\n", i, rec->ExceptionInformation[i] );
+
+    /*TRACE("  x0=%016lx  x1=%016lx  x2=%016lx  x3=%016lx\n",
+          (DWORD64)REGn_sig(0, context), (DWORD64)REGn_sig(1, context),
+          (DWORD64)REGn_sig(2, context), (DWORD64)REGn_sig(3, context) );
+    TRACE("  x4=%016lx  x5=%016lx  x6=%016lx  x7=%016lx\n",
+          (DWORD64)REGn_sig(4, context), (DWORD64)REGn_sig(5, context),
+          (DWORD64)REGn_sig(6, context), (DWORD64)REGn_sig(7, context) );
+    TRACE("  x8=%016lx  x9=%016lx x10=%016lx x11=%016lx\n",
+          (DWORD64)REGn_sig(8, context), (DWORD64)REGn_sig(9, context),
+          (DWORD64)REGn_sig(10, context), (DWORD64)REGn_sig(11, context) );
+    TRACE(" x12=%016lx x13=%016lx x14=%016lx x15=%016lx\n",
+          (DWORD64)REGn_sig(12, context), (DWORD64)REGn_sig(13, context),
+          (DWORD64)REGn_sig(14, context), (DWORD64)REGn_sig(15, context) );
+    TRACE(" x16=%016lx x17=%016lx x18=%016lx x19=%016lx\n",
+          (DWORD64)REGn_sig(16, context), (DWORD64)REGn_sig(17, context),
+          (DWORD64)REGn_sig(18, context), (DWORD64)REGn_sig(19, context) );
+    TRACE(" x20=%016lx x21=%016lx x22=%016lx x23=%016lx\n",
+          (DWORD64)REGn_sig(20, context), (DWORD64)REGn_sig(21, context),
+          (DWORD64)REGn_sig(22, context), (DWORD64)REGn_sig(23, context) );
+    TRACE(" x24=%016lx x25=%016lx x26=%016lx x27=%016lx\n",
+          (DWORD64)REGn_sig(24, context), (DWORD64)REGn_sig(25, context),
+          (DWORD64)REGn_sig(26, context), (DWORD64)REGn_sig(27, context) );
+    TRACE(" x28=%016lx  fp=%016lx  lr=%016lx  sp=%016lx\n",
+          (DWORD64)REGn_sig(28, context), (DWORD64)FP_sig(context),
+          (DWORD64)LR_sig(context), (DWORD64)SP_sig(context) );*/
+
+    if (ntdll_get_thread_data()->jmp_buf)
+    {
+        TRACE( "returning to handler\n" );
+        REGn_sig(10, context) = (ULONG_PTR)ntdll_get_thread_data()->jmp_buf;
+        REGn_sig(11, context) = 1;
+        PC_sig(context)       = (ULONG_PTR)__wine_longjmp;
+        ntdll_get_thread_data()->jmp_buf = NULL;
+    }
+    else
+    {
+        TRACE( "returning to user mode ip=%p ret=%08x\n", (void *)frame->x[0], rec->ExceptionCode );
+        REGn_sig(10, context) = (ULONG_PTR)frame;
+        REGn_sig(11, context) = rec->ExceptionCode;
+        PC_sig(context)       = (ULONG_PTR)__wine_syscall_dispatcher_return;
+    }
+    return TRUE;
 }
 
 
@@ -1498,14 +1541,15 @@ static void usr2_handler( int signal, siginfo_t *siginfo, void *sigcontext )
     for (i = 5; i <= 31; i++) REGn_sig( i, context ) = frame->x[i];
     for (i = 0; i <= 31; i++) TRACE("After X%u = %lx\n",  i, REGn_sig( i, context ));
 
+    memcpy( &context->uc_mcontext.__fpregs.__d, frame->f, sizeof(frame->f) );
 // FIXME: 
 #if 0
     fp = get_fpsimd_context( sigcontext );
     if (fp)
     {
-        fp->fpcr = frame->fpcr;
-        fp->fpsr = frame->fpsr;
-        memcpy( fp->vregs, frame->v, sizeof(fp->vregs) );
+        /*fp->fpcr = frame->fpcr;
+        fp->fpsr = frame->fpsr;*/
+        memcpy( (context)->uc_mcontext.__fpregs[reg_num], frame->f, sizeof(frame->f) );
     }
 #endif
 }
@@ -1608,7 +1652,7 @@ void syscall_dispatcher_return_slowpath(void)
  *           call_init_thunk
  */
 void call_init_thunk( LPTHREAD_START_ROUTINE entry, void *arg, BOOL suspend, TEB *teb,
-					  struct syscall_frame *frame, void *syscall_cfa )
+                      struct syscall_frame *frame, void *syscall_cfa )
 {
     CONTEXT *ctx, context = { CONTEXT_ALL };
     I386_CONTEXT *i386_context;
@@ -1782,6 +1826,38 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
                    "sd t4, 0xe8(t2)\n\t"
                    "sd t5, 0xf0(t2)\n\t"
                    "sd t6, 0xf8(t2)\n\t"
+                   "fsd f0, 0x118(t2)\n\t"
+                   "fsd f1, 0x120(t2)\n\t"
+                   "fsd f2, 0x128(t2)\n\t"
+                   "fsd f3, 0x130(t2)\n\t"
+                   "fsd f4, 0x138(t2)\n\t"
+                   "fsd f5, 0x140(t2)\n\t"
+                   "fsd f6, 0x148(t2)\n\t"
+                   "fsd f7, 0x150(t2)\n\t"
+                   "fsd f8, 0x158(t2)\n\t"
+                   "fsd f9, 0x160(t2)\n\t"
+                   "fsd f10, 0x168(t2)\n\t"
+                   "fsd f11, 0x170(t2)\n\t"
+                   "fsd f12, 0x178(t2)\n\t"
+                   "fsd f13, 0x180(t2)\n\t"
+                   "fsd f14, 0x188(t2)\n\t"
+                   "fsd f15, 0x190(t2)\n\t"
+                   "fsd f16, 0x198(t2)\n\t"
+                   "fsd f17, 0x1a0(t2)\n\t"
+                   "fsd f18, 0x1a8(t2)\n\t"
+                   "fsd f19, 0x1b0(t2)\n\t"
+                   "fsd f20, 0x1b8(t2)\n\t"
+                   "fsd f21, 0x1c0(t2)\n\t"
+                   "fsd f22, 0x1c8(t2)\n\t"
+                   "fsd f23, 0x1d0(t2)\n\t"
+                   "fsd f24, 0x1d8(t2)\n\t"
+                   "fsd f25, 0x1e0(t2)\n\t"
+                   "fsd f26, 0x1e8(t2)\n\t"
+                   "fsd f27, 0x1f0(t2)\n\t"
+                   "fsd f28, 0x1f8(t2)\n\t"
+                   "fsd f29, 0x200(t2)\n\t"
+                   "fsd f30, 0x208(t2)\n\t"
+                   "fsd f31, 0x210(t2)\n\t"
                    "sw zero, 0x100(t2)\n\t"   /* frame->restore_flags */ // fixme: not obv documented in arm64
                    "mv s2, sp\n\t"
                    "mv s11, t2\n\t"
@@ -1866,6 +1942,38 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
                    "ld t4, 0xe8(sp)\n\t"
                    "ld t5, 0xf0(sp)\n\t"
                    "ld t6, 0xf8(sp)\n\t"
+                   "fld f0, 0x118(sp)\n\t"
+                   "fld f1, 0x120(sp)\n\t"
+                   "fld f2, 0x128(sp)\n\t"
+                   "fld f3, 0x130(sp)\n\t"
+                   "fld f4, 0x138(sp)\n\t"
+                   "fld f5, 0x140(sp)\n\t"
+                   "fld f6, 0x148(sp)\n\t"
+                   "fld f7, 0x150(sp)\n\t"
+                   "fld f8, 0x158(sp)\n\t"
+                   "fld f9, 0x160(sp)\n\t"
+                   "fld f10, 0x168(sp)\n\t"
+                   "fld f11, 0x170(sp)\n\t"
+                   "fld f12, 0x178(sp)\n\t"
+                   "fld f13, 0x180(sp)\n\t"
+                   "fld f14, 0x188(sp)\n\t"
+                   "fld f15, 0x190(sp)\n\t"
+                   "fld f16, 0x198(sp)\n\t"
+                   "fld f17, 0x1a0(sp)\n\t"
+                   "fld f18, 0x1a8(sp)\n\t"
+                   "fld f19, 0x1b0(sp)\n\t"
+                   "fld f20, 0x1b8(sp)\n\t"
+                   "fld f21, 0x1c0(sp)\n\t"
+                   "fld f22, 0x1c8(sp)\n\t"
+                   "fld f23, 0x1d0(sp)\n\t"
+                   "fld f24, 0x1d8(sp)\n\t"
+                   "fld f25, 0x1e0(sp)\n\t"
+                   "fld f26, 0x1e8(sp)\n\t"
+                   "fld f27, 0x1f0(sp)\n\t"
+                   "fld f28, 0x1f8(sp)\n\t"
+                   "fld f29, 0x200(sp)\n\t"
+                   "fld f30, 0x208(sp)\n\t"
+                   "fld f31, 0x210(sp)\n\t"
                    "2:\tld ra, 0x08(sp)\n\t"
                    //"ld gp, 0x18(sp)\n\t"
                    //"ld tp, 0x20(sp)\n\t"
@@ -1946,6 +2054,18 @@ __ASM_GLOBAL_FUNC( __wine_unix_call_dispatcher,
                    "sd t4, 0xe8(t0)\n\t"
                    "sd t5, 0xf0(t0)\n\t"
                    "sd t6, 0xf8(t0)\n\t"
+                   "fsd fs0, 0x158(t0)\n\t"
+                   "fsd fs1, 0x160(t0)\n\t"
+                   "fsd fs2, 0x1a8(t0)\n\t"
+                   "fsd fs3, 0x1b0(t0)\n\t"
+                   "fsd fs4, 0x1b8(t0)\n\t"
+                   "fsd fs5, 0x1c0(t0)\n\t"
+                   "fsd fs6, 0x1c8(t0)\n\t"
+                   "fsd fs7, 0x1d0(t0)\n\t"
+                   "fsd fs8, 0x1d8(t0)\n\t"
+                   "fsd fs9, 0x1e0(t0)\n\t"
+                   "fsd fs10, 0x1e8(t0)\n\t"
+                   "fsd fs11, 0x1f0(t0)\n\t"
                    "sw zero, 0x100(t0)\n\t"   /* frame->restore_flags */ // fixme: not obv documented in arm64
                    "mv s1, t0\n\t"
                    /* switch to kernel stack */
