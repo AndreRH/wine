@@ -63,6 +63,33 @@ uintptr_t dynarec64_6764_32(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, in
 
     switch(opcode) {
 
+        case 0x89:
+            INST_NAME("MOV Seg:Ed, Gd");
+            nextop=F8;
+            GETGD;
+            if(MODREG) {   // reg <= reg
+                MOVxw_REG(xRAX+(nextop&7)+(rex.b<<3), gd);
+            } else {                    // mem <= reg
+                grab_segdata(dyn, addr, ninst, x4, seg);
+                addr = geted16(dyn, addr, ninst, nextop, &ed, x2, &fixedaddress, NULL, 0, 0, 0);
+                STRw_REG(gd, ed, x4);
+            }
+            break;
+
+        case 0xA1:
+            INST_NAME("MOV EAX, Seg:[Od]");
+            i32 = F16;
+            grab_segdata(dyn, addr, ninst, x4, seg);
+            if(i32<4096 && !(i32&3)) {
+                LDRw_U12(xRAX, x4, i32);
+            } else if(i32<256) {
+                LDURw_I9(xRAX, x4, i32);
+            } else {
+                MOV32w(x1, i32);
+                LDRw_REG(xRAX, x4, x1);
+            }
+            break;
+
         case 0xA3:
             INST_NAME("MOV Seg:[Od], EAX");
             i32 = F16;

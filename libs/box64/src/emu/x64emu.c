@@ -17,12 +17,11 @@
 #include "x64run_private.h"
 #include "callback.h"
 #include "bridge.h"
+//#include "elfs/elfloader_private.h"
 #ifdef HAVE_TRACE
 #include "x64trace.h"
 #endif
-#ifdef DYNAREC
 #include "custommem.h"
-#endif
 // for the applyFlushTo0
 #ifdef __x86_64__
 #include <immintrin.h>
@@ -40,7 +39,6 @@ typedef struct cleanup_s {
     void*       f;
     int         arg;
     void*       a;
-    void*       dso;
 } cleanup_t;
 
 static uint32_t x86emu_parity_tab[8] =
@@ -139,47 +137,47 @@ void SetTraceEmu(uintptr_t start, uintptr_t end)
 }
 #endif
 
-void AddCleanup(x64emu_t *emu, void *p, void* dso_handle)
+void AddCleanup(x64emu_t *emu, void *p)
 {
     (void)emu;
     
     if(my_context->clean_sz == my_context->clean_cap) {
-        my_context->clean_cap += 4;
+        my_context->clean_cap += 32;
         my_context->cleanups = (cleanup_t*)box_realloc(my_context->cleanups, sizeof(cleanup_t)*my_context->clean_cap);
     }
     my_context->cleanups[my_context->clean_sz].arg = 0;
     my_context->cleanups[my_context->clean_sz].a = NULL;
-    my_context->cleanups[my_context->clean_sz].dso = dso_handle;
-    my_context->cleanups[my_context->clean_sz++].f = p;
-}
-
-void AddCleanup1Arg(x64emu_t *emu, void *p, void* a, void* dso_handle)
-{
-    (void)emu;
-    
-    if(my_context->clean_sz == my_context->clean_cap) {
-        my_context->clean_cap += 4;
-        my_context->cleanups = (cleanup_t*)box_realloc(my_context->cleanups, sizeof(cleanup_t)*my_context->clean_cap);
-    }
-    my_context->cleanups[my_context->clean_sz].arg = 1;
-    my_context->cleanups[my_context->clean_sz].a = a;
-    my_context->cleanups[my_context->clean_sz].dso = dso_handle;
     my_context->cleanups[my_context->clean_sz++].f = p;
 }
 
 #if 0 // FIXME (AZ)
-void CallCleanup(x64emu_t *emu, void* p)
+void AddCleanup1Arg(x64emu_t *emu, void *p, void* a, elfheader_t* h)
 {
-    printf_log(LOG_DEBUG, "Calling atexit registered functions for %p mask\n", p);
-    for(int i=my_context->clean_sz-1; i>=0; --i) {
-        if(p==my_context->cleanups[i].dso) {
-            printf_log(LOG_DEBUG, "Call cleanup #%d\n", i);
-            RunFunctionWithEmu(emu, 0, (uintptr_t)(my_context->cleanups[i].f), my_context->cleanups[i].arg, my_context->cleanups[i].a );
-            // now remove the cleanup
-            if(i!=my_context->clean_sz-1)
-                memmove(my_context->cleanups+i, my_context->cleanups+i+1, (my_context->clean_sz-i-1)*sizeof(cleanup_t));
-            --my_context->clean_sz;
-        }
+    (void)emu;
+    if(!h)
+        return;
+    
+    if(h->clean_sz == h->clean_cap) {
+        h->clean_cap += 32;
+        h->cleanups = (cleanup_t*)box_realloc(h->cleanups, sizeof(cleanup_t)*h->clean_cap);
+    }
+    h->cleanups[h->clean_sz].arg = 1;
+    h->cleanups[h->clean_sz].a = a;
+    h->cleanups[h->clean_sz++].f = p;
+}
+
+void CallCleanup(x64emu_t *emu, elfheader_t* h)
+{
+    printf_log(LOG_DEBUG, "Calling atexit registered functions for elf: %p/%s\n", h, h?h->name:"(nil)");
+    if(!h)
+        return;
+    for(int i=h->clean_sz-1; i>=0; --i) {
+        printf_log(LOG_DEBUG, "Call cleanup #%d\n", i);
+        RunFunctionWithEmu(emu, 0, (uintptr_t)(h->cleanups[i].f), h->cleanups[i].arg, h->cleanups[i].a );
+        // now remove the cleanup
+        if(i!=h->clean_sz-1)
+            memmove(h->cleanups+i, h->cleanups+i+1, (h->clean_sz-i-1)*sizeof(cleanup_t));
+        --h->clean_sz;
     }
 }
 
@@ -199,8 +197,10 @@ void CallAllCleanup(x64emu_t *emu)
 static void internalFreeX64(x64emu_t* emu)
 {
 #if 0 // FIXME (AZ)
-    if(emu && emu->stack2free)
-        my_munmap(NULL, emu->stack2free, emu->size_stack);
+    if(emu && emu->stack2free) {
+        if(!internal_munmap(emu->stack2free, emu->size_stack))
+            freeProtection((uintptr_t)emu->stack2free, emu->size_stack);
+    }
 #endif
 }
 
@@ -569,6 +569,8 @@ void EmuCall(x64emu_t* emu, uintptr_t addr)
     uint64_t old_rip = R_RIP;
     //Push64(emu, GetRBP(emu));   // set frame pointer
     //SetRBP(emu, GetRSP(emu));   // save RSP
+    R_RSP -= 200;
+    R_RSP &= ~63LL;
     PushExit(emu);
     R_RIP = addr;
     emu->df = d_none;
@@ -595,9 +597,13 @@ uint64_t ReadTSC(x64emu_t* emu)
     
     //TODO: implement hardware counter read? (only available in kernel space?)
     // Read the TimeStamp Counter as 64bits.
-    // this is supposed to be the number of instructions executed since last reset
+    // this is supposed to be the number of cycle executed since last reset
     // fall back to gettime...
-#ifndef NOGETCLOCK
+#ifdef ARM64
+    uint64_t val;
+    asm volatile("mrs %0, cntvct_el0" : "=r" (val));
+    return val;
+#elif !defined(NOGETCLOCK)
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC_COARSE, &ts);
     return (uint64_t)(ts.tv_sec) * 1000000000LL + ts.tv_nsec;
@@ -622,7 +628,7 @@ void applyFlushTo0(x64emu_t* emu)
     #ifdef __x86_64__
     _mm_setcsr(_mm_getcsr() | (emu->mxcsr.x32&0x8040));
     #elif defined(__aarch64__)
-    #ifdef __ANDROID__
+    #if defined(__ANDROID__) || defined(__clang__)
     uint64_t fpcr;
     __asm__ __volatile__ ("mrs    %0, fpcr":"=r"(fpcr));
     #else
@@ -631,7 +637,7 @@ void applyFlushTo0(x64emu_t* emu)
     fpcr &= ~((1<<24) | (1<<1));    // clear bit FZ (24) and AH (1)
     fpcr |= (emu->mxcsr.f.MXCSR_FZ)<<24;  // set FZ as mxcsr FZ
     fpcr |= ((emu->mxcsr.f.MXCSR_DAZ)^(emu->mxcsr.f.MXCSR_FZ))<<1; // set AH if DAZ different from FZ
-    #ifdef __ANDROID__
+    #if defined(__ANDROID__) || defined(__clang__)
     __asm__ __volatile__ ("msr    fpcr, %0"::"r"(fpcr));
     #else
     __builtin_aarch64_set_fpcr(fpcr);

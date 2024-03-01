@@ -610,6 +610,7 @@
 #define BFIx(Rd, Rn, lsb, width)        BFMx(Rd, Rn, ((-(lsb))%64)&0x3f, (width)-1)
 #define BFIw(Rd, Rn, lsb, width)        BFMw(Rd, Rn, ((-(lsb))%32)&0x1f, (width)-1)
 #define BFIxw(Rd, Rn, lsb, width)       if(rex.w) {BFIx(Rd, Rn, lsb, width);} else {BFIw(Rd, Rn, lsb, width);}
+#define BFIz(Rd, Rn, lsb, width)        if(rex.is32bits) {BFIw(Rd, Rn, lsb, width);} else {BFIx(Rd, Rn, lsb, width);}
 #define BFCx(Rd, lsb, width)            BFMx(Rd, xZR, ((-(lsb))%64)&0x3f, (width)-1)
 #define BFCw(Rd, lsb, width)            BFMw(Rd, xZR, ((-(lsb))%32)&0x1f, (width)-1)
 #define BFCxw(Rd, lsb, width)           BFMxw(Rd, xZR, rex.w?(((-(lsb))%64)&0x3f):(((-(lsb))%32)&0x1f), (width)-1)
@@ -766,6 +767,8 @@
 // mrs    x0, fpsr : 1101010100 1 1 1 011 0100 0100 001 00000    o0=1(op0=3), op1=0b011(3) CRn=0b0100(4) CRm=0b0100(4) op2=1
 #define MRS_fpsr(Rt)                    EMIT(MRS_gen(1, 1, 3, 4, 4, 1, Rt))
 #define MSR_fpsr(Rt)                    EMIT(MRS_gen(0, 1, 3, 4, 4, 1, Rt))
+// mrs   x0, cntvct_el0     op0=0b11 op1=0b011 CRn=0b1110 CRm=0b0000 op2=0b010
+#define MRS_cntvct_el0(Rt)              EMIT(MRS_gen(1, 1, 0b011, 0b1110, 0b0000, 0b010, Rt))
 // NEON Saturation Bit
 #define FPSR_QC 27
 // NEON Input Denormal Cumulative
@@ -1192,8 +1195,8 @@
 #define FCMP_scalar(type, Rn, Rm, opc)  (0b11110<<24 | (type)<<22 | 1<<21 | (Rm)<<16 | 0b1000<<10 | (Rn)<<5 | (opc)<<3)
 #define FCMPS(Sn, Sm)               EMIT(FCMP_scalar(0b00, Sn, Sm, 0b00))
 #define FCMPD(Dn, Dm)               EMIT(FCMP_scalar(0b01, Dn, Dm, 0b00))
-#define FCMPS_0(Sn)                 EMIT(FCMP_scalar(0b00, 0, Sn, 0b01))
-#define FCMPD_0(Dn)                 EMIT(FCMP_scalar(0b01, 0, Dn, 0b01))
+#define FCMPS_0(Sn)                 EMIT(FCMP_scalar(0b00, Sn, 0, 0b01))
+#define FCMPD_0(Dn)                 EMIT(FCMP_scalar(0b01, Dn, 0, 0b01))
 
 // CVT
 #define FCVT_scalar(sf, type, rmode, opcode, Rn, Rd)    ((sf)<<31 | 0b11110<<24 | (type)<<22 | 1<<21 | (rmode)<<19 | (opcode)<<16 | (Rn)<<5 | (Rd))
@@ -2170,6 +2173,24 @@
 #define FRINT64ZD(Dd, Dn)           EMIT(FRINTxx_scalar(0b01, 0b10, Dn, Dd))
 #define FRINT64XS(Sd, Sn)           EMIT(FRINTxx_scalar(0b00, 0b11, Sn, Sd))
 #define FRINT64XD(Dd, Dn)           EMIT(FRINTxx_scalar(0b01, 0b11, Dn, Dd))
+
+#define FRINTxx_vector(Q, U, sz, op, Rn, Rd)    ((Q)<<30 | (U)<<29 | 0b01110<<24 | (sz)<<22 | 0b10000<<17 | 0b1111<<13 | (op)<<12 | 0b10<<10 | (Rn)<<5 | (Rd))
+#define VFRINT32ZS(Vd, Vn)          EMIT(FRINTxx_vector(0, 0, 0, 0, Vn, Vd))
+#define VFRINT32ZSQ(Vd, Vn)         EMIT(FRINTxx_vector(1, 0, 0, 0, Vn, Vd))
+#define VFRINT32XS(Vd, Vn)          EMIT(FRINTxx_vector(0, 1, 0, 0, Vn, Vd))
+#define VFRINT32XSQ(Vd, Vn)         EMIT(FRINTxx_vector(1, 1, 0, 0, Vn, Vd))
+#define VFRINT32ZD(Vd, Vn)          EMIT(FRINTxx_vector(0, 0, 1, 0, Vn, Vd))
+#define VFRINT32ZDQ(Vd, Vn)         EMIT(FRINTxx_vector(1, 0, 1, 0, Vn, Vd))
+#define VFRINT32XD(Vd, Vn)          EMIT(FRINTxx_vector(0, 1, 1, 0, Vn, Vd))
+#define VFRINT32XDQ(Vd, Vn)         EMIT(FRINTxx_vector(1, 1, 1, 0, Vn, Vd))
+#define VFRINT64ZS(Vd, Vn)          EMIT(FRINTxx_vector(0, 0, 0, 1, Vn, Vd))
+#define VFRINT64ZSQ(Vd, Vn)         EMIT(FRINTxx_vector(1, 0, 0, 1, Vn, Vd))
+#define VFRINT64XS(Vd, Vn)          EMIT(FRINTxx_vector(0, 1, 0, 1, Vn, Vd))
+#define VFRINT64XSQ(Vd, Vn)         EMIT(FRINTxx_vector(1, 1, 0, 1, Vn, Vd))
+#define VFRINT64ZD(Vd, Vn)          EMIT(FRINTxx_vector(0, 0, 1, 1, Vn, Vd))
+#define VFRINT64ZDQ(Vd, Vn)         EMIT(FRINTxx_vector(1, 0, 1, 1, Vn, Vd))
+#define VFRINT64XD(Vd, Vn)          EMIT(FRINTxx_vector(0, 1, 1, 1, Vn, Vd))
+#define VFRINT64XDQ(Vd, Vn)         EMIT(FRINTxx_vector(1, 1, 1, 1, Vn, Vd))
 
 // CRC32 extension
 #define CRC32C_gen(sf, Rm, sz, Rn, Rd)  ((sf)<<31 | 0b11010110<<21 | (Rm)<<16 | 0b010<<13 | 1<<12 | (sz)<<10 | (Rn)<<5 | (Rd))

@@ -35,31 +35,57 @@ extern void x86Int(x64emu_t *emu, int code);
 #define PKip(a)   *(uint8_t*)(ip+a)
 
 // Strong mem emulation helpers
-#define SMREAD_MIN  2
-#define SMWRITE_MIN 1
-// Sequence of Read will trigger a DMB on "first" read if strongmem is >= SMREAD_MIN
+#define SMREAD_MIN  3
+#define SMWRITE2_MIN 1
+#define SMFIRST_MIN 1
+#define SMSEQ_MIN 2
+#define SMSEQ_MAX 3
+#if STEP == 0
+// pass 0 will store is opcode write memory
+#define SMWRITE()   dyn->insts[ninst].will_write = 1; dyn->smwrite = 1
+#define SMREAD()
+#define SMREADLOCK(lock)
+#define SMMIGHTREAD()
+#define WILLWRITE2()   if(box64_dynarec_strongmem>SMWRITE2_MIN) {WILLWRITE();}
+#define SMWRITE2()   if(box64_dynarec_strongmem>SMWRITE2_MIN) {SMWRITE();}
+#define SMWRITELOCK(lock)   SMWRITE()
+#define WILLWRITELOCK(lock)
+#define WILLWRITE()
+#define SMMIGHTWRITE()   if(!MODREG) {SMWRITE();}
+#define SMSTART() dyn->smwrite = 0;
+#define SMEND() if(dyn->smwrite && (box64_dynarec_strongmem>SMFIRST_MIN)) {int i = ninst; while(i>=0 && !dyn->insts[i].will_write) --i; if(i>=0) {dyn->insts[i].last_write = 1;}} dyn->smwrite = 0
+#define SMDMB()
+#else
 // Sequence of Write will trigger a DMB on "last" write if strongmem is >= 1
-// All Write operation that might use a lock all have a memory barrier if strongmem is >= SMWRITE_MIN
+// Block will trigget at 1st and last if strongmem is >= SMFIRST_MIN
+// Read will contribute to trigger a DMB on "first" read if strongmem is >= SMREAD_MIN
 // Opcode will read
-#define SMREAD()    if((dyn->smread==0) && (box64_dynarec_strongmem>SMREAD_MIN)) {SMDMB();} else dyn->smread=1
+#define SMREAD()    if(dyn->insts[ninst].will_write) {WILLWRITE();} else if(box64_dynarec_strongmem>SMREAD_MIN) {SMWRITE();}
 // Opcode will read with option forced lock
-#define SMREADLOCK(lock)    if((lock) || ((dyn->smread==0) && (box64_dynarec_strongmem>SMREAD_MIN))) {SMDMB();}
+#define SMREADLOCK(lock)    if((lock) || (box64_dynarec_strongmem>SMREAD_MIN)) {SMWRITELOCK(lock);}
 // Opcode might read (depend on nextop)
 #define SMMIGHTREAD()   if(!MODREG) {SMREAD();}
 // Opcode has wrote
-#define SMWRITE()   dyn->smwrite=1
+#define SMWRITE()   if((box64_dynarec_strongmem>=SMFIRST_MIN) && dyn->smwrite==0) {SMDMB();} if(box64_dynarec_strongmem>SMSEQ_MIN) {if(++dyn->smwrite>=SMSEQ_MAX) {SMDMB(); dyn->smwrite=1;}} else dyn->smwrite=1
 // Opcode has wrote (strongmem>1 only)
-#define SMWRITE2()   if(box64_dynarec_strongmem>SMREAD_MIN) dyn->smwrite=1
+#define WILLWRITE2()   if(box64_dynarec_strongmem>SMWRITE2_MIN) {WILLWRITE();}
+#define SMWRITE2()   if(box64_dynarec_strongmem>SMWRITE2_MIN) {SMWRITE();}
 // Opcode has wrote with option forced lock
-#define SMWRITELOCK(lock)   if(lock || (box64_dynarec_strongmem>SMWRITE_MIN)) {SMDMB();} else dyn->smwrite=1
+#define SMWRITELOCK(lock)   if(lock) {SMDMB(); dyn->smwrite=1;} else {SMWRITE();}
+// Opcode has wrote with option forced lock
+#define WILLWRITELOCK(lock)   if(lock) {DMB_ISH();} else {WILLWRITE();}
 // Opcode might have wrote (depend on nextop)
 #define SMMIGHTWRITE()   if(!MODREG) {SMWRITE();}
+// Opcode will write (without reading)
+#define WILLWRITE() if((box64_dynarec_strongmem>=SMFIRST_MIN) && dyn->smwrite==0) {SMDMB();} else if(box64_dynarec_strongmem>=SMFIRST_MIN && dyn->insts[ninst].last_write) {SMDMB();} dyn->smwrite=1
 // Start of sequence
 #define SMSTART()   SMEND()
 // End of sequence
-#define SMEND()     if(dyn->smwrite && box64_dynarec_strongmem) {if(box64_dynarec_strongmem){DSB_ISH();}else{DMB_ISH();}} dyn->smwrite=0; dyn->smread=0;
+#define SMEND()     if(dyn->smwrite && box64_dynarec_strongmem) {DMB_ISH();} dyn->smwrite=0;
 // Force a Data memory barrier (for LOCK: prefix)
-#define SMDMB()     if(box64_dynarec_strongmem){DSB_ISH();}else{DMB_ISH();} dyn->smwrite=0; dyn->smread=1
+#define SMDMB()     if(box64_dynarec_strongmem){DSB_ISH();}else{DMB_ISH();} dyn->smwrite=0;
+
+#endif
 
 //LOCK_* define
 #define LOCK_LOCK   (int*)1
@@ -486,7 +512,7 @@ extern void x86Int(x64emu_t *emu, int code);
     TSTw_mask(xFlags, 0b010110, 0); \
     CNEGx(r, r, cNE)
 
-#define ALIGNED_ATOMICxw ((fixedaddress && !(fixedaddress&((1<<(2+rex.w)-1)))) || box64_dynarec_aligned_atomics)
+#define ALIGNED_ATOMICxw ((fixedaddress && !(fixedaddress&(((1<<(2+rex.w))-1)))) || box64_dynarec_aligned_atomics)
 #define ALIGNED_ATOMICH ((fixedaddress && !(fixedaddress&1)) || box64_dynarec_aligned_atomics)
 
 // CALL will use x7 for the call address. Return value can be put in ret (unless ret is -1)
@@ -652,6 +678,7 @@ extern void x86Int(x64emu_t *emu, int code);
     CBNZx(reg, j64)
 
 #define IFX(A)  if((dyn->insts[ninst].x64.gen_flags&(A)))
+#define IFX2(A, B)  if((dyn->insts[ninst].x64.gen_flags&(A)) B)
 #define IFX_PENDOR0  if((dyn->insts[ninst].x64.gen_flags&(X_PEND) || !dyn->insts[ninst].x64.gen_flags))
 #define IFXX(A) if((dyn->insts[ninst].x64.gen_flags==(A)))
 #define IFX2X(A, B) if((dyn->insts[ninst].x64.gen_flags==(A) || dyn->insts[ninst].x64.gen_flags==(B) || dyn->insts[ninst].x64.gen_flags==((A)|(B))))
@@ -767,26 +794,35 @@ extern void x86Int(x64emu_t *emu, int code);
     LDP_REGS(R12, R13);     \
     LDP_REGS(R14, R15)
 
+#if STEP == 0
+#define X87_PUSH_OR_FAIL(var, dyn, ninst, scratch, t)   var = x87_do_push(dyn, ninst, scratch, t)
+#define X87_PUSH_EMPTY_OR_FAIL(dyn, ninst, scratch)     x87_do_push_empty(dyn, ninst, scratch)
+#define X87_POP_OR_FAIL(dyn, ninst, scratch)            x87_do_pop(dyn, ninst, scratch)
+#else
 #define X87_PUSH_OR_FAIL(var, dyn, ninst, scratch, t) \
-    if (dyn->n.stack == +8) {                         \
-        *ok = 0;                                      \
-        break;                                        \
+    if (dyn->n.x87stack == +8) {                      \
+        if(box64_dynarec_dump) dynarec_log(LOG_INFO, " Warning, suspicious x87 Push, stack=%d on inst %d\n", dyn->n.x87stack, ninst); \
+        dyn->abort = 1;                               \
+        return addr;                                  \
     }                                                 \
-    var = x87_do_push(dyn, ninst, scratch, t);
+    var = x87_do_push(dyn, ninst, scratch, t)
 
 #define X87_PUSH_EMPTY_OR_FAIL(dyn, ninst, scratch) \
-    if (dyn->n.stack == +8) {                       \
-        *ok = 0;                                    \
-        break;                                      \
+    if (dyn->n.x87stack == +8) {                       \
+        if(box64_dynarec_dump) dynarec_log(LOG_INFO, " Warning, suspicious x87 Push, stack=%d on inst %d\n", dyn->n.x87stack, ninst); \
+        dyn->abort = 1;                             \
+        return addr;                                \
     }                                               \
-    x87_do_push_empty(dyn, ninst, scratch);
+    x87_do_push_empty(dyn, ninst, scratch)
 
 #define X87_POP_OR_FAIL(dyn, ninst, scratch) \
-    if (dyn->n.stack == -8) {                \
-        *ok = 0;                             \
-        break;                               \
+    if (dyn->n.x87stack == -8) {                \
+        if(box64_dynarec_dump) dynarec_log(LOG_INFO, " Warning, suspicious x87 Pop, stack=%d on inst %d\n", dyn->n.x87stack, ninst); \
+        dyn->abort = 1;                      \
+        return addr;                         \
     }                                        \
-    x87_do_pop(dyn, ninst, scratch);
+    x87_do_pop(dyn, ninst, scratch)
+#endif
 
 #define SET_DFNONE(S)    if(!dyn->f.dfnone) {STRw_U12(wZR, xEmu, offsetof(x64emu_t, df)); dyn->f.dfnone=1;}
 #define SET_DF(S, N)        \
@@ -1046,6 +1082,8 @@ void* arm64_next(x64emu_t* emu, uintptr_t addr);
 #define emit_ror8c      STEPNAME(emit_ror8c)
 #define emit_rol16c     STEPNAME(emit_rol16c)
 #define emit_ror16c     STEPNAME(emit_ror16c)
+#define emit_rcl8c      STEPNAME(emit_rcl8c)
+#define emit_rcr8c      STEPNAME(emit_rcr8c)
 #define emit_shrd32c    STEPNAME(emit_shrd32c)
 #define emit_shrd32     STEPNAME(emit_shrd32)
 #define emit_shld32c    STEPNAME(emit_shld32c)
@@ -1065,7 +1103,7 @@ void* arm64_next(x64emu_t* emu, uintptr_t addr);
 #define x87_get_neoncache STEPNAME(x87_get_neoncache)
 #define x87_get_st      STEPNAME(x87_get_st)
 #define x87_get_st_empty  STEPNAME(x87_get_st)
-#define x87_refresh     STEPNAME(x87_refresh)
+#define x87_free        STEPNAME(x87_free)
 #define x87_forget      STEPNAME(x87_forget)
 #define x87_reget_st    STEPNAME(x87_reget_st)
 #define x87_stackcount  STEPNAME(x87_stackcount)
@@ -1084,7 +1122,6 @@ void* arm64_next(x64emu_t* emu, uintptr_t addr);
 
 #define fpu_pushcache   STEPNAME(fpu_pushcache)
 #define fpu_popcache    STEPNAME(fpu_popcache)
-#define fpu_reset       STEPNAME(fpu_reset)
 #define fpu_reset_cache STEPNAME(fpu_reset_cache)
 #define fpu_propagate_stack STEPNAME(fpu_propagate_stack)
 #define fpu_purgecache  STEPNAME(fpu_purgecache)
@@ -1107,7 +1144,7 @@ uintptr_t geted16(dynarec_arm_t* dyn, uintptr_t addr, int ninst, uint8_t nextop,
 
 // generic x64 helper
 void jump_to_epilog(dynarec_arm_t* dyn, uintptr_t ip, int reg, int ninst);
-void jump_to_next(dynarec_arm_t* dyn, uintptr_t ip, int reg, int ninst);
+void jump_to_next(dynarec_arm_t* dyn, uintptr_t ip, int reg, int ninst, int is32bits);
 void ret_to_epilog(dynarec_arm_t* dyn, int ninst, rex_t rex);
 void retn_to_epilog(dynarec_arm_t* dyn, int ninst, rex_t rex, int n);
 void iret_to_epilog(dynarec_arm_t* dyn, int ninst, int is64bits);
@@ -1197,6 +1234,8 @@ void emit_rol8c(dynarec_arm_t* dyn, int ninst, int s1, uint32_t c, int s3, int s
 void emit_ror8c(dynarec_arm_t* dyn, int ninst, int s1, uint32_t c, int s3, int s4);
 void emit_rol16c(dynarec_arm_t* dyn, int ninst, int s1, uint32_t c, int s3, int s4);
 void emit_ror16c(dynarec_arm_t* dyn, int ninst, int s1, uint32_t c, int s3, int s4);
+void emit_rcl8c(dynarec_arm_t* dyn, int ninst, int s1, uint32_t c, int s3, int s4);
+void emit_rcr8c(dynarec_arm_t* dyn, int ninst, int s1, uint32_t c, int s3, int s4);
 void emit_shrd32c(dynarec_arm_t* dyn, int ninst, rex_t rex, int s1, int s2, uint32_t c, int s3, int s4);
 void emit_shld32c(dynarec_arm_t* dyn, int ninst, rex_t rex, int s1, int s2, uint32_t c, int s3, int s4);
 void emit_shrd32(dynarec_arm_t* dyn, int ninst, rex_t rex, int s1, int s2, int s5, int s3, int s4);
@@ -1229,8 +1268,8 @@ int x87_get_neoncache(dynarec_arm_t* dyn, int ninst, int s1, int s2, int a);
 int x87_get_st(dynarec_arm_t* dyn, int ninst, int s1, int s2, int a, int t);
 // get vfpu register for a x87 reg, create the entry if needed. Do not fetch the Stx if not already in cache
 int x87_get_st_empty(dynarec_arm_t* dyn, int ninst, int s1, int s2, int a, int t);
-// refresh a value from the cache ->emu (nothing done if value is not cached)
-void x87_refresh(dynarec_arm_t* dyn, int ninst, int s1, int s2, int st);
+// Free st, using the FFREE opcode (so it's freed but stack is not moved)
+void x87_free(dynarec_arm_t* dyn, int ninst, int s1, int s2, int s3, int st);
 // refresh a value from the cache ->emu and then forget the cache (nothing done if value is not cached)
 void x87_forget(dynarec_arm_t* dyn, int ninst, int s1, int s2, int st);
 // refresh the cache value from emu
@@ -1297,8 +1336,6 @@ void sse_purge07cache(dynarec_arm_t* dyn, int ninst, int s1);
 // Push current value to the cache
 void sse_reflect_reg(dynarec_arm_t* dyn, int ninst, int a);
 // common coproc helpers
-// reset the cache
-void fpu_reset(dynarec_arm_t* dyn);
 // reset the cache with n
 void fpu_reset_cache(dynarec_arm_t* dyn, int ninst, int reset_n);
 // propagate stack state

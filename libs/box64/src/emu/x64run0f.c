@@ -55,6 +55,85 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
 
     switch(opcode) {
 
+        case 0x00:
+            if(rex.is32bits) {          /* VERx Ed */
+                nextop = F8;
+                switch((nextop>>3)&7) {
+                    case 0:                 /* SLDT Ew */
+                        GETEW(0);
+                        EW->word[0] = 0;
+                        if(MODREG)
+                            EW->word[1] = 0;
+                        break;
+                    case 1:                 /* STR Ew */
+                        GETEW(0);
+                        EW->word[0] = 0x7f; // dummy return
+                        if(MODREG)
+                            EW->word[1] = 0;
+                        break;
+                    case 4: //VERR
+                    case 5: //VERW
+                        GETEW(0);
+                        if(!EW->word[0])
+                            CLEAR_FLAG(F_ZF);
+                        else
+                            SET_FLAG(F_ZF); // should test if selector is ok
+                        break;
+                    default:
+                        return 0;
+                }
+            } else
+                return 0;
+            break;
+        case 0x01:                      /* XGETBV, SGDT, etc... */
+            nextop = F8;
+            GETED(0);
+            if(MODREG)
+            switch(nextop) {
+                case 0xD0:
+                    #ifndef TEST_INTERPRETER
+                    emit_signal(emu, SIGILL, (void*)R_RIP, 0);
+                    #endif
+                    break;
+                case 0xE0:
+                case 0xE1:
+                case 0xE2:
+                case 0xE3:
+                case 0xE4:
+                case 0xE5:
+                case 0xE6:
+                case 0xE7:  /* SMSW Ew */
+                    ED->word[0] = (1<<0) | (1<<4); // only PE and ET set...
+                    break;
+                default:
+                    return 0;
+            } else
+                switch((nextop>>3)&7) {
+                    case 0:                 /* SGDT Ed */
+                        ED->word[0] = 0x7f;    // dummy return...
+                        if(rex.is32bits) {
+                            *(uint32_t*)(&ED->word[1]) = 0x3000;
+                        } else {
+                            *(uint64_t*)(&ED->word[1]) = 0xfffffe0000077000LL;
+                        }
+                        break;
+                    case 1:                 /* SIDT Ed */
+                        ED->word[0] = 0xfff;    // dummy return, like "disabled"
+                        if(rex.is32bits) {
+                            *(uint32_t*)(&ED->word[1]) = 0x0000;
+                        } else {
+                            *(uint64_t*)(&ED->word[1]) = 0xfffffe0000000000LL;
+                        }
+                        break;
+                    case 4:                 /* SMSW Ew */
+                        // dummy for now... Do I need to track CR0 state?
+                        ED->word[0] = (1<<0) | (1<<4); // only PE and ET set...
+                        break;
+                    default:
+                        return 0;
+            }
+            break;
+
         case 0x05:                      /* SYSCALL */
             #ifndef TEST_INTERPRETER
             R_RIP = addr;
@@ -92,6 +171,11 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
                 default:    //???
                     return 0;
             }
+            break;
+        case 0x0E:                      /* FEMMS */
+            #ifndef TEST_INTERPRETER
+            emit_signal(emu, SIGILL, (void*)R_RIP, 0);
+            #endif
             break;
 
         case 0x10:                      /* MOVUPS Gx,Ex */
@@ -441,6 +525,11 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
             break;
 
 
+        case 0x3F:
+            #ifndef TEST_INTERPRETER
+            emit_signal(emu, SIGILL, (void*)R_RIP, 0);
+            #endif
+            break;
         GOCOND(0x40
             , nextop = F8;
             GETED(0);
@@ -1011,19 +1100,24 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
             break;
         case 0xAE:                      /* Grp Ed (SSE) */
             nextop = F8;
-            if((nextop&0xF8)==0xE8) {
-                return addr;            /* LFENCE */
-            }
-            if((nextop&0xF8)==0xF0) {
-                return addr;            /* MFENCE */
-            }
-            if((nextop&0xF8)==0xF8) {
-                return addr;            /* SFENCE */
-            }
+            if(MODREG)
+                switch(nextop) {
+                    case 0xE8:
+                        return addr;            /* LFENCE */
+                    case 0xF0:
+                        return addr;            /* MFENCE */
+                    case 0xF8:
+                        return addr;            /* SFENCE */
+                    default:
+                        return 0;
+                }
+            else
             switch((nextop>>3)&7) {
                 case 0:                 /* FXSAVE Ed */
                     _GETED(0);
-                    #ifndef TEST_INTERPRETER
+                    #ifdef TEST_INTERPRETER
+                    emu->sw.f.F87_TOP = emu->top&7;
+                    #else
                     if(rex.w)
                         fpu_fxsave64(emu, ED);
                     else

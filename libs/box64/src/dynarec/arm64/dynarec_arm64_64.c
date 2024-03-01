@@ -291,6 +291,16 @@ uintptr_t dynarec64_64(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             WBACKO(x4);
             break;
 
+        case 0x23:
+            INST_NAME("AND Gd, Seg:Ed");
+            SETFLAGS(X_ALL, SF_SET_PENDING);
+            grab_segdata(dyn, addr, ninst, x4, seg);
+            nextop = F8;
+            GETGD;
+            GETEDO(x4, 0);
+            emit_and32(dyn, ninst, rex, gd, ed, x3, x5);
+            break;
+
         case 0x29:
             INST_NAME("SUB Seg:Ed, Gd");
             SETFLAGS(X_ALL, SF_SET_PENDING);
@@ -1016,6 +1026,16 @@ uintptr_t dynarec64_64(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                     if(!rex.w) {
                         SET_DFNONE(x2);
                         GETEDO(x6, 0);
+                        if(box64_dynarec_div0) {
+                            CBNZx_MARK3(ed);
+                            GETIP_(ip);
+                            STORE_XEMU_CALL(xRIP);
+                            CALL(native_div0, -1);
+                            CLEARIP();
+                            LOAD_XEMU_CALL(xRIP);
+                            jump_to_epilog(dyn, 0, xRIP, ninst);
+                            MARK3;
+                        }
                         MOVw_REG(x3, xRAX);
                         ORRx_REG_LSL(x3, x3, xRDX, 32);
                         if(MODREG) {
@@ -1033,6 +1053,16 @@ uintptr_t dynarec64_64(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                            && *(uint8_t*)(dyn->insts[ninst-1].x64.addr+1)==0xD2) {
                             SET_DFNONE(x2);
                             GETEDO(x6, 0);
+                            if(box64_dynarec_div0) {
+                                CBNZx_MARK3(ed);
+                                GETIP_(ip);
+                                STORE_XEMU_CALL(xRIP);
+                                CALL(native_div0, -1);
+                                CLEARIP();
+                                LOAD_XEMU_CALL(xRIP);
+                                jump_to_epilog(dyn, 0, xRIP, ninst);
+                                MARK3;
+                            }
                             UDIVx(x2, xRAX, ed);
                             MSUBx(xRDX, x2, ed, xRAX);
                             MOVx_REG(xRAX, x2);
@@ -1043,6 +1073,16 @@ uintptr_t dynarec64_64(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                             CALL(div64, -1);
                             B_NEXT_nocond;
                             MARK;
+                            if(box64_dynarec_div0) {
+                                CBNZx_MARK3(ed);
+                                GETIP_(ip);
+                                STORE_XEMU_CALL(xRIP);
+                                CALL(native_div0, -1);
+                                CLEARIP();
+                                LOAD_XEMU_CALL(xRIP);
+                                jump_to_epilog(dyn, 0, xRIP, ninst);
+                                MARK3;
+                            }
                             UDIVx(x2, xRAX, ed);
                             MSUBx(xRDX, x2, ed, xRAX);
                             MOVx_REG(xRAX, x2);
@@ -1059,6 +1099,16 @@ uintptr_t dynarec64_64(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                         GETSEDOw(x6, 0);
                         MOVw_REG(x3, xRAX);
                         ORRx_REG_LSL(x3, x3, xRDX, 32);
+                        if(box64_dynarec_div0) {
+                            CBNZx_MARK3(wb);
+                            GETIP_(ip);
+                            STORE_XEMU_CALL(xRIP);
+                            CALL(native_div0, -1);
+                            CLEARIP();
+                            LOAD_XEMU_CALL(xRIP);
+                            jump_to_epilog(dyn, 0, xRIP, ninst);
+                            MARK3;
+                        }
                         SDIVx(x2, x3, wb);
                         MSUBx(x4, x2, wb, x3);
                         MOVw_REG(xRAX, x2);
@@ -1070,11 +1120,31 @@ uintptr_t dynarec64_64(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                            && *(uint8_t*)(dyn->insts[ninst-1].x64.addr+1)==0x99) {
                             SET_DFNONE(x2)
                             GETEDO(x6, 0);
+                            if(box64_dynarec_div0) {
+                                CBNZx_MARK3(ed);
+                                GETIP_(ip);
+                                STORE_XEMU_CALL(xRIP);
+                                CALL(native_div0, -1);
+                                CLEARIP();
+                                LOAD_XEMU_CALL(xRIP);
+                                jump_to_epilog(dyn, 0, xRIP, ninst);
+                                MARK3;
+                            }
                             SDIVx(x2, xRAX, ed);
                             MSUBx(xRDX, x2, ed, xRAX);
                             MOVx_REG(xRAX, x2);
                         } else {
                             GETEDO(x6, 0);
+                            if(box64_dynarec_div0) {
+                                CBNZx_MARK3(ed);
+                                GETIP_(ip);
+                                STORE_XEMU_CALL(xRIP);
+                                CALL(native_div0, -1);
+                                CLEARIP();
+                                LOAD_XEMU_CALL(xRIP);
+                                jump_to_epilog(dyn, 0, xRIP, ninst);
+                                MARK3;
+                            }
                             CBZxw_MARK(xRDX);
                             MVNx_REG(x2, xRDX);
                             CBZxw_MARK(x2);
@@ -1147,14 +1217,14 @@ uintptr_t dynarec64_64(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                         STPx_S7_preindex(x4, xRIP, xSP, -16);
                     }
                     PUSH1z(xRIP);
-                    jump_to_next(dyn, 0, ed, ninst);
+                    jump_to_next(dyn, 0, ed, ninst, rex.is32bits);
                     break;
                 case 4: // JMP Ed
                     INST_NAME("JMP Ed");
                     READFLAGS(X_PEND);
                     BARRIER(BARRIER_FLOAT);
                     GETEDOz(x6, 0);
-                    jump_to_next(dyn, 0, ed, ninst);
+                    jump_to_next(dyn, 0, ed, ninst, rex.is32bits);
                     *need_epilog = 0;
                     *ok = 0;
                     break;

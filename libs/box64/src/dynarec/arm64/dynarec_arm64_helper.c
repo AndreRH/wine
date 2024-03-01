@@ -59,7 +59,7 @@ uintptr_t geted(dynarec_arm_t* dyn, uintptr_t addr, int ninst, uint8_t nextop, u
             if((sib&0x7)==5) {
                 int64_t tmp = F32S;
                 if (sib_reg!=4) {
-                    if(tmp && (!((tmp>=absmin) && (tmp<=absmax) && !(tmp&mask))) || !(unscaled && (tmp>-256) && (tmp<256))) {
+                    if(tmp && ((!((tmp>=absmin) && (tmp<=absmax) && !(tmp&mask))) || !(unscaled && (tmp>-256) && (tmp<256)))) {
                         MOV64x(scratch, tmp);
                         ADDx_REG_LSL(ret, scratch, xRAX+sib_reg, (sib>>6));
                     } else {
@@ -214,7 +214,7 @@ static uintptr_t geted_32(dynarec_arm_t* dyn, uintptr_t addr, int ninst, uint8_t
             if((sib&0x7)==5) {
                 int64_t tmp = F32S;
                 if (sib_reg!=4) {
-                    if(tmp && (!((tmp>=absmin) && (tmp<=absmax) && !(tmp&mask))) || !(unscaled && (tmp>-256) && (tmp<256))) {
+                    if(tmp && ((!((tmp>=absmin) && (tmp<=absmax) && !(tmp&mask))) || !(unscaled && (tmp>-256) && (tmp<256)))) {
                         MOV32w(scratch, tmp);
                         ADDw_REG_LSL(ret, scratch, xRAX+sib_reg, (sib>>6));
                     } else {
@@ -350,7 +350,7 @@ uintptr_t geted32(dynarec_arm_t* dyn, uintptr_t addr, int ninst, uint8_t nextop,
             if((sib&0x7)==5) {
                 int64_t tmp = F32S;
                 if (sib_reg!=4) {
-                    if(tmp && (!((tmp>=absmin) && (tmp<=absmax) && !(tmp&mask))) || !(unscaled && (tmp>-256) && (tmp<256))) {
+                    if(tmp && ((!((tmp>=absmin) && (tmp<=absmax) && !(tmp&mask))) || !(unscaled && (tmp>-256) && (tmp<256)))) {
                         MOV64x(scratch, tmp);
                         ADDw_REG_LSL(ret, scratch, xRAX+sib_reg, (sib>>6));
                     } else {
@@ -566,7 +566,7 @@ void jump_to_epilog(dynarec_arm_t* dyn, uintptr_t ip, int reg, int ninst)
     BR(x2);
 }
 
-void jump_to_next(dynarec_arm_t* dyn, uintptr_t ip, int reg, int ninst)
+void jump_to_next(dynarec_arm_t* dyn, uintptr_t ip, int reg, int ninst, int is32bits)
 {
     MAYUSE(dyn); MAYUSE(ninst);
     MESSAGE(LOG_DUMP, "Jump to next\n");
@@ -577,15 +577,17 @@ void jump_to_next(dynarec_arm_t* dyn, uintptr_t ip, int reg, int ninst)
             MOVx_REG(xRIP, reg);
         }
         NOTEST(x2);
-        uintptr_t tbl = getJumpTable64();
+        uintptr_t tbl = is32bits?getJumpTable32():getJumpTable64();
         MAYUSE(tbl);
         TABLE64(x3, tbl);
-        #ifdef JMPTABL_SHIFT4
-        UBFXx(x2, xRIP, JMPTABL_START4, JMPTABL_SHIFT4);
-        LDRx_REG_LSL3(x3, x3, x2);
-        #endif
-        UBFXx(x2, xRIP, JMPTABL_START3, JMPTABL_SHIFT3);
-        LDRx_REG_LSL3(x3, x3, x2);
+        if(!is32bits) {
+            #ifdef JMPTABL_SHIFT4
+            UBFXx(x2, xRIP, JMPTABL_START4, JMPTABL_SHIFT4);
+            LDRx_REG_LSL3(x3, x3, x2);
+            #endif
+            UBFXx(x2, xRIP, JMPTABL_START3, JMPTABL_SHIFT3);
+            LDRx_REG_LSL3(x3, x3, x2);
+        }
         UBFXx(x2, xRIP, JMPTABL_START2, JMPTABL_SHIFT2);
         LDRx_REG_LSL3(x3, x3, x2);
         UBFXx(x2, xRIP, JMPTABL_START1, JMPTABL_SHIFT1);
@@ -619,24 +621,24 @@ void ret_to_epilog(dynarec_arm_t* dyn, int ninst, rex_t rex)
     SMEND();
     if(box64_dynarec_callret) {
         // pop the actual return address for ARM stack
-        LDPx_S7_offset(x2, x6, xSP, 0);
-        CBZx(x6, 6*4);
-        ADDx_U12(xSP, xSP, 16);
+        LDPx_S7_postindex(x2, x6, xSP, 16);
         SUBx_REG(x6, x6, xRIP); // is it the right address?
         CBNZx(x6, 2*4);
         BLR(x2);
         // not the correct return address, regular jump, but purge the stack first, it's unsync now...
-        SUBx_U12(xSP, xSavedSP, 0);
+        SUBx_U12(xSP, xSavedSP, 16);
     }
-    uintptr_t tbl = getJumpTable64();
+    uintptr_t tbl = rex.is32bits?getJumpTable32():getJumpTable64();
     NOTEST(x2);
     MOV64x(x2, tbl);
-    #ifdef JMPTABL_SHIFT4
-    UBFXx(x3, xRIP, JMPTABL_START4, JMPTABL_SHIFT4);
-    LDRx_REG_LSL3(x2, x2, x3);
-    #endif
-    UBFXx(x3, xRIP, JMPTABL_START3, JMPTABL_SHIFT3);
-    LDRx_REG_LSL3(x2, x2, x3);
+    if(!rex.is32bits) {
+        #ifdef JMPTABL_SHIFT4
+        UBFXx(x3, xRIP, JMPTABL_START4, JMPTABL_SHIFT4);
+        LDRx_REG_LSL3(x2, x2, x3);
+        #endif
+        UBFXx(x3, xRIP, JMPTABL_START3, JMPTABL_SHIFT3);
+        LDRx_REG_LSL3(x2, x2, x3);
+    }
     UBFXx(x3, xRIP, JMPTABL_START2, JMPTABL_SHIFT2);
     LDRx_REG_LSL3(x2, x2, x3);
     UBFXx(x3, xRIP, JMPTABL_START1, JMPTABL_SHIFT1);
@@ -662,24 +664,24 @@ void retn_to_epilog(dynarec_arm_t* dyn, int ninst, rex_t rex, int n)
     SMEND();
     if(box64_dynarec_callret) {
         // pop the actual return address for ARM stack
-        LDPx_S7_offset(x2, x6, xSP, 0);
-        CBZx(x6, 6*4);
-        ADDx_U12(xSP, xSP, 16);
+        LDPx_S7_postindex(x2, x6, xSP, 16);
         SUBx_REG(x6, x6, xRIP); // is it the right address?
         CBNZx(x6, 2*4);
         BLR(x2);
         // not the correct return address, regular jump
-        SUBx_U12(xSP, xSavedSP, 0);
+        SUBx_U12(xSP, xSavedSP, 16);
     }
-    uintptr_t tbl = getJumpTable64();
+    uintptr_t tbl = rex.is32bits?getJumpTable32():getJumpTable64();
     NOTEST(x2);
     MOV64x(x2, tbl);
-    #ifdef JMPTABL_SHIFT4
-    UBFXx(x3, xRIP, JMPTABL_START4, JMPTABL_SHIFT4);
-    LDRx_REG_LSL3(x2, x2, x3);
-    #endif
-    UBFXx(x3, xRIP, JMPTABL_START3, JMPTABL_SHIFT3);
-    LDRx_REG_LSL3(x2, x2, x3);
+    if(!rex.is32bits) {
+        #ifdef JMPTABL_SHIFT4
+        UBFXx(x3, xRIP, JMPTABL_START4, JMPTABL_SHIFT4);
+        LDRx_REG_LSL3(x2, x2, x3);
+        #endif
+        UBFXx(x3, xRIP, JMPTABL_START3, JMPTABL_SHIFT3);
+        LDRx_REG_LSL3(x2, x2, x3);
+    }
     UBFXx(x3, xRIP, JMPTABL_START2, JMPTABL_SHIFT2);
     LDRx_REG_LSL3(x2, x2, x3);
     UBFXx(x3, xRIP, JMPTABL_START1, JMPTABL_SHIFT1);
@@ -853,25 +855,6 @@ void grab_segdata(dynarec_arm_t* dyn, uintptr_t addr, int ninst, int reg, int se
 }
 
 // x87 stuffs
-static void x87_reset(dynarec_arm_t* dyn)
-{
-    for (int i=0; i<8; ++i)
-        dyn->n.x87cache[i] = -1;
-    dyn->n.x87stack = 0;
-    dyn->n.stack = 0;
-    dyn->n.stack_next = 0;
-    dyn->n.stack_pop = 0;
-    dyn->n.stack_push = 0;
-    dyn->n.combined1 = dyn->n.combined2 = 0;
-    dyn->n.swapped = 0;
-    dyn->n.barrier = 0;
-    for(int i=0; i<24; ++i)
-        if(dyn->n.neoncache[i].t == NEON_CACHE_ST_F
-         || dyn->n.neoncache[i].t == NEON_CACHE_ST_D
-         || dyn->n.neoncache[i].t == NEON_CACHE_ST_I64)
-            dyn->n.neoncache[i].v = 0;
-}
-
 int x87_stackcount(dynarec_arm_t* dyn, int ninst, int scratch)
 {
     MAYUSE(scratch);
@@ -969,7 +952,9 @@ int x87_do_push(dynarec_arm_t* dyn, int ninst, int s1, int t)
          ||(dyn->n.neoncache[j].t == NEON_CACHE_ST_I64))
             ++dyn->n.neoncache[j].n;
     int ret = -1;
-    for(int i=0; i<8; ++i)
+    for(int i=0; i<8; ++i) {
+        if(dyn->n.freed[i]!=-1)
+            ++dyn->n.freed[i];
         if(dyn->n.x87cache[i]!=-1)
             ++dyn->n.x87cache[i];
         else if(ret==-1) {
@@ -977,6 +962,7 @@ int x87_do_push(dynarec_arm_t* dyn, int ninst, int s1, int t)
             ret=dyn->n.x87reg[i]=fpu_get_reg_x87(dyn, t, 0);
             dyn->n.neoncache[ret].t = X87_ST0;
         }
+    }
     return ret;
 }
 void x87_do_push_empty(dynarec_arm_t* dyn, int ninst, int s1)
@@ -993,20 +979,17 @@ void x87_do_push_empty(dynarec_arm_t* dyn, int ninst, int s1)
          ||(dyn->n.neoncache[j].t == NEON_CACHE_ST_F)
          ||(dyn->n.neoncache[j].t == NEON_CACHE_ST_I64))
             ++dyn->n.neoncache[j].n;
-    for(int i=0; i<8; ++i)
+    for(int i=0; i<8; ++i) {
+        if(dyn->n.freed[i]!=-1)
+            ++dyn->n.freed[i];
         if(dyn->n.x87cache[i]!=-1)
             ++dyn->n.x87cache[i];
+    }
     if(s1)
         x87_stackcount(dyn, ninst, s1);
 }
-void x87_do_pop(dynarec_arm_t* dyn, int ninst, int s1)
+void static internal_x87_dopop(dynarec_arm_t* dyn)
 {
-    if(dyn->n.mmxcount)
-        mmx_purgecache(dyn, ninst, 0, s1);
-    dyn->n.x87stack-=1;
-    dyn->n.stack_next-=1;
-    dyn->n.stack_pop+=1;
-    // move all regs in cache, poping ST0
     for(int i=0; i<8; ++i)
         if(dyn->n.x87cache[i]!=-1) {
             --dyn->n.x87cache[i];
@@ -1016,7 +999,39 @@ void x87_do_pop(dynarec_arm_t* dyn, int ninst, int s1)
             }
         }
 }
-
+int static internal_x87_dofree(dynarec_arm_t* dyn)
+{
+    int ret = 0;
+    for(int i=0; i<8; ++i)
+        if(dyn->n.freed[i]!=-1) {
+            --dyn->n.freed[i];
+            if(dyn->n.freed[i]<=0) {
+                MESSAGE(LOG_DUMP, "\t--------x87 FREED ST0, poping 1 more\n");
+                dyn->n.freed[i] = -1;
+                ret = 1;
+            }
+        }
+    return ret;
+}
+void x87_do_pop(dynarec_arm_t* dyn, int ninst, int s1)
+{
+    if(dyn->n.mmxcount)
+        mmx_purgecache(dyn, ninst, 0, s1);
+    do {
+        dyn->n.x87stack-=1;
+        dyn->n.stack_next-=1;
+        dyn->n.stack_pop+=1;
+        // move all regs in cache, poping ST0
+        internal_x87_dopop(dyn);
+    } while(internal_x87_dofree(dyn));
+}
+static int x87_is_stcached(dynarec_arm_t* dyn, int st)
+{
+    for (int i=0; i<8; ++i)
+        if(dyn->n.x87cache[i] == st)
+            return 1;
+    return 0;
+}
 void x87_purgecache(dynarec_arm_t* dyn, int ninst, int next, int s1, int s2, int s3)
 {
     int ret = 0;
@@ -1049,7 +1064,8 @@ void x87_purgecache(dynarec_arm_t* dyn, int ninst, int next, int s1, int s2, int
             for (int i=0; i<a; ++i) {
                 SUBw_U12(s2, s2, 1);
                 ANDw_mask(s2, s2, 0, 2); //mask=7    // (emu->top + st)&7
-                STRw_REG_LSL2(s3, s1, s2);
+                if(x87_is_stcached(dyn, i)) // to handle ffree
+                    STRw_REG_LSL2(s3, s1, s2);
             }
         } else {
             // empty tags
@@ -1105,6 +1121,8 @@ void x87_purgecache(dynarec_arm_t* dyn, int ninst, int next, int s1, int s2, int
     }
     if(!next) {
         dyn->n.stack_next = 0;
+        for(int i=0; i<8; ++i)
+            dyn->n.freed[i] = -1;
         #if STEP < 2
         // refresh the cached valued, in case it's a purge outside a instruction
         dyn->insts[ninst].n.barrier = 1;
@@ -1259,38 +1277,6 @@ int x87_get_st_empty(dynarec_arm_t* dyn, int ninst, int s1, int s2, int a, int t
     return dyn->n.x87reg[x87_get_cache(dyn, ninst, 0, s1, s2, a, t)];
 }
 
-
-void x87_refresh(dynarec_arm_t* dyn, int ninst, int s1, int s2, int st)
-{
-    x87_stackcount(dyn, ninst, s1);
-    int ret = -1;
-    for (int i=0; (i<8) && (ret==-1); ++i)
-        if(dyn->n.x87cache[i] == st)
-            ret = i;
-    if(ret==-1)    // nothing to do
-        return;
-    MESSAGE(LOG_DUMP, "\tRefresh x87 Cache for ST%d\n", st);
-    // prepare offset to fpu => s1
-    ADDx_U12(s1, xEmu, offsetof(x64emu_t, x87));
-    // Get top
-    LDRw_U12(s2, xEmu, offsetof(x64emu_t, top));
-    // Update
-    if(st) {
-        ADDw_U12(s2, s2, st);
-        ANDw_mask(s2, s2, 0, 2); //mask=7    // (emu->top + i)&7
-    }
-    if(dyn->n.neoncache[dyn->n.x87reg[ret]].t==NEON_CACHE_ST_F) {
-        FCVT_D_S(31, dyn->n.x87reg[ret]);
-        VSTR64_REG_LSL3(31, s1, s2);
-    } else if(dyn->n.neoncache[dyn->n.x87reg[ret]].t==NEON_CACHE_ST_I64) {
-        SCVTFDD(31, dyn->n.x87reg[ret]);
-        VSTR64_REG_LSL3(31, s1, s2);
-    } else {
-        VSTR64_REG_LSL3(dyn->n.x87reg[ret], s1, s2);
-    }
-    MESSAGE(LOG_DUMP, "\t--------x87 Cache for ST%d\n", st);
-}
-
 void x87_forget(dynarec_arm_t* dyn, int ninst, int s1, int s2, int st)
 {
     int ret = -1;
@@ -1386,6 +1372,75 @@ void x87_reget_st(dynarec_arm_t* dyn, int ninst, int s1, int s2, int st)
     MESSAGE(LOG_DUMP, "\t-------x87 Cache for ST%d\n", st);
 }
 
+void x87_free(dynarec_arm_t* dyn, int ninst, int s1, int s2, int s3, int st)
+{
+    int ret = -1;
+    for (int i=0; (i<8) && (ret==-1); ++i)
+        if(dyn->n.x87cache[i] == st)
+            ret = i;
+    MESSAGE(LOG_DUMP, "\tFFREE%s x87 Cache for ST%d\n", (ret!=-1)?" (and Forget)":"", st);
+    if(ret!=-1) {
+        const int reg = dyn->n.x87reg[ret];
+        #if STEP == 1
+        if(dyn->n.neoncache[reg].t==NEON_CACHE_ST_F || dyn->n.neoncache[reg].t==NEON_CACHE_ST_I64)
+            neoncache_promote_double(dyn, ninst, st);
+        #endif
+        // prepare offset to fpu => s1
+        ADDx_U12(s1, xEmu, offsetof(x64emu_t, x87));
+        // Get top
+        LDRw_U12(s2, xEmu, offsetof(x64emu_t, top));
+        // Update
+        int ast = st - dyn->n.x87stack;
+        if(ast) {
+            if(ast>0) {
+                ADDw_U12(s2, s2, ast);
+            } else {
+                SUBw_U12(s2, s2, -ast);
+            }
+            ANDw_mask(s2, s2, 0, 2); //mask=7    // (emu->top + i)&7
+        }
+        if(dyn->n.neoncache[reg].t==NEON_CACHE_ST_F) {
+            FCVT_D_S(31, reg);
+            VSTR64_REG_LSL3(31, s1, s2);
+        } else if(dyn->n.neoncache[reg].t==NEON_CACHE_ST_I64) {
+            SCVTFDD(31, reg);
+            VSTR64_REG_LSL3(31, s1, s2);
+        } else {
+            VSTR64_REG_LSL3(reg, s1, s2);
+        }
+        // and forget that cache
+        fpu_free_reg(dyn, reg);
+        dyn->n.neoncache[reg].v = 0;
+        dyn->n.x87cache[ret] = -1;
+        dyn->n.x87reg[ret] = -1;
+    } else {
+        // Get top
+        LDRw_U12(s2, xEmu, offsetof(x64emu_t, top));
+        // Update
+        int ast = st - dyn->n.x87stack;
+        if(ast) {
+            if(ast>0) {
+                ADDw_U12(s2, s2, ast);
+            } else {
+                SUBw_U12(s2, s2, -ast);
+            }
+            ANDw_mask(s2, s2, 0, 2); //mask=7    // (emu->top + i)&7
+        }
+    }
+    // mark as free
+    ADDx_U12(s1, xEmu, offsetof(x64emu_t, p_regs));
+    MOVZw(s3, 0b11);
+    STRw_REG_LSL2(s3, s1, s2);
+    // add mark in the freed array
+    for(int i=0; i<8; ++i)
+        if(dyn->n.freed[i]==-1) {
+            dyn->n.freed[i]=st;
+            MESSAGE(LOG_DUMP, "\t--------x87 Marked ST%d as Freed\n", st);
+            break;
+        }
+    MESSAGE(LOG_DUMP, "\t--------x87 FFREE for ST%d\n", st);
+}
+
 void x87_swapreg(dynarec_arm_t* dyn, int ninst, int s1, int s2, int a, int b)
 {
     int i1, i2, i3;
@@ -1446,12 +1501,6 @@ void x87_restoreround(dynarec_arm_t* dyn, int ninst, int s1)
 }
 
 // MMX helpers
-static void mmx_reset(dynarec_arm_t* dyn)
-{
-    dyn->n.mmxcount = 0;
-    for (int i=0; i<8; ++i)
-        dyn->n.mmxcache[i] = -1;
-}
 static int isx87Empty(dynarec_arm_t* dyn)
 {
     for (int i=0; i<8; ++i)
@@ -1518,11 +1567,6 @@ static void mmx_reflectcache(dynarec_arm_t* dyn, int ninst, int s1)
 
 
 // SSE / SSE2 helpers
-static void sse_reset(dynarec_arm_t* dyn)
-{
-    for (int i=0; i<16; ++i)
-        dyn->n.ssecache[i].v = -1;
-}
 // get neon register for a SSE reg, create the entry if needed
 int sse_get_reg(dynarec_arm_t* dyn, int ninst, int s1, int a, int forwrite)
 {
@@ -2088,14 +2132,6 @@ void fpu_unreflectcache(dynarec_arm_t* dyn, int ninst, int s1, int s2, int s3)
 {
     // need to undo some things on the x87 tracking
     x87_unreflectcache(dyn, ninst, s1, s2, s3);
-}
-
-void fpu_reset(dynarec_arm_t* dyn)
-{
-    x87_reset(dyn);
-    mmx_reset(dyn);
-    sse_reset(dyn);
-    fpu_reset_reg(dyn);
 }
 
 void emit_pf(dynarec_arm_t* dyn, int ninst, int s1, int s3, int s4)

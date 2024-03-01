@@ -28,6 +28,12 @@ WINE_DEFAULT_DEBUG_CHANNEL(box64dynarec);
 #error No STEP defined
 #endif
 
+#if STEP == 0
+#ifndef PROT_READ
+#define PROT_READ 0x1
+#endif
+#endif
+
 uintptr_t native_pass(dynarec_native_t* dyn, uintptr_t addr, int alternate, int is32bits)
 {
     int ok = 1;
@@ -36,7 +42,7 @@ uintptr_t native_pass(dynarec_native_t* dyn, uintptr_t addr, int alternate, int 
     uintptr_t ip = addr;
     uintptr_t init_addr = addr;
     rex_t rex;
-    int rep;    // 0 none, 1=F2 prefix, 2=F3 prefix
+    int rep = 0;    // 0 none, 1=F2 prefix, 2=F3 prefix
     int need_epilog = 1;
     // Clean up (because there are multiple passes)
     dyn->f.pending = 0;
@@ -52,7 +58,26 @@ uintptr_t native_pass(dynarec_native_t* dyn, uintptr_t addr, int alternate, int 
     int stopblock = 2+(/*FindElfAddress(my_context, addr)?0:1*/0); // if block is in elf_memory, it can be extended with box64_dynarec_bigblock==2, else it needs 3
     // ok, go now
     INIT;
+    #if STEP == 0
+    uintptr_t cur_page = (addr)&~box64_pagesize;
+    #endif
     while(ok) {
+        #if STEP == 0
+        if(cur_page != ((addr)&~box64_pagesize)) {
+            cur_page = (addr)&~box64_pagesize;
+            if(!(getProtection(addr)&PROT_READ)) {
+                need_epilog = 1;
+                break;
+            }
+        }
+        // This test is here to prevent things like TABLE64 to be out of range
+        // native_size is not exact at this point, but it should be larger, not smaller, and not by a huge margin anyway
+        // so it's good enough to avoid overflow in relative to PC data fectching
+        if(dyn->native_size >= MAXBLOCK_SIZE) {
+            need_epilog = 1;
+            break;
+        }
+        #endif
         ip = addr;
         if (reset_n!=-1) {
             dyn->last_ip = 0;
@@ -136,7 +161,8 @@ uintptr_t native_pass(dynarec_native_t* dyn, uintptr_t addr, int alternate, int 
             }
 
         addr = dynarec64_00(dyn, addr, ip, ninst, rex, rep, &ok, &need_epilog);
-
+        if(dyn->abort)
+            return addr;
         INST_EPILOG;
 
         int next = ninst+1;
@@ -162,7 +188,7 @@ uintptr_t native_pass(dynarec_native_t* dyn, uintptr_t addr, int alternate, int 
             // we use the 1st predecessor here
             int ii = ninst+1;
             if(ii<dyn->size && !dyn->insts[ii].pred_sz) {
-                while(ii<dyn->size && (!dyn->insts[ii].pred_sz || (dyn->insts[ii].pred_sz==1 && dyn->insts[ii].pred[0]==ii-1))) {
+                while(ii<dyn->size && !dyn->insts[ii].pred_sz) {
                     // may need to skip opcodes to advance
                     ++ninst;
                     NEW_INST;
@@ -301,7 +327,7 @@ uintptr_t native_pass(dynarec_native_t* dyn, uintptr_t addr, int alternate, int 
             ++ninst;
             NOTEST(x3);
             fpu_purgecache(dyn, ninst, 0, x1, x2, x3);
-            jump_to_next(dyn, addr, 0, ninst);
+            jump_to_next(dyn, addr, 0, ninst, rex.is32bits);
             ok=0; need_epilog=0;
         }
     }

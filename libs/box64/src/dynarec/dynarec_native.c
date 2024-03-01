@@ -467,17 +467,13 @@ void* FillBlock64(dynablock_t* block, uintptr_t addr, int alternate, int is32bit
         B+32 .. B+32+sz : instsize (compressed array with each instruction length on x64 and native side)
 
     */
-    if(IsInHotPage(addr)) {
-        dynarec_log(LOG_DEBUG, "Canceling dynarec FillBlock on hotpage for %p\n", (void*)addr);
-        return NULL;
-    }
     if(addr>=box64_nodynarec_start && addr<box64_nodynarec_end) {
         dynarec_log(LOG_INFO, "Create empty block in no-dynarec zone\n");
         return CreateEmptyBlock(block, addr);
     }
     if(current_helper) {
-        dynarec_log(LOG_DEBUG, "Canceling dynarec FillBlock at %p as another one is going on\n", (void*)addr);
-        return NULL;
+        if (box64_dynarec_log) dynarec_log(LOG_DEBUG, "Canceling dynarec FillBlock at %p as another one is going on\n", (void*)addr);
+        return (void*)-1;
     }
     // protect the 1st page
     protectDB(addr, 1);
@@ -491,6 +487,11 @@ void* FillBlock64(dynablock_t* block, uintptr_t addr, int alternate, int is32bit
     helper.insts = (instruction_native_t*)dynaCalloc(helper.cap, sizeof(instruction_native_t));
     // pass 0, addresses, x64 jump addresses, overall size of the block
     uintptr_t end = native_pass0(&helper, addr, alternate, is32bits);
+    if(helper.abort) {
+        if(box64_dynarec_dump || box64_dynarec_log)dynarec_log(LOG_NONE, "Abort dynablock on pass0\n");
+        CancelBlock64(0);
+        return NULL;
+    }
     // basic checks
     if(!helper.size) {
         dynarec_log(LOG_INFO, "Warning, null-sized dynarec block (%p)\n", (void*)addr);
@@ -499,7 +500,6 @@ void* FillBlock64(dynablock_t* block, uintptr_t addr, int alternate, int is32bit
     }
     if(!isprotectedDB(addr, 1)) {
         dynarec_log(LOG_INFO, "Warning, write on current page on pass0, aborting dynablock creation (%p)\n", (void*)addr);
-        AddHotPage(addr);
         CancelBlock64(0);
         return NULL;
     }
@@ -566,12 +566,31 @@ void* FillBlock64(dynablock_t* block, uintptr_t addr, int alternate, int is32bit
     int pos = helper.size;
     while (pos>=0)
         pos = updateNeed(&helper, pos, 0);
+    // remove fpu stuff on non-executed code
+    for(int i=1; i<helper.size-1; ++i)
+        if(!helper.insts[i].pred_sz) {
+            int ii = i;
+            while(ii<helper.size && !helper.insts[ii].pred_sz)
+                fpu_reset_ninst(&helper, ii++);
+            i = ii;
+        }
+
 
     // pass 1, float optimizations, first pass for flags
     native_pass1(&helper, addr, alternate, is32bits);
+    if(helper.abort) {
+        if(box64_dynarec_dump || box64_dynarec_log)dynarec_log(LOG_NONE, "Abort dynablock on pass1\n");
+        CancelBlock64(0);
+        return NULL;
+    }
     
     // pass 2, instruction size
     native_pass2(&helper, addr, alternate, is32bits);
+    if(helper.abort) {
+        if(box64_dynarec_dump || box64_dynarec_log)dynarec_log(LOG_NONE, "Abort dynablock on pass2\n");
+        CancelBlock64(0);
+        return NULL;
+    }
     // keep size of instructions for signal handling
     size_t insts_rsize = (helper.insts_size+2)*sizeof(instsize_t);
     insts_rsize = (insts_rsize+7)&~7;   // round the size...
@@ -612,6 +631,11 @@ void* FillBlock64(dynablock_t* block, uintptr_t addr, int alternate, int is32bit
     helper.table64size = 0; // reset table64 (but not the cap)
     helper.insts_size = 0;  // reset
     native_pass3(&helper, addr, alternate, is32bits);
+    if(helper.abort) {
+        if(box64_dynarec_dump || box64_dynarec_log)dynarec_log(LOG_NONE, "Abort dynablock on pass1\n");
+        CancelBlock64(0);
+        return NULL;
+    }
     // keep size of instructions for signal handling
     block->instsize = instsize;
     // ok, free the helper now
@@ -638,7 +662,6 @@ void* FillBlock64(dynablock_t* block, uintptr_t addr, int alternate, int is32bit
     // Check if something changed, to abort if it is
     if((block->hash != hash)) {
         dynarec_log(LOG_DEBUG, "Warning, a block changed while being processed hash(%p:%ld)=%x/%x\n", block->x64_addr, block->x64_size, block->hash, hash);
-        AddHotPage(addr);
         CancelBlock64(0);
         return NULL;
     }
@@ -662,9 +685,15 @@ void* FillBlock64(dynablock_t* block, uintptr_t addr, int alternate, int is32bit
     }
     if(!isprotectedDB(addr, end-addr)) {
         dynarec_log(LOG_DEBUG, "Warning, block unprotected while being processed %p:%ld, marking as need_test\n", block->x64_addr, block->x64_size);
-        AddHotPage(addr);
         block->dirty = 1;
         //protectDB(addr, end-addr);
+    }
+    if(getProtection(addr)&PROT_NEVERCLEAN) {
+        block->dirty = 1;
+        block->always_test = 1;
+    }
+    if(block->always_test) {
+        dynarec_log(LOG_DEBUG, "Note: block marked as always dirty %p:%ld\n", block->x64_addr, block->x64_size);
     }
     current_helper = NULL;
     //block->done = 1;

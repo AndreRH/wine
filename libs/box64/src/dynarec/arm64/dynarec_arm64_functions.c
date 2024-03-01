@@ -87,14 +87,18 @@ int fpu_get_reg_xmm(dynarec_arm_t* dyn, int t, int xmm)
     return i;
 }
 // Reset fpu regs counter
-void fpu_reset_reg(dynarec_arm_t* dyn)
+static void fpu_reset_reg_neoncache(neoncache_t* n)
 {
-    dyn->n.fpu_reg = 0;
+    n->fpu_reg = 0;
     for (int i=0; i<24; ++i) {
-        dyn->n.fpuused[i]=0;
-        dyn->n.neoncache[i].v = 0;
+        n->fpuused[i]=0;
+        n->neoncache[i].v = 0;
     }
 
+}
+void fpu_reset_reg(dynarec_arm_t* dyn)
+{
+    fpu_reset_reg_neoncache(&dyn->n);
 }
 
 int neoncache_no_i64(dynarec_arm_t* dyn, int ninst, int st, int a)
@@ -539,7 +543,7 @@ void inst_name_pass3(dynarec_native_t* dyn, int ninst, const char* name, rex_t r
 {
     if(box64_dynarec_dump) {
         printf_x64_instruction(rex.is32bits?my_context->dec32:my_context->dec, &dyn->insts[ninst].x64, name);
-        dynarec_log(LOG_NONE, "%s%p: %d emitted opcodes, inst=%d, barrier=%d state=%d/%d(%d), %s=%X/%X, use=%X, need=%X/%X, sm=%d/%d",
+        dynarec_log(LOG_NONE, "%s%p: %d emitted opcodes, inst=%d, barrier=%d state=%d/%d(%d), %s=%X/%X, use=%X, need=%X/%X, sm=%d(%d/%d)",
             (box64_dynarec_dump>1)?"\e[32m":"",
             (void*)(dyn->native_start+dyn->insts[ninst].address),
             dyn->insts[ninst].size/4,
@@ -554,7 +558,7 @@ void inst_name_pass3(dynarec_native_t* dyn, int ninst, const char* name, rex_t r
             dyn->insts[ninst].x64.use_flags,
             dyn->insts[ninst].x64.need_before,
             dyn->insts[ninst].x64.need_after,
-            dyn->smread, dyn->smwrite);
+            dyn->smwrite, dyn->insts[ninst].will_write, dyn->insts[ninst].last_write);
         if(dyn->insts[ninst].pred_sz) {
             dynarec_log(LOG_NONE, ", pred=");
             for(int ii=0; ii<dyn->insts[ninst].pred_sz; ++ii)
@@ -590,4 +594,54 @@ void inst_name_pass3(dynarec_native_t* dyn, int ninst, const char* name, rex_t r
 void print_opcode(dynarec_native_t* dyn, int ninst, uint32_t opcode)
 {
     dynarec_log(LOG_NONE, "\t%08x\t%s\n", opcode, arm64_print(opcode, (uintptr_t)dyn->block));
+}
+
+static void x87_reset(neoncache_t* n)
+{
+    for (int i=0; i<8; ++i) {
+        n->x87cache[i] = -1;
+        n->freed[i] = -1;
+    }
+    n->x87stack = 0;
+    n->stack = 0;
+    n->stack_next = 0;
+    n->stack_pop = 0;
+    n->stack_push = 0;
+    n->combined1 = n->combined2 = 0;
+    n->swapped = 0;
+    n->barrier = 0;
+    for(int i=0; i<24; ++i)
+        if(n->neoncache[i].t == NEON_CACHE_ST_F
+         || n->neoncache[i].t == NEON_CACHE_ST_D
+         || n->neoncache[i].t == NEON_CACHE_ST_I64)
+            n->neoncache[i].v = 0;
+}
+
+static void mmx_reset(neoncache_t* n)
+{
+    n->mmxcount = 0;
+    for (int i=0; i<8; ++i)
+        n->mmxcache[i] = -1;
+}
+
+static void sse_reset(neoncache_t* n)
+{
+    for (int i=0; i<16; ++i)
+        n->ssecache[i].v = -1;
+}
+
+void fpu_reset(dynarec_arm_t* dyn)
+{
+    x87_reset(&dyn->n);
+    mmx_reset(&dyn->n);
+    sse_reset(&dyn->n);
+    fpu_reset_reg(dyn);
+}
+
+void fpu_reset_ninst(dynarec_arm_t* dyn, int ninst)
+{
+    x87_reset(&dyn->insts[ninst].n);
+    mmx_reset(&dyn->insts[ninst].n);
+    sse_reset(&dyn->insts[ninst].n);
+    fpu_reset_reg_neoncache(&dyn->insts[ninst].n);
 }

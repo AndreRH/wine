@@ -165,4 +165,5 @@ SOURCES = \
        src/emu/x64shaext.c \
        src/emu/x64trace.c \
        src/emu/x87emu_private.c \
+       src/tools/rbtree.c \
        src/custommem.c
