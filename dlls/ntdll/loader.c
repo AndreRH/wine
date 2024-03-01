@@ -4345,6 +4345,14 @@ void loader_init( CONTEXT *context, void **entry )
             if (NtCurrentTeb()->WowTebOffset) WARN("Activated a hack for the hack\n");
             hack = TRUE;
         }
+        else if (!wcsicmp(NtCurrentTeb()->Peb->ProcessParameters->ImagePathName.Buffer+1, L":\\windows\\syswow64\\winedbg.exe") ||
+                 !wcsicmp(NtCurrentTeb()->Peb->ProcessParameters->ImagePathName.Buffer+1, L":\\windows\\syswow64\\notepad.exe") ||
+                 !wcsicmp(NtCurrentTeb()->Peb->ProcessParameters->ImagePathName.Buffer+1, L":\\windows\\syswow64\\regsvr32.exe") ||
+                 !wcsicmp(NtCurrentTeb()->Peb->ProcessParameters->ImagePathName.Buffer+1, L":\\windows\\syswow64\\regedit.exe"))
+        {
+            if (NtCurrentTeb()->WowTebOffset) WARN("Activated a hack for the hack\n");
+            hack = TRUE;
+        }
         else if (NtCurrentTeb()->WowTebOffset) TRACE("Disabled a hack for the hack\n");
  
         if (hack && NtCurrentTeb()->WowTebOffset) init_wow64( context );
