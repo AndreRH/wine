@@ -752,6 +752,8 @@ FLUIDSYNTH_PE_LIBS
 FLUIDSYNTH_PE_CFLAGS
 FAUDIO_PE_LIBS
 FAUDIO_PE_CFLAGS
+BOX64_PE_LIBS
+BOX64_PE_CFLAGS
 MINGW_PKG_CONFIG
 PE_ARCHS
 WINELOADER_DEPENDS
@@ -1006,6 +1008,7 @@ enable_avrt
 enable_bcrypt
 enable_bcryptprimitives
 enable_bluetoothapis
+enable_box64cpu
 enable_browseui
 enable_bthprops_cpl
 enable_cabinet
@@ -1610,6 +1613,7 @@ enable_xtajit
 enable_fonts
 enable_include
 enable_adsiid
+enable_box64
 enable_dmoguids
 enable_dxerr8
 enable_dxerr9
@@ -1769,6 +1773,8 @@ CXXFLAGS
 CCC
 OBJC
 OBJCFLAGS
+BOX64_PE_CFLAGS
+BOX64_PE_LIBS
 FAUDIO_PE_CFLAGS
 FAUDIO_PE_LIBS
 FLUIDSYNTH_PE_CFLAGS
@@ -2557,6 +2563,11 @@ Some influential environment variables:
   CXXFLAGS    C++ compiler flags
   OBJC        Objective C compiler command
   OBJCFLAGS   Objective C compiler flags
+  BOX64_PE_CFLAGS
+              C compiler flags for the PE box64, overriding the bundled
+              version
+  BOX64_PE_LIBS
+              Linker flags for the PE box64, overriding the bundled version
   FAUDIO_PE_CFLAGS
               C compiler flags for the PE faudio, overriding the bundled
               version
@@ -13498,6 +13509,21 @@ CPPFLAGS=$ac_save_CPPFLAGS
     fi
 fi
 
+if ${BOX64_PE_LIBS:+false} :
+then :
+  BOX64_PE_LIBS="box64 \$(ZYDIS_PE_LIBS)"
+   if ${BOX64_PE_CFLAGS:+false} :
+then :
+  BOX64_PE_CFLAGS="-I\$(top_srcdir)/libs/box64/src/include -I\$(top_srcdir)/libs/box64/src"
+else $as_nop
+  enable_box64=no
+fi
+else $as_nop
+  enable_box64=no
+fi
+printf "%s\n" "$as_me:${as_lineno-$LINENO}: box64 cflags: $BOX64_PE_CFLAGS" >&5
+printf "%s\n" "$as_me:${as_lineno-$LINENO}: box64 libs: $BOX64_PE_LIBS" >&5
+
 if ${FAUDIO_PE_LIBS:+false} :
 then :
   FAUDIO_PE_LIBS="faudio mfplat mfreadwrite mfuuid propsys"
@@ -21796,12 +21822,14 @@ enable_vcruntime140_1=${enable_vcruntime140_1:-x86_64,arm64ec}
 
 if test -n "$PE_ARCHS"
 then
+    enable_box64cpu=${enable_box64cpu:-aarch64}
     enable_wow64=${enable_wow64:-aarch64,x86_64}
     enable_wow64win=${enable_wow64win:-aarch64,x86_64}
     enable_wow64cpu=${enable_wow64cpu:-x86_64}
     enable_wowarmhw=${enable_wowarmhw:-aarch64,x86_64}
     enable_xtajit=${enable_xtajit:-aarch64,x86_64}
 else
+    enable_box64cpu=${enable_box64cpu:-no}
     enable_wow64=${enable_wow64:-no}
     enable_wow64win=${enable_wow64win:-no}
     enable_wow64cpu=${enable_wow64cpu:-no}
@@ -21884,6 +21912,7 @@ wine_fn_config_makefile dlls/bcrypt enable_bcrypt
 wine_fn_config_makefile dlls/bcrypt/tests enable_tests
 wine_fn_config_makefile dlls/bcryptprimitives enable_bcryptprimitives
 wine_fn_config_makefile dlls/bluetoothapis enable_bluetoothapis
+wine_fn_config_makefile dlls/box64cpu enable_box64cpu
 wine_fn_config_makefile dlls/browseui enable_browseui
 wine_fn_config_makefile dlls/browseui/tests enable_tests
 wine_fn_config_makefile dlls/bthprops.cpl enable_bthprops_cpl
@@ -22826,6 +22855,7 @@ wine_fn_config_makefile dlls/xtajit enable_xtajit
 wine_fn_config_makefile fonts enable_fonts
 wine_fn_config_makefile include enable_include
 wine_fn_config_makefile libs/adsiid enable_adsiid
+wine_fn_config_makefile libs/box64 enable_box64
 wine_fn_config_makefile libs/dmoguids enable_dmoguids
 wine_fn_config_makefile libs/dxerr8 enable_dxerr8
 wine_fn_config_makefile libs/dxerr9 enable_dxerr9
@@ -23991,6 +24021,8 @@ ac_ct_OBJC = $ac_ct_OBJC
 WINELOADER_DEPENDS = $WINELOADER_DEPENDS
 PE_ARCHS = $PE_ARCHS
 MINGW_PKG_CONFIG = $MINGW_PKG_CONFIG
+BOX64_PE_CFLAGS = $BOX64_PE_CFLAGS
+BOX64_PE_LIBS = $BOX64_PE_LIBS
 FAUDIO_PE_CFLAGS = $FAUDIO_PE_CFLAGS
 FAUDIO_PE_LIBS = $FAUDIO_PE_LIBS
 FLUIDSYNTH_PE_CFLAGS = $FLUIDSYNTH_PE_CFLAGS
