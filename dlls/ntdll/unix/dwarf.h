@@ -1274,7 +1274,49 @@ static void apply_frame_state( CONTEXT *context, struct frame_state *state,
 #define DW_REG_v14 78
 #define DW_REG_v15 79
 
-#endif /* defined(__aarch64__) */
+#elif defined(__riscv64__)
+
+#define DW_OP_x8  DW_OP_breg8
+#define DW_OP_x9  DW_OP_breg9
+#define DW_OP_x18 DW_OP_breg18
+#define DW_OP_x19 DW_OP_breg19
+#define DW_OP_x20 DW_OP_breg20
+#define DW_OP_x21 DW_OP_breg21
+#define DW_OP_x22 DW_OP_breg22
+#define DW_OP_x23 DW_OP_breg23
+#define DW_OP_x24 DW_OP_breg24
+#define DW_OP_x25 DW_OP_breg25
+#define DW_OP_x26 DW_OP_breg26
+#define DW_OP_x27 DW_OP_breg27
+#define DW_OP_sp  DW_OP_breg2
+
+#define DW_REG_x8  8
+#define DW_REG_x9  9
+#define DW_REG_x18 18
+#define DW_REG_x19 19
+#define DW_REG_x20 20
+#define DW_REG_x21 21
+#define DW_REG_x22 22
+#define DW_REG_x23 23
+#define DW_REG_x24 24
+#define DW_REG_x25 25
+#define DW_REG_x26 26
+#define DW_REG_x27 27
+#define DW_REG_sp  2
+#define DW_REG_f8  40
+#define DW_REG_f9  41
+#define DW_REG_f18 50
+#define DW_REG_f19 51
+#define DW_REG_f20 52
+#define DW_REG_f21 53
+#define DW_REG_f22 54
+#define DW_REG_f23 55
+#define DW_REG_f24 56
+#define DW_REG_f25 57
+#define DW_REG_f26 58
+#define DW_REG_f27 59
+
+#endif /* defined(__riscv64__) */
 
 #define __ASM_CFI_STR(...) #__VA_ARGS__
 #define __ASM_CFI_ESC(...) \

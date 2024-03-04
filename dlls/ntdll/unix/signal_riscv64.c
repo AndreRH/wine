@@ -1864,19 +1864,22 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
                    /* switch to kernel stack */
                    "mv sp, t2\n\t"
                    /* we're now on the kernel stack, stitch unwind info with previous frame */
-                   //__ASM_CFI_CFA_IS_AT2(x22, 0x98, 0x02) /* frame->syscall_cfa */
-                   //__ASM_CFI(".cfi_offset 29, -0xc0\n\t")
-                   //__ASM_CFI(".cfi_offset 30, -0xb8\n\t")
-                   //__ASM_CFI(".cfi_offset 19, -0xb0\n\t")
-                   //__ASM_CFI(".cfi_offset 20, -0xa8\n\t")
-                   //__ASM_CFI(".cfi_offset 21, -0xa0\n\t")
-                   //__ASM_CFI(".cfi_offset 22, -0x98\n\t")
-                   //__ASM_CFI(".cfi_offset 23, -0x90\n\t")
-                   //__ASM_CFI(".cfi_offset 24, -0x88\n\t")
-                   //__ASM_CFI(".cfi_offset 25, -0x80\n\t")
-                   //__ASM_CFI(".cfi_offset 26, -0x78\n\t")
-                   //__ASM_CFI(".cfi_offset 27, -0x70\n\t")
-                   //__ASM_CFI(".cfi_offset 28, -0x68\n\t")
+                   __ASM_CFI_CFA_IS_AT2(x27, 0x90, 0x02) /* frame->syscall_cfa */
+                   //__ASM_CFI(".cfi_offset 8, -0xc0\n\t")
+                   __ASM_CFI(".cfi_offset 9, -0xb8\n\t")
+                   __ASM_CFI(".cfi_offset 18, -0xb0\n\t")
+                   __ASM_CFI(".cfi_offset 19, -0xa8\n\t")
+                   __ASM_CFI(".cfi_offset 20, -0xa0\n\t")
+                   __ASM_CFI(".cfi_offset 21, -0x98\n\t")
+                   __ASM_CFI(".cfi_offset 22, -0x90\n\t")
+                   __ASM_CFI(".cfi_offset 23, -0x88\n\t")
+                   __ASM_CFI(".cfi_offset 24, -0x80\n\t")
+                   __ASM_CFI(".cfi_offset 25, -0x78\n\t")
+                   __ASM_CFI(".cfi_offset 26, -0x70\n\t")
+                   __ASM_CFI(".cfi_offset 27, -0x68\n\t")
+                   __ASM_CFI(".cfi_offset 26, -0x70\n\t")
+                   __ASM_CFI(".cfi_offset 8, -0x10\n\t")
+                   __ASM_CFI(".cfi_offset 1, -0x8\n\t")
                    "slli t3, t0, 52\n\t"
                    "srli t3, t3, 52\n\t"  /* syscall number */
                    "li t5, 0x3000\n\t"
@@ -1910,7 +1913,7 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
                    "ld t5, 0(s1)\n\t"
                    "jalr t5\n\t"
                    "mv sp, s11\n\t"
-                   //__ASM_CFI_CFA_IS_AT2(sp, 0x98, 0x02) /* frame->syscall_cfa */
+                   __ASM_CFI_CFA_IS_AT2(sp, 0x90, 0x02) /* frame->syscall_cfa */
                    //"sd a0, 0x50(sp)\n\t" // fixme: not analogue to arm64, but why
                    __ASM_LOCAL_LABEL("__wine_syscall_dispatcher_return") ":\n\t"
 
@@ -2071,19 +2074,22 @@ __ASM_GLOBAL_FUNC( __wine_unix_call_dispatcher,
                    /* switch to kernel stack */
                    "mv sp, t0\n\t"
                    /* we're now on the kernel stack, stitch unwind info with previous frame */
-                   //__ASM_CFI_CFA_IS_AT2(x19, 0x98, 0x02) /* frame->syscall_cfa */
-                   //__ASM_CFI(".cfi_offset 29, -0xc0\n\t")
-                   //__ASM_CFI(".cfi_offset 30, -0xb8\n\t")
-                   //__ASM_CFI(".cfi_offset 19, -0xb0\n\t")
-                   //__ASM_CFI(".cfi_offset 20, -0xa8\n\t")
-                   //__ASM_CFI(".cfi_offset 21, -0xa0\n\t")
-                   //__ASM_CFI(".cfi_offset 22, -0x98\n\t")
-                   //__ASM_CFI(".cfi_offset 23, -0x90\n\t")
-                   //__ASM_CFI(".cfi_offset 24, -0x88\n\t")
-                   //__ASM_CFI(".cfi_offset 25, -0x80\n\t")
-                   //__ASM_CFI(".cfi_offset 26, -0x78\n\t")
-                   //__ASM_CFI(".cfi_offset 27, -0x70\n\t")
-                   //__ASM_CFI(".cfi_offset 28, -0x68\n\t")
+                   __ASM_CFI_CFA_IS_AT2(x9, 0x90, 0x02) /* frame->syscall_cfa */
+                   //__ASM_CFI(".cfi_offset 8, -0xc0\n\t")
+                   __ASM_CFI(".cfi_offset 9, -0xb8\n\t")
+                   __ASM_CFI(".cfi_offset 18, -0xb0\n\t")
+                   __ASM_CFI(".cfi_offset 19, -0xa8\n\t")
+                   __ASM_CFI(".cfi_offset 20, -0xa0\n\t")
+                   __ASM_CFI(".cfi_offset 21, -0x98\n\t")
+                   __ASM_CFI(".cfi_offset 22, -0x90\n\t")
+                   __ASM_CFI(".cfi_offset 23, -0x88\n\t")
+                   __ASM_CFI(".cfi_offset 24, -0x80\n\t")
+                   __ASM_CFI(".cfi_offset 25, -0x78\n\t")
+                   __ASM_CFI(".cfi_offset 26, -0x70\n\t")
+                   __ASM_CFI(".cfi_offset 27, -0x68\n\t")
+                   __ASM_CFI(".cfi_offset 26, -0x70\n\t")
+                   __ASM_CFI(".cfi_offset 8, -0x10\n\t")
+                   __ASM_CFI(".cfi_offset 1, -0x8\n\t")
                    //"ld tp, 0x118(t0)\n\t"
                    "slli t0, a1, 3\n\t"
                    "add t0, t0, a0\n\t"
