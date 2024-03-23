@@ -18055,7 +18055,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 fi
 
 fi
-test -n "$ALSA_LIBS" || enable_winealsa_drv=${enable_winealsa_drv:-no}
+enable_winealsa_drv=no
 
 if test "x$with_oss" != xno
 then

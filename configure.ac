@@ -1654,7 +1654,7 @@ then
         [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <alsa/asoundlib.h>]], [[snd_pcm_hw_params_get_access_mask(NULL, NULL)]])],
                         [ALSA_LIBS="-lasound"])])
 fi
-test -n "$ALSA_LIBS" || enable_winealsa_drv=${enable_winealsa_drv:-no}
+enable_winealsa_drv=no
 
 dnl **** Check for OSSv4 ****
 if test "x$with_oss" != xno
