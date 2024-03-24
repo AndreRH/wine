@@ -19,7 +19,6 @@
  */
 
 #include <stdarg.h>
-#include <setjmp.h>
 
 #include "ntstatus.h"
 #define WIN32_NO_STATUS
@@ -27,7 +26,7 @@
 #include "winbase.h"
 #include "winnt.h"
 #include "winternl.h"
-#include "rtlsupportapi.h"
+#include "wine/exception.h"
 #include "wine/unixlib.h"
 #include "wine/asm.h"
 #include "wow64_private.h"
@@ -97,7 +96,7 @@ struct user_callback_frame
     void                      **ret_ptr;
     ULONG                      *ret_len;
     NTSTATUS                    status;
-    jmp_buf                     jmpbuf;
+    __wine_jmp_buf              jmpbuf;
 };
 
 /* stack frame for user APCs */
@@ -134,6 +133,8 @@ void (WINAPI *pBTCpuNotifyUnmapViewOfSection)( void * ) = NULL;
 NTSTATUS (WINAPI *pBTCpuResetToConsistentState)( EXCEPTION_POINTERS * ) = NULL;
 void (WINAPI *pBTCpuUpdateProcessorInformation)( SYSTEM_CPU_INFORMATION * ) = NULL;
 void (WINAPI *pBTCpuThreadTerm)( HANDLE ) = NULL;
+
+void *dummy = RtlUnwind;
 
 BOOL WINAPI DllMain( HINSTANCE inst, DWORD reason, void *reserved )
 {
@@ -470,8 +471,7 @@ NTSTATUS WINAPI wow64_NtCallbackReturn( UINT *args )
     *frame->ret_ptr = ret_ptr;
     *frame->ret_len = ret_len;
     frame->status = status;
-    longjmp( frame->jmpbuf, 1 );
-    return STATUS_SUCCESS;
+    __wine_longjmp( &frame->jmpbuf, 1 );
 }
 
 
@@ -1272,7 +1272,7 @@ NTSTATUS WINAPI Wow64KiUserCallbackDispatcher( ULONG id, void *args, ULONG len,
             ctx.Eip = pLdrSystemDllInitBlock->pKiUserCallbackDispatcher;
             pBTCpuSetContext( GetCurrentThread(), GetCurrentProcess(), NULL, &ctx );
 
-            if (!setjmp( frame.jmpbuf ))
+            if (!__wine_setjmpex( &frame.jmpbuf, NULL ))
                 cpu_simulate();
             else
                 pBTCpuSetContext( GetCurrentThread(), GetCurrentProcess(), NULL, &orig_ctx );
@@ -1297,7 +1297,7 @@ NTSTATUS WINAPI Wow64KiUserCallbackDispatcher( ULONG id, void *args, ULONG len,
             ctx.Pc = pLdrSystemDllInitBlock->pKiUserCallbackDispatcher;
             pBTCpuSetContext( GetCurrentThread(), GetCurrentProcess(), NULL, &ctx );
 
-            if (!setjmp( frame.jmpbuf ))
+            if (!__wine_setjmpex( &frame.jmpbuf, NULL ))
                 cpu_simulate();
             else
                 pBTCpuSetContext( GetCurrentThread(), GetCurrentProcess(), NULL, &orig_ctx );
