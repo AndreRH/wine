@@ -4027,3 +4027,51 @@ typedef union
 @REPLY
     int enable;                /* previous state of auto-repeat enable */
 @END
+
+enum fast_sync_type
+{
+    FAST_SYNC_SEMAPHORE = 1,
+    FAST_SYNC_MUTEX,
+    FAST_SYNC_AUTO_EVENT,
+    FAST_SYNC_MANUAL_EVENT,
+    FAST_SYNC_AUTO_SERVER,
+    FAST_SYNC_MANUAL_SERVER,
+    FAST_SYNC_QUEUE,
+};
+
+
+/* Obtain a handle to the fast synchronization device object */
+@REQ(get_linux_sync_device)
+@REPLY
+    obj_handle_t handle;          /* handle to the device */
+@END
+
+
+/* Get the fast synchronization object associated with the given handle */
+@REQ(get_linux_sync_obj)
+    obj_handle_t handle;          /* handle to the object */
+@REPLY
+    obj_handle_t handle;          /* handle to the fast synchronization object */
+    int          type;            /* object type */
+    unsigned int access;          /* handle access rights */
+@END
+
+
+/* Begin a client-side wait on a message queue */
+@REQ(fast_select_queue)
+    obj_handle_t handle;          /* handle to the queue */
+@END
+
+
+/* End a client-side wait on a message queue */
+@REQ(fast_unselect_queue)
+    obj_handle_t handle;          /* handle to the queue */
+    int          signaled;        /* was the queue signaled? */
+@END
+
+
+/* Get an event handle to be used for thread alerts with fast synchronization */
+@REQ(get_fast_alert_event)
+@REPLY
+    obj_handle_t handle;          /* handle to the event */
+@END

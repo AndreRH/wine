@@ -920,7 +920,7 @@ NTSTATUS WINAPI NtCreateUserProcess( HANDLE *process_handle_ptr, HANDLE *thread_
 
     /* wait for the new process info to be ready */
 
-    NtWaitForSingleObject( process_info, FALSE, NULL );
+    server_wait_for_object( process_info, FALSE, NULL );
     SERVER_START_REQ( get_new_process_info )
     {
         req->info = wine_server_obj_handle( process_info );
