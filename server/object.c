@@ -538,6 +538,12 @@ struct fd *no_get_fd( struct object *obj )
     return NULL;
 }
 
+struct fast_sync *no_get_fast_sync( struct object *obj )
+{
+    set_error( STATUS_OBJECT_TYPE_MISMATCH );
+    return NULL;
+}
+
 unsigned int default_map_access( struct object *obj, unsigned int access )
 {
     return map_access( access, &obj->ops->type->mapping );
