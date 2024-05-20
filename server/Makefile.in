@@ -12,6 +12,7 @@ SOURCES = \
 	device.c \
 	directory.c \
 	event.c \
+	fast_sync.c \
 	fd.c \
 	file.c \
 	handle.c \

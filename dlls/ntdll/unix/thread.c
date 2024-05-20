@@ -1798,7 +1798,7 @@ NTSTATUS get_thread_context( HANDLE handle, void *context, BOOL *self, USHORT ma
 
     if (ret == STATUS_PENDING)
     {
-        NtWaitForSingleObject( context_handle, FALSE, NULL );
+        server_wait_for_object( context_handle, FALSE, NULL );
 
         SERVER_START_REQ( get_thread_context )
         {
