@@ -55,12 +55,15 @@ struct semaphore
     struct object  obj;    /* object header */
     unsigned int   count;  /* current count */
     unsigned int   max;    /* maximum possible count */
+    struct fast_sync *fast_sync; /* fast synchronization object */
 };
 
 static void semaphore_dump( struct object *obj, int verbose );
 static int semaphore_signaled( struct object *obj, struct wait_queue_entry *entry );
 static void semaphore_satisfied( struct object *obj, struct wait_queue_entry *entry );
 static int semaphore_signal( struct object *obj, unsigned int access );
+static struct fast_sync *semaphore_get_fast_sync( struct object *obj );
+static void semaphore_destroy( struct object *obj );
 
 static const struct object_ops semaphore_ops =
 {
@@ -82,8 +85,9 @@ static const struct object_ops semaphore_ops =
     default_unlink_name,           /* unlink_name */
     no_open_file,                  /* open_file */
     no_kernel_obj_list,            /* get_kernel_obj_list */
+    semaphore_get_fast_sync,       /* get_fast_sync */
     no_close_handle,               /* close_handle */
-    no_destroy                     /* destroy */
+    semaphore_destroy              /* destroy */
 };
 
 
@@ -105,6 +109,7 @@ static struct semaphore *create_semaphore( struct object *root, const struct uni
             /* initialize it if it didn't already exist */
             sem->count = initial;
             sem->max   = max;
+            sem->fast_sync = NULL;
         }
     }
     return sem;
@@ -165,6 +170,23 @@ static int semaphore_signal( struct object *obj, unsigned int access )
         return 0;
     }
     return release_semaphore( sem, 1, NULL );
+}
+
+static struct fast_sync *semaphore_get_fast_sync( struct object *obj )
+{
+    struct semaphore *semaphore = (struct semaphore *)obj;
+
+    if (!semaphore->fast_sync)
+        semaphore->fast_sync = fast_create_semaphore( semaphore->count, semaphore->max );
+    if (semaphore->fast_sync) grab_object( semaphore->fast_sync );
+    return semaphore->fast_sync;
+}
+
+static void semaphore_destroy( struct object *obj )
+{
+    struct semaphore *semaphore = (struct semaphore *)obj;
+
+    if (semaphore->fast_sync) release_object( semaphore->fast_sync );
 }
 
 /* create a semaphore */
