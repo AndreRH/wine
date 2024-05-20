@@ -101,6 +101,7 @@ struct ntdll_thread_data
     PRTL_THREAD_START_ROUTINE start;  /* thread entry point */
     void              *param;         /* thread entry point parameter */
     void              *jmp_buf;       /* setjmp buffer for exception handling */
+    int                fast_alert_obj; /* fd for the fast alert event */
 };
 
 C_ASSERT( sizeof(struct ntdll_thread_data) <= sizeof(((TEB *)0)->GdiTebBatch) );
@@ -194,6 +195,8 @@ extern NTSTATUS load_start_exe( WCHAR **image, void **module );
 extern ULONG_PTR redirect_arm64ec_rva( void *module, ULONG_PTR rva, const IMAGE_ARM64EC_METADATA *metadata );
 extern void start_server( BOOL debug );
 
+extern pthread_mutex_t fd_cache_mutex;
+
 extern unsigned int server_call_unlocked( void *req_ptr );
 extern void server_enter_uninterrupted_section( pthread_mutex_t *mutex, sigset_t *sigset );
 extern void server_leave_uninterrupted_section( pthread_mutex_t *mutex, sigset_t *sigset );
@@ -201,6 +204,7 @@ extern unsigned int server_select( const select_op_t *select_op, data_size_t siz
                                    timeout_t abs_timeout, context_t *context, user_apc_t *user_apc );
 extern unsigned int server_wait( const select_op_t *select_op, data_size_t size, UINT flags,
                                  const LARGE_INTEGER *timeout );
+extern unsigned int server_wait_for_object( HANDLE handle, BOOL alertable, const LARGE_INTEGER *timeout );
 extern unsigned int server_queue_process_apc( HANDLE process, const apc_call_t *call,
                                               apc_result_t *result );
 extern int server_get_unix_fd( HANDLE handle, unsigned int wanted_access, int *unix_fd,
@@ -360,6 +364,8 @@ extern NTSTATUS wow64_wine_spawnvp( void *args );
 
 extern void dbg_init(void);
 
+extern void close_fast_sync_obj( HANDLE handle );
+
 extern NTSTATUS call_user_apc_dispatcher( CONTEXT *context_ptr, ULONG_PTR arg1, ULONG_PTR arg2, ULONG_PTR arg3,
                                           PNTAPCFUNC func, NTSTATUS status );
 extern NTSTATUS call_user_exception_dispatcher( EXCEPTION_RECORD *rec, CONTEXT *context );
@@ -368,6 +374,7 @@ extern void call_raise_user_exception_dispatcher(void);
 #define IMAGE_DLLCHARACTERISTICS_PREFER_NATIVE 0x0010 /* Wine extension */
 
 #define TICKSPERSEC 10000000
+#define NSECPERSEC 1000000000
 #define SECS_1601_TO_1970  ((369 * 365 + 89) * (ULONGLONG)86400)
 
 static inline ULONGLONG ticks_from_time_t( time_t time )
@@ -426,7 +433,7 @@ static inline async_data_t server_async( HANDLE handle, struct async_fileio *use
 
 static inline NTSTATUS wait_async( HANDLE handle, BOOL alertable )
 {
-    return NtWaitForSingleObject( handle, alertable, NULL );
+    return server_wait_for_object( handle, alertable, NULL );
 }
 
 static inline BOOL in_wow64_call(void)
