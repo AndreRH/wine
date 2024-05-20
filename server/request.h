@@ -407,6 +407,11 @@ DECL_HANDLER(suspend_process);
 DECL_HANDLER(resume_process);
 DECL_HANDLER(get_next_thread);
 DECL_HANDLER(set_keyboard_repeat);
+DECL_HANDLER(get_linux_sync_device);
+DECL_HANDLER(get_linux_sync_obj);
+DECL_HANDLER(fast_select_queue);
+DECL_HANDLER(fast_unselect_queue);
+DECL_HANDLER(get_fast_alert_event);
 
 #ifdef WANT_REQUEST_HANDLERS
 
@@ -701,6 +706,11 @@ static const req_handler req_handlers[REQ_NB_REQUESTS] =
     (req_handler)req_resume_process,
     (req_handler)req_get_next_thread,
     (req_handler)req_set_keyboard_repeat,
+    (req_handler)req_get_linux_sync_device,
+    (req_handler)req_get_linux_sync_obj,
+    (req_handler)req_fast_select_queue,
+    (req_handler)req_fast_unselect_queue,
+    (req_handler)req_get_fast_alert_event,
 };
 
 C_ASSERT( sizeof(abstime_t) == 8 );
@@ -2355,6 +2365,23 @@ C_ASSERT( FIELD_OFFSET(struct set_keyboard_repeat_request, period) == 20 );
 C_ASSERT( sizeof(struct set_keyboard_repeat_request) == 24 );
 C_ASSERT( FIELD_OFFSET(struct set_keyboard_repeat_reply, enable) == 8 );
 C_ASSERT( sizeof(struct set_keyboard_repeat_reply) == 16 );
+C_ASSERT( sizeof(struct get_linux_sync_device_request) == 16 );
+C_ASSERT( FIELD_OFFSET(struct get_linux_sync_device_reply, handle) == 8 );
+C_ASSERT( sizeof(struct get_linux_sync_device_reply) == 16 );
+C_ASSERT( FIELD_OFFSET(struct get_linux_sync_obj_request, handle) == 12 );
+C_ASSERT( sizeof(struct get_linux_sync_obj_request) == 16 );
+C_ASSERT( FIELD_OFFSET(struct get_linux_sync_obj_reply, handle) == 8 );
+C_ASSERT( FIELD_OFFSET(struct get_linux_sync_obj_reply, type) == 12 );
+C_ASSERT( FIELD_OFFSET(struct get_linux_sync_obj_reply, access) == 16 );
+C_ASSERT( sizeof(struct get_linux_sync_obj_reply) == 24 );
+C_ASSERT( FIELD_OFFSET(struct fast_select_queue_request, handle) == 12 );
+C_ASSERT( sizeof(struct fast_select_queue_request) == 16 );
+C_ASSERT( FIELD_OFFSET(struct fast_unselect_queue_request, handle) == 12 );
+C_ASSERT( FIELD_OFFSET(struct fast_unselect_queue_request, signaled) == 16 );
+C_ASSERT( sizeof(struct fast_unselect_queue_request) == 24 );
+C_ASSERT( sizeof(struct get_fast_alert_event_request) == 16 );
+C_ASSERT( FIELD_OFFSET(struct get_fast_alert_event_reply, handle) == 8 );
+C_ASSERT( sizeof(struct get_fast_alert_event_reply) == 16 );
 
 #endif  /* WANT_REQUEST_HANDLERS */
 

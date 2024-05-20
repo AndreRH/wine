@@ -71,6 +71,7 @@ struct debug_obj
     struct object        obj;         /* object header */
     struct list          event_queue; /* pending events queue */
     unsigned int         flags;       /* debug flags */
+    struct fast_sync    *fast_sync;   /* fast synchronization object */
 };
 
 
@@ -98,12 +99,14 @@ static const struct object_ops debug_event_ops =
     NULL,                          /* unlink_name */
     no_open_file,                  /* open_file */
     no_kernel_obj_list,            /* get_kernel_obj_list */
+    no_get_fast_sync,              /* get_fast_sync */
     no_close_handle,               /* close_handle */
     debug_event_destroy            /* destroy */
 };
 
 static void debug_obj_dump( struct object *obj, int verbose );
 static int debug_obj_signaled( struct object *obj, struct wait_queue_entry *entry );
+static struct fast_sync *debug_obj_get_fast_sync( struct object *obj );
 static void debug_obj_destroy( struct object *obj );
 
 static const struct object_ops debug_obj_ops =
@@ -126,6 +129,7 @@ static const struct object_ops debug_obj_ops =
     default_unlink_name,           /* unlink_name */
     no_open_file,                  /* open_file */
     no_kernel_obj_list,            /* get_kernel_obj_list */
+    debug_obj_get_fast_sync,       /* get_fast_sync */
     no_close_handle,               /* close_handle */
     debug_obj_destroy              /* destroy */
 };
@@ -253,6 +257,7 @@ static void link_event( struct debug_obj *debug_obj, struct debug_event *event )
         /* grab reference since debugger could be killed while trying to wake up */
         grab_object( debug_obj );
         wake_up( &debug_obj->obj, 0 );
+        fast_set_event( debug_obj->fast_sync );
         release_object( debug_obj );
     }
 }
@@ -265,6 +270,7 @@ static void resume_event( struct debug_obj *debug_obj, struct debug_event *event
     {
         grab_object( debug_obj );
         wake_up( &debug_obj->obj, 0 );
+        fast_set_event( debug_obj->fast_sync );
         release_object( debug_obj );
     }
 }
@@ -330,6 +336,17 @@ static int debug_obj_signaled( struct object *obj, struct wait_queue_entry *entr
     return find_event_to_send( debug_obj ) != NULL;
 }
 
+static struct fast_sync *debug_obj_get_fast_sync( struct object *obj )
+{
+    struct debug_obj *debug_obj = (struct debug_obj *)obj;
+    int signaled = find_event_to_send( debug_obj ) != NULL;
+
+    if (!debug_obj->fast_sync)
+        debug_obj->fast_sync = fast_create_event( FAST_SYNC_MANUAL_SERVER, signaled );
+    if (debug_obj->fast_sync) grab_object( debug_obj->fast_sync );
+    return debug_obj->fast_sync;
+}
+
 static void debug_obj_destroy( struct object *obj )
 {
     struct list *ptr;
@@ -342,6 +359,8 @@ static void debug_obj_destroy( struct object *obj )
     /* free all pending events */
     while ((ptr = list_head( &debug_obj->event_queue )))
         unlink_event( debug_obj, LIST_ENTRY( ptr, struct debug_event, entry ));
+
+    if (debug_obj->fast_sync) release_object( debug_obj->fast_sync );
 }
 
 struct debug_obj *get_debug_obj( struct process *process, obj_handle_t handle, unsigned int access )
@@ -361,6 +380,7 @@ static struct debug_obj *create_debug_obj( struct object *root, const struct uni
         {
             debug_obj->flags = flags;
             list_init( &debug_obj->event_queue );
+            debug_obj->fast_sync = NULL;
         }
     }
     return debug_obj;
@@ -569,6 +589,9 @@ DECL_HANDLER(wait_debug_event)
         reply->tid = get_thread_id( event->sender );
         alloc_event_handles( event, current->process );
         set_reply_data( &event->data, min( get_reply_max_size(), sizeof(event->data) ));
+
+        if (!find_event_to_send( debug_obj ))
+            fast_reset_event( debug_obj->fast_sync );
     }
     else
     {

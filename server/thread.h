@@ -91,6 +91,8 @@ struct thread
     struct list            kernel_object; /* list of kernel object pointers */
     data_size_t            desc_len;      /* thread description length in bytes */
     WCHAR                 *desc;          /* thread description string */
+    struct fast_sync      *fast_sync;     /* fast synchronization object */
+    struct event          *fast_alert_event; /* fast synchronization alert event */
 };
 
 extern struct thread *current;
