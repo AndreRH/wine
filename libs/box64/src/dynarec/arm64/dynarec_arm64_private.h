@@ -42,10 +42,13 @@ typedef struct neoncache_s {
     uint8_t             combined2;
     uint8_t             swapped;        // the combined reg were swapped
     uint8_t             barrier;        // is there a barrier at instruction epilog?
+    uint8_t             pushed;         // positive pushed value (to check for overflow)
+    uint8_t             poped;          // positive poped value (to check for underflow)
     uint32_t            news;           // bitmask, wich neoncache are new for this opcode
     // fpu cache
     int8_t              x87cache[8];    // cache status for the 8 x87 register behind the fpu stack
     int8_t              x87reg[8];      // reg used for x87cache entry
+    int16_t             tags;           // similar to fpu_tags
     int8_t              mmxcache[8];    // cache status for the 8 MMX registers
     sse_cache_t         ssecache[16];   // cache status for the 16 SSE(2) registers
     int8_t              fpuused[24];    // all 0..24 double reg from fpu, used by x87, sse and mmx
@@ -76,7 +79,9 @@ typedef struct instruction_arm64_s {
     int                 pass2choice;// value for choices that are fixed on pass2 for pass3
     uintptr_t           natcall;
     int                 retn;
-    int                 barrier_maybe;
+    uint8_t             barrier_maybe;
+    uint8_t             will_write;
+    uint8_t             last_write;
     flagcache_t         f_exit;     // flags status at end of instruction
     neoncache_t         n;          // neoncache at end of instruction (but before poping)
     flagcache_t         f_entry;    // flags status before the instruction begin
@@ -109,15 +114,16 @@ typedef struct dynarec_arm_s {
     dynablock_t*        dynablock;
     instsize_t*         instsize;
     size_t              insts_size; // size of the instruction size array (calculated)
-    uint8_t             smread;     // for strongmem model emulation
-    uint8_t             smwrite;    // for strongmem model emulation
     uintptr_t           forward;    // address of the last end of code while testing forward
     uintptr_t           forward_to; // address of the next jump to (to check if everything is ok)
     int32_t             forward_size;   // size at the forward point
     int                 forward_ninst;  // ninst at the forward point
+    uint8_t             smwrite;    // for strongmem model emulation
+    uint8_t             smread;
     uint8_t             doublepush;
     uint8_t             doublepop;
     uint8_t             always_test;
+    uint8_t             abort;      // abort the creation of the block
 } dynarec_arm_t;
 
 void add_next(dynarec_arm_t *dyn, uintptr_t addr);
