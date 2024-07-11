@@ -40,6 +40,7 @@ uintptr_t RunD9(x64emu_t *emu, rex_t rex, uintptr_t addr)
     #endif
 
     nextop = F8;
+    if(MODREG)
     switch (nextop) {
         case 0xC0:
         case 0xC1:
@@ -193,7 +194,10 @@ uintptr_t RunD9(x64emu_t *emu, rex_t rex, uintptr_t addr)
             emu->top=(emu->top-1)&7;    // this will probably break a few things
             break;
         case 0xF7:  /* FINCSTP */
-            emu->top=(emu->top+1)&7;    // this will probably break a few things
+            if(emu->fpu_tags&0b11)
+                fpu_do_pop(emu);
+            else
+                emu->top=(emu->top+1)&7;    // this will probably break a few things
             break;
         case 0xF9:  /* FYL2XP1 */
             ST(1).d *= log2(ST0.d + 1.0);
@@ -227,18 +231,9 @@ uintptr_t RunD9(x64emu_t *emu, rex_t rex, uintptr_t addr)
             break;
 
 
-        case 0xD1:
-        case 0xD4:
-        case 0xD5:
-        case 0xD6:
-        case 0xD7:
-        case 0xE2:
-        case 0xE3:
-        case 0xE6:
-        case 0xE7:
-        case 0xEF:
-            return 0;
         default:
+            return 0;
+    } else
         switch((nextop>>3)&7) {
             case 0:     /* FLD ST0, Ed float */
                 GETE4(0);
@@ -266,10 +261,8 @@ uintptr_t RunD9(x64emu_t *emu, rex_t rex, uintptr_t addr)
                 break;
             case 6:     /* FNSTENV m */
                 // warning, incomplete
-                _GETED(0);
-                #ifndef TEST_INTERPRETER
+                GETE8(0);
                 fpu_savenv(emu, (char*)ED, 0);
-                #endif
                 // intruction pointer: 48bits
                 // data (operand) pointer: 48bits
                 // last opcode: 11bits save: 16bits restaured (1st and 2nd opcode only)
@@ -281,6 +274,5 @@ uintptr_t RunD9(x64emu_t *emu, rex_t rex, uintptr_t addr)
             default:
                 return 0;
         }
-    }
    return addr;
 }
