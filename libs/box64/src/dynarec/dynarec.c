@@ -19,6 +19,7 @@
 #include "dynablock_private.h"
 #include "bridge.h"
 #include "dynarec_next.h"
+#include "custommem.h"
 #endif
 #ifdef HAVE_TRACE
 #include "elfloader.h"
@@ -37,6 +38,9 @@ void* LinkNext(x64emu_t* emu, uintptr_t addr, void* x2, uintptr_t* x3)
     if(!addr) {
         dynablock_t* db = FindDynablockFromNativeAddress(x2-4);
         printf_log(LOG_NONE, "Warning, jumping to NULL address from %p (db=%p, x64addr=%p/%s)\n", x2-4, db, db?(void*)getX64Address(db, (uintptr_t)x2-4):NULL, db?getAddrFunctionName(getX64Address(db, (uintptr_t)x2-4)):"(nil)");
+    } else if(addr<0x10000) {
+        dynablock_t* db = FindDynablockFromNativeAddress(x2-4);
+        printf_log(LOG_NONE, "Warning, jumping to low address %p from %p (db=%p, x64addr=%p/%s)\n", (void*)addr, x2-4, db, db?(void*)getX64Address(db, (uintptr_t)x2-4):NULL, db?getAddrFunctionName(getX64Address(db, (uintptr_t)x2-4)):"(nil)");
     }
     #endif
     void * jblock;
@@ -62,9 +66,13 @@ void* LinkNext(x64emu_t* emu, uintptr_t addr, void* x2, uintptr_t* x3)
     if(!block) {
         #ifdef HAVE_TRACE
         if(LOG_INFO<=box64_dynarec_log) {
-            dynablock_t* db = FindDynablockFromNativeAddress(x2-4);
-            elfheader_t* h = FindElfAddress(my_context, (uintptr_t)x2-4);
-            dynarec_log(LOG_INFO, "Warning, jumping to a no-block address %p from %p (db=%p, x64addr=%p(elf=%s))\n", (void*)addr, x2-4, db, db?(void*)getX64Address(db, (uintptr_t)x2-4):NULL, h?ElfName(h):"(none)");
+            if(checkInHotPage(addr)) {
+                dynarec_log(LOG_INFO, "Not trying to run a block from a Hotpage at %p\n", (void*)addr);
+            } else {
+                dynablock_t* db = FindDynablockFromNativeAddress(x2-4);
+                elfheader_t* h = FindElfAddress(my_context, (uintptr_t)x2-4);
+                dynarec_log(LOG_INFO, "Warning, jumping to a no-block address %p from %p (db=%p, x64addr=%p(elf=%s), RIP=%p)\n", (void*)addr, x2-4, db, db?(void*)getX64Address(db, (uintptr_t)x2-4):NULL, h?ElfName(h):"(none)", (void*)*x3);
+            }
         }
         #endif
         //tableupdate(native_epilog, addr, table);
@@ -73,6 +81,12 @@ void* LinkNext(x64emu_t* emu, uintptr_t addr, void* x2, uintptr_t* x3)
     if(!block->done) {
     printf_log(LOG_DEBUG, "not finished yet... leave linker\n");
         // not finished yet... leave linker
+        #ifdef HAVE_TRACE
+        if(box64_dynarec_log && !block->isize) {
+            dynablock_t* db = FindDynablockFromNativeAddress(x2-4);
+            printf_log(LOG_NONE, "Warning, NULL block at %p from %p (db=%p, x64addr=%p/%s)\n", (void*)addr, x2-4, db, db?(void*)getX64Address(db, (uintptr_t)x2-4):NULL, db?getAddrFunctionName(getX64Address(db, (uintptr_t)x2-4)):"(nil)");
+        }
+        #endif
         return native_epilog;
     }
     if(!(jblock=block->block)) {
@@ -143,16 +157,22 @@ void DynaRun(x64emu_t* emu)
     JUMPBUFF jmpbuf[1] = {0};
     int skip = 0;
     JUMPBUFF *old_jmpbuf = emu->jmpbuf;
+    #ifdef RV64
+    uintptr_t old_savesp = emu->xSPSave;
+    #endif
     emu->flags.jmpbuf_ready = 0;
 
     while(!(emu->quit)) {
         if(!emu->jmpbuf || (emu->flags.need_jmpbuf && emu->jmpbuf!=jmpbuf)) {
             emu->jmpbuf = jmpbuf;
+            #ifdef RV64
+            emu->old_savedsp = emu->xSPSave;
+            #endif
             emu->flags.jmpbuf_ready = 1;
             #ifdef ANDROID
-            if((skip=sigsetjmp(*(JUMPBUFF*)emu->jmpbuf, 1))) 
+            if((skip=sigsetjmp(*(JUMPBUFF*)emu->jmpbuf, 1)))
             #else
-            if((skip=sigsetjmp(emu->jmpbuf, 1))) 
+            if((skip=sigsetjmp(emu->jmpbuf, 1)))
             #endif
             {
                 printf_log(LOG_DEBUG, "Setjmp DynaRun, fs=0x%x\n", emu->segs[_FS]);
@@ -219,6 +239,10 @@ void DynaRun(x64emu_t* emu)
                     }
                 }
                 native_prolog(emu, block->block);
+                extern int running32bits;
+                if(emu->segs[_CS]==0x23)
+                    running32bits = 1;
+
                 if (box64_dynarec_log) printf_log(LOG_DEBUG, "back<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
             }
 #ifndef _WIN32
@@ -241,5 +265,8 @@ void DynaRun(x64emu_t* emu)
 #ifndef _WIN32
     // clear the setjmp
     emu->jmpbuf = old_jmpbuf;
+    #ifdef RV64
+    emu->xSPSave = old_savesp;
+    #endif
 #endif
 }

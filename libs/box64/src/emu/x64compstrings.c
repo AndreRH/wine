@@ -35,15 +35,15 @@ static int overrideIfDataInvalid(sse_regs_t* mem, int lmem, sse_regs_t* reg, int
                     return (i&1)?((reg->uw[i]>=mem->uw[j])):((reg->uw[i]<=mem->uw[j]));
                 case 0b10:  // sb
                     return (i&1)?((reg->sb[i]>=mem->sb[j])):((reg->sb[i]<=mem->sb[j]));
-                case 0b11:  // sw
+                default:    // sw
                     return (i&1)?((reg->sw[i]>=mem->sw[j])):((reg->sw[i]<=mem->sw[j]));
             }
             break;
         default:    // the others
             switch (imm8&1) {
-                case 0: // byte
+                case 0:  // byte
                     return (reg->ub[i] == mem->ub[j]);
-                case 1: // word
+                default: // word
                     return (reg->uw[i] == mem->uw[j]);
             }
     }
@@ -81,8 +81,14 @@ uint32_t sse42_compare_string_explicit_len(x64emu_t* emu, sse_regs_t* mem, int l
             intres1 = (1<<n_packed)-1;
             for(int j=0; j<n_packed; ++j)
                 for(int i=0; i<n_packed-j; ++i) {
-                    int k = i+j;
-                    intres1 &= (((1<<n_packed)-1)^(1<<j)) | overrideIfDataInvalid(mem, lmem, reg, lreg, k, i, imm8)<<j;
+                    #if 1
+                    if(!overrideIfDataInvalid(mem, lmem, reg, lreg, i+j, i, imm8)) {
+                        intres1 &= ~(1<<j);
+                        break;
+                    }
+                    #else
+                    intres1 &= (((1<<n_packed)-1)^(1<<j)) | (overrideIfDataInvalid(mem, lmem, reg, lreg, i+j, i, imm8)<<j);
+                    #endif
                 }
             break;
     }
@@ -98,7 +104,7 @@ uint32_t sse42_compare_string_explicit_len(x64emu_t* emu, sse_regs_t* mem, int l
     CONDITIONAL_SET_FLAG(lmem<n_packed, F_ZF);
     CONDITIONAL_SET_FLAG(lreg<n_packed, F_SF);
     CONDITIONAL_SET_FLAG(intres2&1, F_OF);
-    CLEAR_FLAG(F_AF);
+    CONDITIONAL_SET_FLAG(((!intres2) && (lmem==n_packed)), F_AF);
     CLEAR_FLAG(F_PF);
     
     return intres2;

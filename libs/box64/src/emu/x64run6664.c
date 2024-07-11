@@ -30,6 +30,8 @@ uintptr_t Run6664(x64emu_t *emu, rex_t rex, int seg, uintptr_t addr)
 {
     uint8_t opcode;
     uint8_t nextop;
+    uint16_t tmp16u;
+    int16_t tmp16s;
     reg64_t *oped, *opgd;
     sse_regs_t *opex, *opgx;
     #ifdef TEST_INTERPRETER
@@ -78,6 +80,22 @@ uintptr_t Run6664(x64emu_t *emu, rex_t rex, int seg, uintptr_t addr)
                     CLEAR_FLAG(F_OF); CLEAR_FLAG(F_AF); CLEAR_FLAG(F_SF);
                     break;
 
+                case 0x6F:  /* MOVDQA Gx, Ex */
+                    nextop = F8;
+                    GETEX_OFFS(0, tlsdata);
+                    GETGX;
+                    GX->q[0] = EX->q[0];
+                    GX->q[1] = EX->q[1];
+                    break;
+
+                case 0x7F:  /* MOVDQA Ex,Gx */
+                    nextop = F8;
+                    GETEX_OFFS(0, tlsdata);
+                    GETGX;
+                    EX->q[0] = GX->q[0];
+                    EX->q[1] = GX->q[1];
+                    break;
+
                 case 0xD6:                      /* MOVQ Ex,Gx */
                     nextop = F8;
                     GETEX_OFFS(0, tlsdata);
@@ -89,6 +107,38 @@ uintptr_t Run6664(x64emu_t *emu, rex_t rex, int seg, uintptr_t addr)
 
                 default:
                     return 0;
+            }
+            break;
+
+        case 0x39: /* CMP FS:Ew,Gw */
+            nextop = F8;
+            GETEW_OFFS(0, tlsdata);
+            GETGW;
+            if (rex.w)
+                cmp64(emu, EW->q[0], GW->q[0]);
+            else
+                cmp16(emu, EW->word[0], GW->word[0]);
+            break;
+
+        case 0x83:                              /* GRP3 Ew,Ib */
+            nextop = F8;
+            GETEW_OFFS((opcode==0x81)?2:1, tlsdata);
+            GETGW;
+            if(opcode==0x81) 
+                tmp16u = F16;
+            else {
+                tmp16s = F8S;
+                tmp16u = (uint16_t)tmp16s;
+            }
+            switch((nextop>>3)&7) {
+                case 0: EW->word[0] = add16(emu, EW->word[0], tmp16u); break;
+                case 1: EW->word[0] =  or16(emu, EW->word[0], tmp16u); break;
+                case 2: EW->word[0] = adc16(emu, EW->word[0], tmp16u); break;
+                case 3: EW->word[0] = sbb16(emu, EW->word[0], tmp16u); break;
+                case 4: EW->word[0] = and16(emu, EW->word[0], tmp16u); break;
+                case 5: EW->word[0] = sub16(emu, EW->word[0], tmp16u); break;
+                case 6: EW->word[0] = xor16(emu, EW->word[0], tmp16u); break;
+                case 7:               cmp16(emu, EW->word[0], tmp16u); break;
             }
             break;
 

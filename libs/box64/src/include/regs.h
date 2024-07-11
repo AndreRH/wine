@@ -32,10 +32,6 @@ typedef union {
 	uint8_t  byte[8];
 } reg64_t;
 
-typedef struct {
-    uint32_t tag;
-} fpu_p_reg_t;
-
 typedef enum {
 	ROUND_Nearest = 0,		
 	ROUND_Down    = 1,
@@ -123,14 +119,6 @@ typedef enum {
 	d_ror16,
 	d_ror32,
 	d_ror64,
-	d_rcl8,
-	d_rcl16,
-	d_rcl32,
-	d_rcl64,
-	d_rcr8,
-	d_rcr16,
-	d_rcr32,
-	d_rcr64,
 	d_dec8i,	// interpreter version, to handle the CF flags that is untouched
 	d_dec16i,
 	d_dec32i,
@@ -237,12 +225,12 @@ typedef union {
         uint16_t F87_PE:1;
         uint16_t F87_SF:1;
         uint16_t F87_ES:1;
-        uint16_t F87_C0:1;
-		uint16_t F87_C1:1;
-		uint16_t F87_C2:1;
-		uint16_t F87_TOP:3;
-		uint16_t F87_C3:1;
-		uint16_t F87_B:1;
+        uint16_t F87_C0:1;	// bit 8
+		uint16_t F87_C1:1;	// bit 9
+		uint16_t F87_C2:1;	// bit 10
+		uint16_t F87_TOP:3; // bits 11-13
+		uint16_t F87_C3:1;	// bit 14
+		uint16_t F87_B:1;	// bit 15
     } f;
     uint16_t    x16;
 } x87flags_t;

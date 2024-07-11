@@ -28,6 +28,7 @@ uintptr_t Test6764_32(x64test_t *test, rex_t rex, int rep, int seg, uintptr_t ad
 uintptr_t Run6764_32(x64emu_t *emu, rex_t rex, int rep, int seg, uintptr_t addr)
 #endif
 {
+    (void)rep;
     uint8_t opcode;
     uint8_t nextop;
     int8_t tmp8s;
@@ -53,11 +54,35 @@ uintptr_t Run6764_32(x64emu_t *emu, rex_t rex, int rep, int seg, uintptr_t addr)
 
     switch(opcode) {
 
-        case 0x8B:                      /* MOV Gw, FS:Ew */
+        case 0x89:                      /* MOV FS:Ed, Gd */
             nextop = F8;
-            GETEW_OFFS_16(tlsdata);
-            GETGW;
-            GW->word[0] = EW->word[0];
+            GETED_OFFS_16(tlsdata);
+            GETGD;
+            ED->dword[0] = GD->dword[0];
+            break;
+
+        case 0x8B:                      /* MOV Gd, FS:Ed */
+            nextop = F8;
+            GETED_OFFS_16(tlsdata);
+            GETGD;
+            GD->dword[0] = ED->dword[0];
+            break;
+
+        case 0x8F:                              /* POP FS:Ed */
+            nextop = F8;
+            GETED_OFFS_16(tlsdata);
+            ED->dword[0] = Pop32(emu);
+            break;
+
+        case 0xA1:                      /* MOV EAX, FS:Od */
+            tmp32u = F16;
+            #ifdef TEST_INTERPRETER
+            test->memaddr = tlsdata + tmp32u;
+            test->memsize = 4;
+            R_EAX = *(uint32_t*)(test->mem);
+            #else
+            R_EAX = *(uint32_t*)(tlsdata + tmp32u);
+            #endif
             break;
 
         case 0xA3:                      /* MOV FS:Od,EAX */

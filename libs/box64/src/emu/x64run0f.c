@@ -55,10 +55,104 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
 
     switch(opcode) {
 
+        case 0x00:
+            if(rex.is32bits) {          /* VERx Ed */
+                nextop = F8;
+                switch((nextop>>3)&7) {
+                    case 0:                 /* SLDT Ew */
+                        GETEW(0);
+                        EW->word[0] = 0;
+                        if(MODREG)
+                            EW->word[1] = 0;
+                        break;
+                    case 1:                 /* STR Ew */
+                        GETEW(0);
+                        EW->word[0] = 0x7f; // dummy return
+                        if(MODREG)
+                            EW->word[1] = 0;
+                        break;
+                    case 4: //VERR
+                    case 5: //VERW
+                        GETEW(0);
+                        if(!EW->word[0])
+                            CLEAR_FLAG(F_ZF);
+                        else
+                            SET_FLAG(F_ZF); // should test if selector is ok
+                        break;
+                    default:
+                        return 0;
+                }
+            } else
+                return 0;
+            break;
+        case 0x01:                      /* XGETBV, SGDT, etc... */
+            nextop = F8;
+            GETED(0);
+            if(MODREG)
+            switch(nextop) {
+                case 0xD0:
+                    #ifndef TEST_INTERPRETER
+                    emit_signal(emu, SIGILL, (void*)R_RIP, 0);
+                    #else
+                    test->notest = 1;
+                    #endif
+                    break;
+                case 0xE0:
+                case 0xE1:
+                case 0xE2:
+                case 0xE3:
+                case 0xE4:
+                case 0xE5:
+                case 0xE6:
+                case 0xE7:  /* SMSW Ew */
+                    ED->word[0] = (1<<0) | (1<<4); // only PE and ET set...
+                    break;
+                case 0xF9:  /* RDTSCP */
+                    tmp64u = ReadTSC(emu);
+                    if(box64_rdtsc_shift)
+                        tmp64u<<=box64_rdtsc_shift;
+                    R_RAX = tmp64u & 0xffffffff;
+                    R_RDX = tmp64u >> 32;
+                    R_RCX = 0;  // should be low of IA32_TSC
+                    #ifdef TEST_INTERPRETER
+                    test->notest = 1;
+                    #endif
+                    break;
+                default:
+                    return 0;
+            } else
+                switch((nextop>>3)&7) {
+                    case 0:                 /* SGDT Ed */
+                        ED->word[0] = 0x7f;    // dummy return...
+                        if(rex.is32bits) {
+                            *(uint32_t*)(&ED->word[1]) = 0x3000;
+                        } else {
+                            *(uint64_t*)(&ED->word[1]) = 0xfffffe0000077000LL;
+                        }
+                        break;
+                    case 1:                 /* SIDT Ed */
+                        ED->word[0] = 0xfff;    // dummy return, like "disabled"
+                        if(rex.is32bits) {
+                            *(uint32_t*)(&ED->word[1]) = 0x0000;
+                        } else {
+                            *(uint64_t*)(&ED->word[1]) = 0xfffffe0000000000LL;
+                        }
+                        break;
+                    case 4:                 /* SMSW Ew */
+                        // dummy for now... Do I need to track CR0 state?
+                        ED->word[0] = (1<<0) | (1<<4); // only PE and ET set...
+                        break;
+                    default:
+                        return 0;
+            }
+            break;
+
         case 0x05:                      /* SYSCALL */
             #ifndef TEST_INTERPRETER
             R_RIP = addr;
             x64Syscall(emu);
+            #else
+            test->notest = 1;
             #endif
             break;
         case 0x06:                      /* CLTS */
@@ -73,12 +167,16 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
             // this is a privilege opcode...
             #ifndef TEST_INTERPRETER
             emit_signal(emu, SIGSEGV, (void*)R_RIP, 0);
+            #else
+            test->notest = 1;
             #endif
             break;
 
         case 0x0B:                      /* UD2 */
             #ifndef TEST_INTERPRETER
             emit_signal(emu, SIGILL, (void*)R_RIP, 0);
+            #else
+            test->notest = 1;
             #endif
             break;
 
@@ -93,6 +191,13 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
                     return 0;
             }
             break;
+        case 0x0E:                      /* FEMMS */
+            #ifndef TEST_INTERPRETER
+            emit_signal(emu, SIGILL, (void*)R_RIP, 0);
+            #else
+            test->notest = 1;
+            #endif
+            break;
 
         case 0x10:                      /* MOVUPS Gx,Ex */
             nextop = F8;
@@ -106,7 +211,7 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
             GETGX;
             EX->u128 = GX->u128;
             break;
-        case 0x12:                      
+        case 0x12:
             nextop = F8;
             GETEX(0);
             GETGX;
@@ -278,8 +383,13 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
 
         case 0x31:                   /* RDTSC */
             tmp64u = ReadTSC(emu);
+            if(box64_rdtsc_shift)
+                tmp64u<<=box64_rdtsc_shift;
             R_RDX = tmp64u>>32;
             R_RAX = tmp64u&0xFFFFFFFF;
+            #ifdef TEST_INTERPRETER
+            test->notest = 1;
+            #endif
             break;
 
         case 0x38:  // these are some SSE3 opcodes
@@ -297,6 +407,47 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
                             GM->ub[i] = eam1.ub[EM->ub[i]&7];
                     }
                     break;
+                case 0x01: /* PHADDW Gm,Em */
+                    nextop = F8;
+                    GETEM(0);
+                    GETGM;
+                    for (int i = 0; i < 2; ++i)
+                        GM->sw[i] = GM->sw[i * 2 + 0] + GM->sw[i * 2 + 1];
+                    if (GM == EM) {
+                        GM->sd[1] = GM->sd[0];
+                    } else {
+                        for (int i = 0; i < 2; ++i)
+                            GM->sw[2 + i] = EM->sw[i * 2 + 0] + EM->sw[i * 2 + 1];
+                    }
+                    break;
+                case 0x02: /* PHADDD Gm,Em */
+                    nextop = F8;
+                    GETEM(0);
+                    GETGM;
+                    GM->sd[0] = GM->sd[0] + GM->sd[1];
+                    if (GM == EM) {
+                        GM->sd[1] = GM->sd[0];
+                    } else {
+                        GM->sd[1] = EM->sd[0] + EM->sd[1];
+                    }
+                    break;
+                case 0x03: /* PHADDSW Gm,Em */
+                    nextop = F8;
+                    GETEM(0);
+                    GETGM;
+                    for (int i = 0; i < 2; ++i) {
+                        tmp32s = GM->sw[i * 2 + 0] + GM->sw[i * 2 + 1];
+                        GM->sw[i] = (tmp32s < -32768) ? -32768 : ((tmp32s > 32767) ? 32767 : tmp32s);
+                    }
+                    if (GM == EM) {
+                        GM->sd[1] = GM->sd[0];
+                    } else {
+                        for (int i = 0; i < 2; ++i) {
+                            tmp32s = EM->sw[i * 2 + 0] + EM->sw[i * 2 + 1];
+                            GM->sw[2 + i] = (tmp32s < -32768) ? -32768 : ((tmp32s > 32767) ? 32767 : tmp32s);
+                        }
+                    }
+                    break;
                 case 0x04:  /* PMADDUBSW Gm,Em */
                     nextop = F8;
                     GETEM(0);
@@ -305,6 +456,68 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
                         tmp32s = (int32_t)(GM->ub[i*2+0])*EM->sb[i*2+0] + (int32_t)(GM->ub[i*2+1])*EM->sb[i*2+1];
                         GM->sw[i] = (tmp32s>32767)?32767:((tmp32s<-32768)?-32768:tmp32s);
                     }
+                    break;
+                case 0x05: /* PHSUBW Gm,Em */
+                    nextop = F8;
+                    GETEM(0);
+                    GETGM;
+                    for (int i = 0; i < 2; ++i)
+                        GM->sw[i] = GM->sw[i * 2 + 0] - GM->sw[i * 2 + 1];
+                    if (GM == EM) {
+                        GM->sd[1] = GM->sd[0];
+                    } else {
+                        for (int i = 0; i < 2; ++i)
+                            GM->sw[2 + i] = EM->sw[i * 2 + 0] - EM->sw[i * 2 + 1];
+                    }
+                    break;
+                case 0x06: /* PHSUBD Gm,Em */
+                    nextop = F8;
+                    GETEM(0);
+                    GETGM;
+                    GM->sd[0] = GM->sd[0] - GM->sd[1];
+                    if (GM == EM) {
+                        GM->sd[1] = GM->sd[0];
+                    } else {
+                        GM->sd[1] = EM->sd[0] - EM->sd[1];
+                    }
+                    break;
+                case 0x07: /* PHSUBSW Gm,Em */
+                    nextop = F8;
+                    GETEM(0);
+                    GETGM;
+                    for (int i = 0; i < 2; ++i) {
+                        tmp32s = GM->sw[i * 2 + 0] - GM->sw[i * 2 + 1];
+                        GM->sw[i] = (tmp32s < -32768) ? -32768 : ((tmp32s > 32767) ? 32767 : tmp32s);
+                    }
+                    if (GM == EM) {
+                        GM->sd[1] = GM->sd[0];
+                    } else {
+                        for (int i = 0; i < 2; ++i) {
+                            tmp32s = EM->sw[i * 2 + 0] - EM->sw[i * 2 + 1];
+                            GM->sw[2 + i] = (tmp32s < -32768) ? -32768 : ((tmp32s > 32767) ? 32767 : tmp32s);
+                        }
+                    }
+                    break;
+                case 0x08: /* PSIGNB Gm,Em */
+                    nextop = F8;
+                    GETEM(0);
+                    GETGM;
+                    for (int i = 0; i < 8; ++i)
+                        GM->sb[i] *= (EM->sb[i] < 0) ? -1 : ((EM->sb[i] > 0) ? 1 : 0);
+                    break;
+                case 0x09: /* PSIGNW Gm,Em */
+                    nextop = F8;
+                    GETEM(0);
+                    GETGM;
+                    for (int i = 0; i < 4; ++i)
+                        GM->sw[i] *= (EM->sw[i] < 0) ? -1 : ((EM->sw[i] > 0) ? 1 : 0);
+                    break;
+                case 0x0A: /* PSIGND Gm,Em */
+                    nextop = F8;
+                    GETEM(0);
+                    GETGM;
+                    for (int i = 0; i < 2; ++i)
+                        GM->sd[i] *= (EM->sd[i] < 0) ? -1 : ((EM->sd[i] > 0) ? 1 : 0);
                     break;
                 case 0x0B:  /* PMULHRSW Gm, Em */
                     nextop = F8;
@@ -409,21 +622,22 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
         case 0x3A:
             opcode = F8;
             switch(opcode) {
-                case 0xF:  /* palignr */
+                case 0xF: /* PALIGNR Gm, Em, Ib */
                     nextop = F8;
                     GETEM(1);
                     GETGM;
                     tmp8u = F8;
+                    tmp64u = EM->q;
                     if (tmp8u >= 16) {
                         GM->q = 0;
-                    } else if (tmp8u > 8) {
+                    } else if (tmp8u >= 8) {
                         tmp8u -= 8;
-                        GM->q >>= tmp8u*8;
-                    } else if (tmp8u == 8 || tmp8u == 0) {
-
+                        GM->q >>= tmp8u * 8;
+                    } else if (tmp8u == 0) {
+                        GM->q = tmp64u;
                     } else {
-                        GM->q <<= (8-tmp8u)*8;
-                        GM->q |= (EM->q >> tmp8u*8);
+                        GM->q <<= (8 - tmp8u) * 8;
+                        GM->q |= (tmp64u >> tmp8u * 8);
                     }
                     break;
 
@@ -441,6 +655,11 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
             break;
 
 
+        case 0x3F:
+            #ifndef TEST_INTERPRETER
+            emit_signal(emu, SIGILL, (void*)R_RIP, 0);
+            #endif
+            break;
         GOCOND(0x40
             , nextop = F8;
             GETED(0);
@@ -450,7 +669,7 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
             , if(!rex.w) GD->dword[1] = 0;
             ,
         )                               /* 0x40 -> 0x4F CMOVxx Gd,Ed */ // conditional move, no sign
-        
+
         case 0x50:                      /* MOVMSKPS Gd, Ex */
             nextop = F8;
             GETEX(0);
@@ -482,6 +701,9 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
                 else
                     GX->f[i] = 1.0f/sqrtf(EX->f[i]);
             }
+            #ifdef TEST_INTERPRETER
+            test->notest = 1;
+            #endif
             break;
         case 0x53:                      /* RCPPS Gx, Ex */
             nextop = F8;
@@ -489,6 +711,9 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
             GETGX;
             for(int i=0; i<4; ++i)
                 GX->f[i] = 1.0f/EX->f[i];
+            #ifdef TEST_INTERPRETER
+            test->notest = 1;
+            #endif
             break;
         case 0x54:                      /* ANDPS Gx, Ex */
             nextop = F8;
@@ -768,6 +993,7 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
                     break;
                 case 4:                 /* PSRAD Em, Ib */
                     tmp8u = F8;
+                    if (tmp8u > 31) tmp8u = 31;
                     for (int i=0; i<2; ++i) EM->sd[i] >>= tmp8u;
                     break;
                 case 6:                 /* PSLLD Em, Ib */
@@ -854,9 +1080,12 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
             break;
         GOCOND(0x80
             , tmp32s = F32S; CHECK_FLAGS(emu);
+            #ifdef TEST_INTERPRETER
+            test->notest = 1;
+            #endif
             , addr += tmp32s;
-            ,,STEP3
-        )                               /* 0x80 -> 0x8F Jxx */
+            ,,
+        )                               /* 0x80 -> 0x8F Jxx */ //STEP3
         GOCOND(0x90
             , nextop = F8; CHECK_FLAGS(emu);
             GETEB(0);
@@ -880,6 +1109,9 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
         case 0xA2:                      /* CPUID */
             tmp32u = R_EAX;
             my_cpuid(emu, tmp32u);
+            #ifdef TEST_INTERPRETER
+            test->notest = 1;
+            #endif
             break;
         case 0xA3:                      /* BT Ed,Gd */
             CHECK_FLAGS(emu);
@@ -1011,19 +1243,24 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
             break;
         case 0xAE:                      /* Grp Ed (SSE) */
             nextop = F8;
-            if((nextop&0xF8)==0xE8) {
-                return addr;            /* LFENCE */
-            }
-            if((nextop&0xF8)==0xF0) {
-                return addr;            /* MFENCE */
-            }
-            if((nextop&0xF8)==0xF8) {
-                return addr;            /* SFENCE */
-            }
+            if(MODREG)
+                switch(nextop) {
+                    case 0xE8:
+                        return addr;            /* LFENCE */
+                    case 0xF0:
+                        return addr;            /* MFENCE */
+                    case 0xF8:
+                        return addr;            /* SFENCE */
+                    default:
+                        return 0;
+                }
+            else
             switch((nextop>>3)&7) {
                 case 0:                 /* FXSAVE Ed */
                     _GETED(0);
-                    #ifndef TEST_INTERPRETER
+                    #ifdef TEST_INTERPRETER
+                    emu->sw.f.F87_TOP = emu->top&7;
+                    #else
                     if(rex.w)
                         fpu_fxsave64(emu, ED);
                     else
@@ -1157,7 +1394,7 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
             GD->q[0] = EW->word[0];
             break;
 
-        case 0xBA:                      
+        case 0xBA:
             nextop = F8;
             switch((nextop>>3)&7) {
                 case 4:                 /* BT Ed,Ib */
@@ -1452,11 +1689,7 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
         case 0xC7:                      /* CMPXCHG8B Eq */
             CHECK_FLAGS(emu);
             nextop = F8;
-            GETED(0);
-            #ifdef TEST_INTERPRETER
-            test->memsize = 16;
-            ((uint64_t*)test->mem)[1] = ((uint64_t*)test->memaddr)[1];
-            #endif
+            GETE8xw(0);
             switch((nextop>>3)&7) {
                 case 1:
                     if(rex.w) {
@@ -1509,7 +1742,7 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
             GETEM(0);
             GETGM;
             if(EM->q>15)
-                GM->q=0; 
+                GM->q = 0;
             else {
                 tmp8u = EM->ub[0];
                 for(int i=0; i<4; ++i)

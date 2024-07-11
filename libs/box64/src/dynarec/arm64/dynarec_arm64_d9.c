@@ -33,7 +33,7 @@ uintptr_t dynarec64_D9(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
     uint8_t ed;
     uint8_t wback, wb1;
     uint8_t u8;
-    int64_t fixedaddress;
+    int64_t fixedaddress, j64;
     int unscaled;
     int v1, v2;
     int s0;
@@ -43,6 +43,7 @@ uintptr_t dynarec64_D9(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
     MAYUSE(v2);
     MAYUSE(v1);
 
+    if(MODREG)
     switch(nextop) {
         case 0xC0:
         case 0xC1:
@@ -133,18 +134,103 @@ uintptr_t dynarec64_D9(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             break;
         case 0xE5:
             INST_NAME("FXAM");
+            #if 1
+            i1 = x87_get_current_cache(dyn, ninst, 0, NEON_CACHE_ST_D);
+            // value put in x14
+            if(i1==-1) {
+                if(fpu_is_st_freed(dyn, ninst, 0)) {
+                    MOV32w(x4, 0b100000100000000);
+                    B_MARK3_nocond;
+                } else {
+                    // not in cache, so check Empty status and load it
+                    i2 = -dyn->n.x87stack;
+                    LDRw_U12(x3, xEmu, offsetof(x64emu_t, fpu_stack));
+                    if(i2) {
+                        if(i2<0) {
+                            ADDw_U12(x3, x3, -i2);
+                        } else {
+                            SUBw_U12(x3, x3, i2);
+                        }
+                    }
+                    CMPSw_U12(x3, 0);
+                    MOV32w(x4, 0b100000100000000);  // empty: C3,C2,C0 = 101
+                    B_MARK3(cLE);
+                    // x5 will be the actual top
+                    LDRw_U12(x5, xEmu, offsetof(x64emu_t, top));
+                    if(i2) {
+                        if(i2<0) {
+                            SUBw_U12(x5, x5, -i2);
+                        } else {
+                            ADDw_U12(x5, x5, i2);
+                        }
+                        ANDw_mask(x5, x5, 0, 3);    // (emu->top + i)&7
+                    }
+                    // load tag
+                    LDRH_U12(x3, xEmu, offsetof(x64emu_t, fpu_tags));
+                    TSTw_mask(x3, 0, 1);    // 0b11
+                    B_MARK3(cNE);   // empty: C3,C2,C0 = 101
+                    // load x2 with ST0 anyway, for sign extraction
+                    ADDx_REG_LSL(x1, xEmu, x5, 3);
+                    LDRx_U12(x2, x1, offsetof(x64emu_t, x87));
+                }
+            } else {
+                // simply move from cache reg to x2
+                v1 = dyn->n.x87reg[i1];
+                VMOVQDto(x2, v1, 0);
+            }
+            // get exponant in x1
+            LSRx_IMM(x1, x2, 20+32);
+            ANDSx_mask(x1, x1, 1, 0b00000, 0b001010); // 0x7ff
+            B_MARK(cNE); // not zero or denormal
+            ANDSx_mask(x1, x2, 1, 0, 0b111110); // 0x7fffffffffffffff
+            MOV32w(x4, 0b100000000000000); // Zero: C3,C2,C0 = 100
+            MOV32w(x5, 0b100010000000000); // Denormal: C3,C2,C0 = 110
+            CSELx(x4, x4, x5, cEQ);
+            B_MARK3(c__);
+            MARK;
+            CMPSx_U12(x1, 0x7ff);   // infinite/NaN?
+            MOV32w(x5, 0b000010000000000); // normal: C3,C2,C0 = 010
+            CSELx(x4, x5, x4, cNE);
+            B_MARK3(cNE);
+            TSTx_mask(x2, 1, 0b000000, 0b110011); // 0x000fffffffffffff
+            MOV32w(x4, 0b000010100000000); // infinity: C3,C2,C0 = 011
+            MOV32w(x3, 0b000000100000000); // NaN: C3,C2,C0 = 001
+            CSELx(x4, x4, x3, cEQ);
+            MARK3;
+            // Extract signa & Update SW
+            LSRx_IMM(x1, x2, 63);
+            BFIx(x4, x1, 9, 1); //C1
+            LDRH_U12(x1, xEmu, offsetof(x64emu_t, sw));
+            MOV32w(x2, 0b01000111);
+            BICw_REG_LSL(x1, x1, x2, 8);
+            ORRw_REG(x4, x4, x1);
+            STRH_U12(x4, xEmu, offsetof(x64emu_t, sw));
+            #else
             MESSAGE(LOG_DUMP, "Need Optimization\n");
-            x87_refresh(dyn, ninst, x1, x2, 0);
+            i1 = x87_stackcount(dyn, ninst, x1);
+            x87_forget(dyn, ninst, x1, x2, 0);
             CALL(fpu_fxam, -1);  // should be possible inline, but is it worth it?
+            x87_unstackcount(dyn, ninst, x1, i1);
+            #endif
             break;
 
         case 0xE8:
             INST_NAME("FLD1");
-            X87_PUSH_OR_FAIL(v1, dyn, ninst, x1, NEON_CACHE_ST_F);
-            if(ST_IS_F(0)) {
-                FMOVS_8(v1, 0b01110000);
+            if(ninst<dyn->size+2 && (dyn->insts[ninst+1].pred_sz==1) && (dyn->insts[ninst+2].pred_sz==1)
+                && PK(0)==0xD9 && PK(1)==0xE8
+                && PK(2)==0xD9 && PK(3)==0xF3
+            ) {
+                MESSAGE(LOG_DUMP, "Hack for FLD1 FLD1 FPATAN");
+                X87_PUSH_OR_FAIL(v1, dyn, ninst, x1, NEON_CACHE_ST_F);
+                FTABLE64(v1, PI/4.0);
+                addr+=4;
             } else {
-                FMOVD_8(v1, 0b01110000);
+                X87_PUSH_OR_FAIL(v1, dyn, ninst, x1, NEON_CACHE_ST_F);
+                if(ST_IS_F(0)) {
+                    FMOVS_8(v1, 0b01110000);
+                } else {
+                    FMOVD_8(v1, 0b01110000);
+                }
             }
             break;
         case 0xE9:
@@ -386,92 +472,79 @@ uintptr_t dynarec64_D9(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             CALL(native_fcos, -1);
             x87_unstackcount(dyn, ninst, x1, i1);
             break;
-
-
-        case 0xD1:
-        case 0xD4:
-        case 0xD5:
-        case 0xD6:
-        case 0xD7:
-        case 0xE2:
-        case 0xE3:
-        case 0xE6:
-        case 0xE7:
-        case 0xEF:
+        default:
             DEFAULT;
             break;
-
-        default:
-            switch((nextop>>3)&7) {
-                case 0:
-                    INST_NAME("FLD ST0, float[ED]");
-                    X87_PUSH_OR_FAIL(v1, dyn, ninst, x1, box64_dynarec_x87double?NEON_CACHE_ST_D:NEON_CACHE_ST_F);
-                    addr = geted(dyn, addr, ninst, nextop, &ed, x2, &fixedaddress, &unscaled, 0xfff<<2, 3, rex, NULL, 0, 0);
-                    VLD32(v1, ed, fixedaddress);
-                    if(!ST_IS_F(0)) {
-                        FCVT_D_S(v1, v1);
-                    }
-                    break;
-                case 2:
-                    INST_NAME("FST float[ED], ST0");
-                    v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_F);
-                    if(ST_IS_F(0))
-                        s0 = v1;
-                    else {
-                        s0 = fpu_get_scratch(dyn);
-                        FCVT_S_D(s0, v1);
-                    }
-                    addr = geted(dyn, addr, ninst, nextop, &ed, x2, &fixedaddress, &unscaled, 0xfff<<2, 3, rex, NULL, 0, 0);
-                    VST32(s0, ed, fixedaddress);
-                    break;
-                case 3:
-                    INST_NAME("FSTP float[ED], ST0");
-                    v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_F);
-                    addr = geted(dyn, addr, ninst, nextop, &ed, x2, &fixedaddress, &unscaled, 0xfff<<2, 3, rex, NULL, 0, 0);
-                    if(!ST_IS_F(0)) {
-                        FCVT_S_D(v1, v1);
-                    }
-                    VST32(v1, ed, fixedaddress);
-                    X87_POP_OR_FAIL(dyn, ninst, x3);
-                    break;
-                case 4:
-                    INST_NAME("FLDENV Ed");
-                    MESSAGE(LOG_DUMP, "Need Optimization\n");
-                    fpu_purgecache(dyn, ninst, 0, x1, x2, x3); // maybe only x87, not SSE?
-                    addr = geted(dyn, addr, ninst, nextop, &ed, x1, &fixedaddress, NULL, 0, 0, rex, NULL, 0, 0);
-                    if(ed!=x1) {
-                        MOVx_REG(x1, ed);
-                    }
-                    MOV32w(x2, 0);
-                    CALL(fpu_loadenv, -1);
-                    break;
-                case 5:
-                    INST_NAME("FLDCW Ew");
-                    GETEW(x1, 0);
-                    STRH_U12(x1, xEmu, offsetof(x64emu_t, cw));    // hopefully cw is not too far for an imm8
-                    break;
-                case 6:
-                    INST_NAME("FNSTENV Ed");
-                    MESSAGE(LOG_DUMP, "Need Optimization\n");
-                    fpu_purgecache(dyn, ninst, 0, x1, x2, x3); // maybe only x87, not SSE?
-                    addr = geted(dyn, addr, ninst, nextop, &ed, x1, &fixedaddress, NULL, 0, 0, rex, NULL, 0, 0);
-                    if(ed!=x1) {
-                        MOVx_REG(x1, ed);
-                    }
-                    MOV32w(x2, 0);
-                    CALL(fpu_savenv, -1);
-                    break;
-                case 7:
-                    INST_NAME("FNSTCW Ew");
-                    addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<1, 1, rex, NULL, 0, 0);
-                    ed = x1;
-                    wb1 = 1;
-                    LDRH_U12(x1, xEmu, offsetof(x64emu_t, cw));
-                    EWBACK;
-                    break;
-                default:
-                    DEFAULT;
-            }
-    }
+    } else
+        switch((nextop>>3)&7) {
+            case 0:
+                INST_NAME("FLD ST0, float[ED]");
+                X87_PUSH_OR_FAIL(v1, dyn, ninst, x1, box64_dynarec_x87double?NEON_CACHE_ST_D:NEON_CACHE_ST_F);
+                addr = geted(dyn, addr, ninst, nextop, &ed, x2, &fixedaddress, &unscaled, 0xfff<<2, 3, rex, NULL, 0, 0);
+                VLD32(v1, ed, fixedaddress);
+                if(!ST_IS_F(0)) {
+                    FCVT_D_S(v1, v1);
+                }
+                break;
+            case 2:
+                INST_NAME("FST float[ED], ST0");
+                v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_F);
+                if(ST_IS_F(0))
+                    s0 = v1;
+                else {
+                    s0 = fpu_get_scratch(dyn);
+                    FCVT_S_D(s0, v1);
+                }
+                addr = geted(dyn, addr, ninst, nextop, &ed, x2, &fixedaddress, &unscaled, 0xfff<<2, 3, rex, NULL, 0, 0);
+                VST32(s0, ed, fixedaddress);
+                break;
+            case 3:
+                INST_NAME("FSTP float[ED], ST0");
+                v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_F);
+                addr = geted(dyn, addr, ninst, nextop, &ed, x2, &fixedaddress, &unscaled, 0xfff<<2, 3, rex, NULL, 0, 0);
+                if(!ST_IS_F(0)) {
+                    FCVT_S_D(v1, v1);
+                }
+                VST32(v1, ed, fixedaddress);
+                X87_POP_OR_FAIL(dyn, ninst, x3);
+                break;
+            case 4:
+                INST_NAME("FLDENV Ed");
+                MESSAGE(LOG_DUMP, "Need Optimization\n");
+                fpu_purgecache(dyn, ninst, 0, x1, x2, x3); // maybe only x87, not SSE?
+                addr = geted(dyn, addr, ninst, nextop, &ed, x1, &fixedaddress, NULL, 0, 0, rex, NULL, 0, 0);
+                if(ed!=x1) {
+                    MOVx_REG(x1, ed);
+                }
+                MOV32w(x2, 0);
+                CALL(fpu_loadenv, -1);
+                break;
+            case 5:
+                INST_NAME("FLDCW Ew");
+                GETEW(x1, 0);
+                STRH_U12(x1, xEmu, offsetof(x64emu_t, cw));    // hopefully cw is not too far for an imm8
+                break;
+            case 6:
+                INST_NAME("FNSTENV Ed");
+                MESSAGE(LOG_DUMP, "Need Optimization\n");
+                fpu_purgecache(dyn, ninst, 0, x1, x2, x3); // maybe only x87, not SSE?
+                addr = geted(dyn, addr, ninst, nextop, &ed, x1, &fixedaddress, NULL, 0, 0, rex, NULL, 0, 0);
+                if(ed!=x1) {
+                    MOVx_REG(x1, ed);
+                }
+                MOV32w(x2, 0);
+                CALL(fpu_savenv, -1);
+                break;
+            case 7:
+                INST_NAME("FNSTCW Ew");
+                addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<1, 1, rex, NULL, 0, 0);
+                ed = x1;
+                wb1 = 1;
+                LDRH_U12(x1, xEmu, offsetof(x64emu_t, cw));
+                EWBACK;
+                break;
+            default:
+                DEFAULT;
+        }
     return addr;
 }

@@ -1,3 +1,4 @@
+#if defined(ARM64) || defined(__aarch64__)
 #include <stdint.h>
 
 #include "arm64_emitter.h"
@@ -9,3 +10,4 @@ void CreateJmpNext(void* addr, void* next)
     LDRx_literal(x2, (intptr_t)next - (intptr_t)addr);
     BR(x2);
 }
+#endif /* arm64 */

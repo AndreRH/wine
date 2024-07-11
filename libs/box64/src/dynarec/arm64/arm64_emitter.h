@@ -70,23 +70,45 @@
 #define wZR     xZR
 
 // conditions
+// Z == 1
 #define cEQ 0b0000
+// Z != 1
 #define cNE 0b0001
+// C == 1
 #define cCS 0b0010
+// C == 1
 #define cHS cCS
+// C != 1
 #define cCC 0b0011
+// C != 1
 #define cLO cCC
+// N == 1
 #define cMI 0b0100
+// N != 1
 #define cPL 0b0101
+// V == 1
 #define cVS 0b0110
+// V != 1
 #define cVC 0b0111
+// C == 1 && Z == 0
 #define cHI 0b1000
+// C !=1 || Z == 1
 #define cLS 0b1001
+// N == V
 #define cGE 0b1010
+// N != V
 #define cLT 0b1011
+// N == V && Z == 0
 #define cGT 0b1100
+// N != V || Z == 1
 #define cLE 0b1101
+// always
 #define c__ 0b1110
+
+int convert_bitmask(uint64_t bitmask);
+#define convert_bitmask_w(A)    convert_bitmask(((uint64_t)(A) << 32) + (uint32_t)(A))
+#define convert_bitmask_x(A)    convert_bitmask((uint64_t)A)
+#define convert_bitmask_xw(A)   convert_bitmask(rex.w?((uint64_t)(A)):(((uint64_t)(A) << 32) + (uint32_t)(A)))
 
 #define invCond(cond)   ((cond)^0b0001)
 
@@ -111,23 +133,8 @@
 #define MOVKw(Rd, imm16)                    EMIT(MOVK_gen(0, 0, ((uint16_t)(imm16))&0xffff, Rd))
 #define MOVKw_LSL(Rd, imm16, shift)         EMIT(MOVK_gen(0, (shift)/16, ((uint16_t)(imm16))&0xffff, Rd))
 
-// This macro will give a -Wsign-compare warning, probably bug #38341
-#define MOV32w(Rd, imm32) \
-    if(~((uint32_t)(imm32))<0xffffu) {                                      \
-        MOVNw(Rd, (~(uint32_t)(imm32))&0xffff);                             \
-    } else {                                                                \
-        MOVZw(Rd, (imm32)&0xffff);                                          \
-        if((imm32)&0xffff0000) {MOVKw_LSL(Rd, ((imm32)>>16)&0xffff, 16);}   \
-    }
-#define MOV64x(Rd, imm64) \
-    if(~((uint64_t)(imm64))<0xffff) {                                                                       \
-        MOVNx(Rd, (~(uint64_t)(imm64))&0xffff);                                                             \
-    } else {                                                                                                \
-        MOVZx(Rd, ((uint64_t)(imm64))&0xffff);                                                              \
-        if(((uint64_t)(imm64))&0xffff0000) {MOVKx_LSL(Rd, (((uint64_t)(imm64))>>16)&0xffff, 16);}           \
-        if(((uint64_t)(imm64))&0xffff00000000LL) {MOVKx_LSL(Rd, (((uint64_t)(imm64))>>32)&0xffff, 32);}      \
-        if(((uint64_t)(imm64))&0xffff000000000000LL) {MOVKx_LSL(Rd, (((uint64_t)(imm64))>>48)&0xffff, 48);}  \
-    }
+#define MOV32w(Rd, imm32) arm64_move32(dyn, ninst, Rd, imm32)
+#define MOV64x(Rd, imm64) arm64_move64(dyn, ninst, Rd, imm64)
 
 #define MOV64xw(Rd, imm64)   if(rex.w) {MOV64x(Rd, imm64);} else {MOV32w(Rd, imm64);}
 #define MOV64z(Rd, imm64)    if(rex.is32bits) {MOV32w(Rd, imm64);} else {MOV64x(Rd, imm64);}
@@ -513,18 +520,24 @@
 // logic to get the mask is ... convoluted... list of possible value there: https://gist.github.com/dinfuehr/51a01ac58c0b23e4de9aac313ed6a06a
 #define ANDx_mask(Rd, Rn, N, immr, imms)    EMIT(LOGIC_gen(1, 0b00, N, immr, imms, Rn, Rd))
 #define ANDw_mask(Rd, Rn, immr, imms)       EMIT(LOGIC_gen(0, 0b00, 0, immr, imms, Rn, Rd))
+#define ANDxw_mask(Rd, Rn, N, immr, imms)   EMIT(LOGIC_gen(rex.w, 0b00, rex.w?(N):0, immr, imms, Rn, Rd))
 #define ANDSx_mask(Rd, Rn, N, immr, imms)   EMIT(LOGIC_gen(1, 0b11, N, immr, imms, Rn, Rd))
 #define ANDSw_mask(Rd, Rn, immr, imms)      EMIT(LOGIC_gen(0, 0b11, 0, immr, imms, Rn, Rd))
+#define ANDSxw_mask(Rd, Rn, N, immr, imms)  EMIT(LOGIC_gen(rex.w, 0b11, rex.w?(N):0, immr, imms, Rn, Rd))
 #define ORRx_mask(Rd, Rn, N, immr, imms)    EMIT(LOGIC_gen(1, 0b01, N, immr, imms, Rn, Rd))
 #define ORRw_mask(Rd, Rn, immr, imms)       EMIT(LOGIC_gen(0, 0b01, 0, immr, imms, Rn, Rd))
+#define ORRxw_mask(Rd, Rn, N, immr, imms)   EMIT(LOGIC_gen(rex.w, 0b01, rex.w?(N):0, immr, imms, Rn, Rd))
 #define EORx_mask(Rd, Rn, N, immr, imms)    EMIT(LOGIC_gen(1, 0b10, N, immr, imms, Rn, Rd))
 #define EORw_mask(Rd, Rn, immr, imms)       EMIT(LOGIC_gen(0, 0b10, 0, immr, imms, Rn, Rd))
+#define EORxw_mask(Rd, Rn, N, immr, imms)   EMIT(LOGIC_gen(rex.w, 0b10, rex.w?(N):0, immr, imms, Rn, Rd))
 #define TSTx_mask(Rn, N, immr, imms)        ANDSx_mask(xZR, Rn, N, immr, imms)
 #define TSTw_mask(Rn, immr, imms)           ANDSw_mask(wZR, Rn, immr, imms)
+#define TSTxw_mask(Rn, N, immr, imms)       ANDSxw_mask(xZR, Rn, N, immr, imms)
 
 #define LOGIC_REG_gen(sf, opc, shift, N, Rm, imm6, Rn, Rd)    ((sf)<<31 | (opc)<<29 | 0b01010<<24 | (shift)<<22 | (N)<<21 | (Rm)<<16 | (imm6)<<10 | (Rn)<<5 | (Rd))
 #define ANDx_REG(Rd, Rn, Rm)            EMIT(LOGIC_REG_gen(1, 0b00, 0b00, 0, Rm, 0, Rn, Rd))
 #define ANDw_REG(Rd, Rn, Rm)            EMIT(LOGIC_REG_gen(0, 0b00, 0b00, 0, Rm, 0, Rn, Rd))
+#define ANDw_REG_LSR(Rd, Rn, Rm, lsr)   EMIT(LOGIC_REG_gen(0, 0b00, 0b01, 0, Rm, lsr, Rn, Rd))
 #define ANDxw_REG(Rd, Rn, Rm)           EMIT(LOGIC_REG_gen(rex.w, 0b00, 0b00, 0, Rm, 0, Rn, Rd))
 #define ANDSx_REG(Rd, Rn, Rm)           EMIT(LOGIC_REG_gen(1, 0b11, 0b00, 0, Rm, 0, Rn, Rd))
 #define ANDSw_REG(Rd, Rn, Rm)           EMIT(LOGIC_REG_gen(0, 0b11, 0b00, 0, Rm, 0, Rn, Rd))
@@ -610,6 +623,7 @@
 #define BFIx(Rd, Rn, lsb, width)        BFMx(Rd, Rn, ((-(lsb))%64)&0x3f, (width)-1)
 #define BFIw(Rd, Rn, lsb, width)        BFMw(Rd, Rn, ((-(lsb))%32)&0x1f, (width)-1)
 #define BFIxw(Rd, Rn, lsb, width)       if(rex.w) {BFIx(Rd, Rn, lsb, width);} else {BFIw(Rd, Rn, lsb, width);}
+#define BFIz(Rd, Rn, lsb, width)        if(rex.is32bits) {BFIw(Rd, Rn, lsb, width);} else {BFIx(Rd, Rn, lsb, width);}
 #define BFCx(Rd, lsb, width)            BFMx(Rd, xZR, ((-(lsb))%64)&0x3f, (width)-1)
 #define BFCw(Rd, lsb, width)            BFMw(Rd, xZR, ((-(lsb))%32)&0x1f, (width)-1)
 #define BFCxw(Rd, lsb, width)           BFMxw(Rd, xZR, rex.w?(((-(lsb))%64)&0x3f):(((-(lsb))%32)&0x1f), (width)-1)
@@ -766,6 +780,10 @@
 // mrs    x0, fpsr : 1101010100 1 1 1 011 0100 0100 001 00000    o0=1(op0=3), op1=0b011(3) CRn=0b0100(4) CRm=0b0100(4) op2=1
 #define MRS_fpsr(Rt)                    EMIT(MRS_gen(1, 1, 3, 4, 4, 1, Rt))
 #define MSR_fpsr(Rt)                    EMIT(MRS_gen(0, 1, 3, 4, 4, 1, Rt))
+// mrs   x0, cntvct_el0     op0=0b11 op1=0b011 CRn=0b1110 CRm=0b0000 op2=0b010
+#define MRS_cntvct_el0(Rt)              EMIT(MRS_gen(1, 1, 0b011, 0b1110, 0b0000, 0b010, Rt))
+// mrs   x0, cntpctss_el0     op0=0b11 op1=0b011 CRn=0b1110 CRm=0b0000 op2=0b101
+#define MRS_cntpctss_el0(Rt)            EMIT(MRS_gen(1, 1, 0b011, 0b1110, 0b0000, 0b101, Rt))
 // NEON Saturation Bit
 #define FPSR_QC 27
 // NEON Input Denormal Cumulative
@@ -1192,8 +1210,8 @@
 #define FCMP_scalar(type, Rn, Rm, opc)  (0b11110<<24 | (type)<<22 | 1<<21 | (Rm)<<16 | 0b1000<<10 | (Rn)<<5 | (opc)<<3)
 #define FCMPS(Sn, Sm)               EMIT(FCMP_scalar(0b00, Sn, Sm, 0b00))
 #define FCMPD(Dn, Dm)               EMIT(FCMP_scalar(0b01, Dn, Dm, 0b00))
-#define FCMPS_0(Sn)                 EMIT(FCMP_scalar(0b00, 0, Sn, 0b01))
-#define FCMPD_0(Dn)                 EMIT(FCMP_scalar(0b01, 0, Dn, 0b01))
+#define FCMPS_0(Sn)                 EMIT(FCMP_scalar(0b00, Sn, 0, 0b01))
+#define FCMPD_0(Dn)                 EMIT(FCMP_scalar(0b01, Dn, 0, 0b01))
 
 // CVT
 #define FCVT_scalar(sf, type, rmode, opcode, Rn, Rd)    ((sf)<<31 | 0b11110<<24 | (type)<<22 | 1<<21 | (rmode)<<19 | (opcode)<<16 | (Rn)<<5 | (Rd))
@@ -1562,6 +1580,15 @@
 #define SQXTUN_8(Rd, Rn)            EMIT(QXTUN_vector(0, 1, 0b00, Rn, Rd))
 // Signed saturating extract Unsigned Narrow, takes Rn element and reduce 16->8 with Unsigned saturation and fit higher part of Rd
 #define SQXTUN2_8(Rd, Rn)           EMIT(QXTUN_vector(1, 1, 0b00, Rn, Rd))
+
+#define XTN_vector(Q, size, Rn, Rd) ((Q)<<30 | 0b01110<<24 | (size)<<22 | 0b10000<<17 | 0b10010<<12 | 0b10<<10 | (Rn)<<5 | (Rd))
+// Xtract narrow to X bits
+#define XTN_8(Vd, Vn)               EMIT(XTN_vector(0, 0b00, Vn, Vd))
+#define XTN_16(Vd, Vn)              EMIT(XTN_vector(0, 0b01, Vn, Vd))
+#define XTN_32(Vd, Vn)              EMIT(XTN_vector(0, 0b10, Vn, Vd))
+#define XTN2_8(Vd, Vn)              EMIT(XTN_vector(1, 0b00, Vn, Vd))
+#define XTN2_16(Vd, Vn)             EMIT(XTN_vector(1, 0b01, Vn, Vd))
+#define XTN2_32(Vd, Vn)             EMIT(XTN_vector(1, 0b10, Vn, Vd))
 
 // Integer CMP
 // EQual
@@ -2170,6 +2197,24 @@
 #define FRINT64ZD(Dd, Dn)           EMIT(FRINTxx_scalar(0b01, 0b10, Dn, Dd))
 #define FRINT64XS(Sd, Sn)           EMIT(FRINTxx_scalar(0b00, 0b11, Sn, Sd))
 #define FRINT64XD(Dd, Dn)           EMIT(FRINTxx_scalar(0b01, 0b11, Dn, Dd))
+
+#define FRINTxx_vector(Q, U, sz, op, Rn, Rd)    ((Q)<<30 | (U)<<29 | 0b01110<<24 | (sz)<<22 | 0b10000<<17 | 0b1111<<13 | (op)<<12 | 0b10<<10 | (Rn)<<5 | (Rd))
+#define VFRINT32ZS(Vd, Vn)          EMIT(FRINTxx_vector(0, 0, 0, 0, Vn, Vd))
+#define VFRINT32ZSQ(Vd, Vn)         EMIT(FRINTxx_vector(1, 0, 0, 0, Vn, Vd))
+#define VFRINT32XS(Vd, Vn)          EMIT(FRINTxx_vector(0, 1, 0, 0, Vn, Vd))
+#define VFRINT32XSQ(Vd, Vn)         EMIT(FRINTxx_vector(1, 1, 0, 0, Vn, Vd))
+#define VFRINT32ZD(Vd, Vn)          EMIT(FRINTxx_vector(0, 0, 1, 0, Vn, Vd))
+#define VFRINT32ZDQ(Vd, Vn)         EMIT(FRINTxx_vector(1, 0, 1, 0, Vn, Vd))
+#define VFRINT32XD(Vd, Vn)          EMIT(FRINTxx_vector(0, 1, 1, 0, Vn, Vd))
+#define VFRINT32XDQ(Vd, Vn)         EMIT(FRINTxx_vector(1, 1, 1, 0, Vn, Vd))
+#define VFRINT64ZS(Vd, Vn)          EMIT(FRINTxx_vector(0, 0, 0, 1, Vn, Vd))
+#define VFRINT64ZSQ(Vd, Vn)         EMIT(FRINTxx_vector(1, 0, 0, 1, Vn, Vd))
+#define VFRINT64XS(Vd, Vn)          EMIT(FRINTxx_vector(0, 1, 0, 1, Vn, Vd))
+#define VFRINT64XSQ(Vd, Vn)         EMIT(FRINTxx_vector(1, 1, 0, 1, Vn, Vd))
+#define VFRINT64ZD(Vd, Vn)          EMIT(FRINTxx_vector(0, 0, 1, 1, Vn, Vd))
+#define VFRINT64ZDQ(Vd, Vn)         EMIT(FRINTxx_vector(1, 0, 1, 1, Vn, Vd))
+#define VFRINT64XD(Vd, Vn)          EMIT(FRINTxx_vector(0, 1, 1, 1, Vn, Vd))
+#define VFRINT64XDQ(Vd, Vn)         EMIT(FRINTxx_vector(1, 1, 1, 1, Vn, Vd))
 
 // CRC32 extension
 #define CRC32C_gen(sf, Rm, sz, Rn, Rd)  ((sf)<<31 | 0b11010110<<21 | (Rm)<<16 | 0b010<<13 | 1<<12 | (sz)<<10 | (Rn)<<5 | (Rd))

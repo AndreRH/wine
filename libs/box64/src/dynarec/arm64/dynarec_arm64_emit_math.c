@@ -297,8 +297,7 @@ void emit_add8(dynarec_arm_t* dyn, int ninst, int s1, int s2, int s3, int s4)
         }
     }
     IFX(X_CF) {
-        LSRw(s3, s1, 8);
-        BFIw(xFlags, s3, F_CF, 1);
+        BFXILw(xFlags, s1, 8, 1);
     }
     IFX(X_PEND) {
         STRH_U12(s1, xEmu, offsetof(x64emu_t, res));
@@ -341,8 +340,7 @@ void emit_add8c(dynarec_arm_t* dyn, int ninst, int s1, int c, int s3, int s4)
         }
     }
     IFX(X_CF) {
-        LSRw(s3, s1, 8);
-        BFIw(xFlags, s3, F_CF, 1);
+        BFXILw(xFlags, s1, 8, 1);
     }
     IFX(X_PEND) {
         STRH_U12(s1, xEmu, offsetof(x64emu_t, res));
@@ -478,8 +476,7 @@ void emit_add16(dynarec_arm_t* dyn, int ninst, int s1, int s2, int s3, int s4)
         }
     }
     IFX(X_CF) {
-        LSRw(s3, s1, 16);
-        BFIw(xFlags, s3, F_CF, 1);
+        BFXILw(xFlags, s1, 16, 1);
     }
     IFX(X_PEND) {
         STRw_U12(s1, xEmu, offsetof(x64emu_t, res));

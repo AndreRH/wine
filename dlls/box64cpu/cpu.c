@@ -18,7 +18,12 @@
  */
 
 #define DYNAREC
+
+#if defined(__aarch64__)
 #define ARM64
+#elif defined(__riscv64__)
+#define RV64
+#endif
 
 #include <string.h>
 #include <stdarg.h>
@@ -73,6 +78,7 @@ int box64_dynarec_test = 0;
 int box64_dynarec_missing = 0;
 int box64_dynarec_trace = 0;
 int box64_dynarec_aligned_atomics = 0;
+int box64_dynarec_div0 = 0;
 
 int arm64_atomics = 0;
 int arm64_crc32 = 0;
@@ -81,6 +87,8 @@ int arm64_aes = 0;
 int arm64_pmull = 0;
 int arm64_sha1 = 0;
 int arm64_sha2 = 0;
+int arm64_uscat = 0;
+int arm64_frintts = 0;
 int box64_log = 1;
 uintptr_t box64_pagesize = 4096;
 uint32_t default_gs = 0x2b;
@@ -88,6 +96,9 @@ uintptr_t box64_nodynarec_start = 0;
 uintptr_t box64_nodynarec_end = 0;
 int box64_sse_flushto0 = 0;
 int box64_x87_no80bits = 0;
+int box64_ignoreint3 = 0;
+int box64_rdtsc = 0;
+uint8_t box64_rdtsc_shift = 0;
 
 static UINT16 DECLSPEC_ALIGN(4096) bopcode[4096/sizeof(UINT16)];
 static UINT16 DECLSPEC_ALIGN(4096) unxcode[4096/sizeof(UINT16)];
@@ -379,7 +390,7 @@ void *box_memalign(size_t alignment, size_t size)
     ntstatus = NtAllocateVirtualMemory(NtCurrentProcess(), &ret, default_zero_bits, &sz, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     if ((ULONG_PTR)ret >> 32)
         ERR( "ret above 4G, disabling\n" );
-    TRACE( "ret: %p\n", ret );
+    TRACE( "ntstatus %lx ret: %p\n", ntstatus, ret );
     return ret;
 }
 
@@ -654,7 +665,7 @@ void WINAPI BTCpuSimulate(void)
     emu->segs_offs[_FS] = (uintptr_t)NtCurrentTeb() + NtCurrentTeb()->WowTebOffset;
     emu->win64_teb = (uint64_t)NtCurrentTeb();
 
-    TRACE("WIN32 TEB %08x\n", emu->segs_offs[_FS]);
+    TRACE("WIN32 TEB %08llx\n", emu->segs_offs[_FS]);
 
     fpu_to_box(ctx, emu);
 
@@ -704,10 +715,19 @@ uintptr_t getX64Address(dynablock_t* db, uintptr_t arm_addr)
 */
 static void box64_detect_cpu_features(void)
 {
-    uint64_t isar0, feat;
+    uint64_t isar0, isar1, mmfr2, feat;
+
+    /* First try without privileged instructions that need to be emulated by the kernel */
+    arm64_aes = RtlIsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);
+    arm64_crc32 = RtlIsProcessorFeaturePresent(PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE);
+    arm64_atomics = RtlIsProcessorFeaturePresent(PF_ARM_V81_ATOMIC_INSTRUCTIONS_AVAILABLE);
 
     asm("mrs %0, ID_AA64ISAR0_EL1" : "=r" (isar0));
     TRACE("ID_AA64ISAR0_EL1: 0x%016llx\n", isar0);
+    asm("mrs %0, ID_AA64ISAR1_EL1" : "=r" (isar1));
+    TRACE("ID_AA64ISAR1_EL1: 0x%016llx\n", isar1);
+    asm("mrs %0, ID_AA64MMFR2_EL1" : "=r" (mmfr2));
+    TRACE("ID_AA64MMFR2_EL1: 0x%016llx\n", mmfr2);
 
     /* AES & PMULL */
     feat = (isar0 >> 4) & 0x03;
@@ -761,6 +781,22 @@ static void box64_detect_cpu_features(void)
         TRACE("FlagM supported\n");
         arm64_flagm = TRUE;
     }
+
+    /* USCAT */
+    feat = (mmfr2 >> 32) & 0x0f;
+    if (feat > 0)
+    {
+        TRACE("USCAT supported\n");
+        arm64_uscat = TRUE;
+    }
+
+    /* FRINTTS */
+    feat = (isar1 >> 32) & 0x0f;
+    if (feat > 0)
+    {
+        TRACE("FRINTTS supported\n");
+        arm64_frintts = TRUE;
+    }
 }
 
 /**********************************************************************
@@ -774,7 +810,15 @@ NTSTATUS WINAPI BTCpuProcessInit(void)
 
     MESSAGE("starting Box64 based box64cpu.dll\n");
 
-    box64_detect_cpu_features();
+    __TRY
+    {
+        box64_detect_cpu_features();
+    }
+    __EXCEPT_ALL
+    {
+        ERR("Failed to detect CPU features!\n");
+    }
+    __ENDTRY
 
     if (TRACE_ON(box64dump))
     {
@@ -909,6 +953,7 @@ NTSTATUS WINAPI BTCpuResetToConsistentState( EXCEPTION_POINTERS *ptrs )
         }
         if (addr)
         {
+            int db_need_test;
             prot = getProtection((uintptr_t)addr);
             db2 = FindDynablockFromNativeAddress((void*)addr);
             ERR("db addr %p prot %x\n", db2, prot);
@@ -919,24 +964,20 @@ NTSTATUS WINAPI BTCpuResetToConsistentState( EXCEPTION_POINTERS *ptrs )
                 ERR("db x64_addr %p\n", db2->x64_addr);
                 ERR("db dirty %x\n", db2->dirty);
             }
-            if (addr)
+            unprotectDB((uintptr_t)addr, 1, 1);    // unprotect 1 byte... But then, the whole page will be unprotected
+            db_need_test = (db && !box64_dynarec_fastpage)?getNeedTest((uintptr_t)db->x64_addr):0;
+            prot = getProtection((uintptr_t)addr);
+            ERR("addr prot %x\n", prot);
+            ERR("db_need_test %x\n", db_need_test);
+            if(db && ((addr>=db->x64_addr && addr<(db->x64_addr+db->x64_size)) || db_need_test))
             {
-                int db_need_test;
-                unprotectDB((uintptr_t)addr, 1, 1);    // unprotect 1 byte... But then, the whole page will be unprotected
-                db_need_test = (db && !box64_dynarec_fastpage)?getNeedTest((uintptr_t)db->x64_addr):0;
-                prot = getProtection((uintptr_t)addr);
-                ERR("addr prot %x\n", prot);
-                ERR("db_need_test %x\n", db_need_test);
-                if(db && ((addr>=db->x64_addr && addr<(db->x64_addr+db->x64_size)) || db_need_test))
-                {
-                    x64emu_t *emu = NtCurrentTeb()->TlsSlots[0];  // FIXME
-                    ERR("emu->jmpbuf %p\n", emu->jmpbuf);
-                }
-
-                ERR(" ctx->Sp   %16llx\n",  ctx->Sp  );
-                ERR(" ctx->Pc   %16llx\n",  ctx->Pc  );
-                NtContinue(ctx, FALSE);
+                x64emu_t *emu = NtCurrentTeb()->TlsSlots[0];  // FIXME
+                ERR("emu->jmpbuf %p\n", emu->jmpbuf);
             }
+
+            ERR(" ctx->Sp   %16llx\n",  ctx->Sp  );
+            ERR(" ctx->Pc   %16llx\n",  ctx->Pc  );
+            NtContinue(ctx, FALSE);
         }
     }
 

@@ -26,6 +26,7 @@
 #define GETE8xw(D)          oped=TestEd8xw(test, rex.w, &addr, rex, nextop, D)
 #define GETED32(D)          oped=TestEd32O(test, &addr, rex, nextop, D, 0)
 #define GETED_OFFS(D, O)    oped=TestEdO(test, &addr, rex, nextop, D, O)
+#define GETED_OFFS_16(O)    oped=TestEd16off(test, &addr, rex, nextop, O)
 #define GETGD               opgd=GetGd(test->emu, &addr, rex, nextop)
 #define GETEB(D)            oped=TestEb(test, &addr, rex, nextop, D)
 #define GETEB32(D)          oped=TestEb32O(test, &addr, rex, nextop, D, 0)
@@ -51,6 +52,7 @@
 #define GETE8xw(D)          GETED(D)
 #define GETED32(D)          oped=GetEd32O(emu, &addr, rex, nextop, D, 0)
 #define GETED_OFFS(D, O)    oped=GetEdO(emu, &addr, rex, nextop, D, O)
+#define GETED_OFFS_16(O)    oped=GetEd16off(emu, &addr, rex, nextop, O)
 #define GETGD               opgd=GetGd(emu, &addr, rex, nextop)
 #define GETEB(D)            oped=GetEb(emu, &addr, rex, nextop, D)
 #define GETEB32(D)          oped=GetEb32O(emu, &addr, rex, nextop, D, 0)
@@ -82,8 +84,10 @@
 #define FAKEED(D)           GetEd(emu, &addr, rex, nextop, D)
 #define FAKEED32(D)         GetEd32O(emu, &addr, rex, nextop, D, 0)
 #define GETEA(D)            GetEA(emu, &addr, rex, nextop, D)
+#define GETEA32(D)          GetEA32(emu, &addr, rex, nextop, D)
 #define _GETED(D)           oped=GetEd(emu, &addr, rex, nextop, D)
 #define _GETED32(D)         oped=GetEd32O(emu, &addr, rex, nextop, D, 0)
+#define _GETEB(D)           oped=GetEb(emu, &addr, rex, nextop, D)
 
 #define MODREG  ((nextop&0xC0)==0xC0)
 

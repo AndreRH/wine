@@ -49,7 +49,7 @@ uintptr_t Run66(x64emu_t *emu, rex_t rex, int rep, uintptr_t addr)
 
     opcode = F8;
 
-    while((opcode==0x2E) || (opcode==0x66))   // ignoring CS: or multiple 0x66
+    while((opcode==0x2E) || (opcode==0x36) || (opcode==0x26) || (opcode==0x66))   // ignoring CS:, SS:, ES: or multiple 0x66
         opcode = F8;
 
     while((opcode==0xF2) || (opcode==0xF3)) {
@@ -118,13 +118,13 @@ uintptr_t Run66(x64emu_t *emu, rex_t rex, int rep, uintptr_t addr)
         if(!rex.is32bits) {
             return 0;
         }
-        Push32(emu, emu->segs[_ES]);  // even if a segment is a 16bits, a 32bits push/pop is done
+        Push16(emu, emu->segs[_ES]);
         break;
     case 0x07:                      /* POP ES */
         if(!rex.is32bits) {
             return 0;
         }
-        emu->segs[_ES] = Pop32(emu);    // no check, no use....
+        emu->segs[_ES] = Pop16(emu);
         emu->segs_serial[_ES] = 0;
         break;
 
@@ -149,18 +149,19 @@ uintptr_t Run66(x64emu_t *emu, rex_t rex, int rep, uintptr_t addr)
                 return Run66F30F(emu, rex, addr);
                 #endif
         }
+        return 0; // unreachable
 
         case 0x1E:                      /* PUSH DS */
             if(!rex.is32bits) {
                 return 0;
             }
-            Push32(emu, emu->segs[_DS]);  // even if a segment is a 16bits, a 32bits push/pop is done
+            Push16(emu, emu->segs[_DS]);
             break;
         case 0x1F:                      /* POP DS */
             if(!rex.is32bits) {
                 return 0;
             }
-            emu->segs[_DS] = Pop32(emu);    // no check, no use....
+            emu->segs[_DS] = Pop16(emu);    // no check, no use....
             emu->segs_serial[_DS] = 0;
             break;
 
@@ -219,11 +220,8 @@ uintptr_t Run66(x64emu_t *emu, rex_t rex, int rep, uintptr_t addr)
     case 0x55:
     case 0x56:
     case 0x57:                      /* PUSH Reg */
-        if(rex.is32bits) {
-            tmp16u = emu->regs[opcode&7].word[0];
-            Push16(emu, tmp16u);
-        } else
-            return 0;
+        tmp16u = emu->regs[opcode&7].word[0];
+        Push16(emu, tmp16u);
         break;
     case 0x58:
     case 0x59:
@@ -233,11 +231,8 @@ uintptr_t Run66(x64emu_t *emu, rex_t rex, int rep, uintptr_t addr)
     case 0x5D:
     case 0x5E:
     case 0x5F:                      /* POP Reg */
-        if(rex.is32bits) {
-            tmp8u = opcode&7;
-            emu->regs[tmp8u].word[0] = Pop16(emu);
-        } else
-            return 0;
+        tmp8u = opcode&7;
+        emu->regs[tmp8u].word[0] = Pop16(emu);
         break;
     case 0x60:                              /* PUSHA */
         if(rex.is32bits) {
@@ -282,6 +277,10 @@ uintptr_t Run66(x64emu_t *emu, rex_t rex, int rep, uintptr_t addr)
         return Run6664(emu, rex, _GS, addr);
         #endif
 
+    case 0x68:                       /* PUSH u16 */
+        tmp16u = F16;
+        Push16(emu, tmp16u);
+        break;
     case 0x69:                      /* IMUL Gw,Ew,Iw */
         nextop = F8;
         GETEW(rex.w?4:2);
@@ -415,7 +414,11 @@ uintptr_t Run66(x64emu_t *emu, rex_t rex, int rep, uintptr_t addr)
         emu->segs[((nextop&0x38)>>3)] = EW->word[0];
         emu->segs_serial[((nextop&0x38)>>3)] = 0;
         break;
-
+    case 0x8F:                              /* POP Ew */
+        nextop = F8;
+        GETEW(0);
+        EW->word[0] = Pop16(emu);
+        break;
     case 0x90:                      /* NOP or XCHG R8d, AX*/
     case 0x91:
     case 0x92:
@@ -508,58 +511,58 @@ uintptr_t Run66(x64emu_t *emu, rex_t rex, int rep, uintptr_t addr)
             tmp8s = ACCESS_FLAG(F_DF)?-2:+2;
         switch(rep) {
             case 1:
-                tmp64u = R_RCX;
-                if(rex.w) {
-                    while(tmp64u) {
-                        --tmp64u;
-                        tmp64u3 = *(uint64_t*)R_RDI;
-                        tmp64u2 = *(uint64_t*)R_RSI;
-                        R_RDI += tmp8s;
-                        R_RSI += tmp8s;
-                        if(tmp64u3==tmp64u2)
-                            break;
+                if(R_RCX) {
+                    if(rex.w) {
+                        while(R_RCX) {
+                            --R_RCX;
+                            tmp64u3 = *(uint64_t*)R_RDI;
+                            tmp64u2 = *(uint64_t*)R_RSI;
+                            R_RDI += tmp8s;
+                            R_RSI += tmp8s;
+                            if(tmp64u3==tmp64u2)
+                                break;
+                        }
+                        cmp64(emu, tmp64u2, tmp64u3);
+                    } else {
+                        while(R_RCX) {
+                            --R_RCX;
+                            tmp16u  = *(uint16_t*)R_RDI;
+                            tmp16u2 = *(uint16_t*)R_RSI;
+                            R_RDI += tmp8s;
+                            R_RSI += tmp8s;
+                            if(tmp16u==tmp16u2)
+                                break;
+                        }
+                        cmp16(emu, tmp16u2, tmp16u);
                     }
-                    if(R_RCX) cmp64(emu, tmp64u2, tmp64u3);
-                } else {
-                    while(tmp64u) {
-                        --tmp64u;
-                        tmp16u  = *(uint16_t*)R_RDI;
-                        tmp16u2 = *(uint16_t*)R_RSI;
-                        R_RDI += tmp8s;
-                        R_RSI += tmp8s;
-                        if(tmp16u==tmp16u2)
-                            break;
-                    }
-                    if(R_RCX) cmp16(emu, tmp16u2, tmp16u);
                 }
-                R_RCX = tmp64u;
                 break;
             case 2:
-                tmp64u = R_RCX;
-                if(rex.w) {
-                    while(tmp64u) {
-                        --tmp64u;
-                        tmp64u3 = *(uint64_t*)R_RDI;
-                        tmp64u2 = *(uint64_t*)R_RSI;
-                        R_RDI += tmp8s;
-                        R_RSI += tmp8s;
-                        if(tmp64u3!=tmp64u2)
-                            break;
+                if(R_RCX) {
+                    if(rex.w) {
+                        while(R_RCX) {
+                            --R_RCX;
+                            tmp64u3 = *(uint64_t*)R_RDI;
+                            tmp64u2 = *(uint64_t*)R_RSI;
+                            R_RDI += tmp8s;
+                            R_RSI += tmp8s;
+                            if(tmp64u3!=tmp64u2)
+                                break;
+                        }
+                        cmp64(emu, tmp64u2, tmp64u3);
+                    } else {
+                        while(R_RCX) {
+                            --R_RCX;
+                            tmp16u  = *(uint16_t*)R_RDI;
+                            tmp16u2 = *(uint16_t*)R_RSI;
+                            R_RDI += tmp8s;
+                            R_RSI += tmp8s;
+                            if(tmp16u!=tmp16u2)
+                                break;
+                        }
+                        cmp16(emu, tmp16u2, tmp16u);
                     }
-                    if(R_RCX) cmp64(emu, tmp64u2, tmp64u3);
-                } else {
-                    while(tmp64u) {
-                        --tmp64u;
-                        tmp16u  = *(uint16_t*)R_RDI;
-                        tmp16u2 = *(uint16_t*)R_RSI;
-                        R_RDI += tmp8s;
-                        R_RSI += tmp8s;
-                        if(tmp16u!=tmp16u2)
-                            break;
-                    }
-                    if(R_RCX) cmp16(emu, tmp16u2, tmp16u);
                 }
-                R_RCX = tmp64u;
                 break;
             default:
                 if(rex.w) {
@@ -639,50 +642,50 @@ uintptr_t Run66(x64emu_t *emu, rex_t rex, int rep, uintptr_t addr)
             tmp8s = ACCESS_FLAG(F_DF)?-2:+2;
         switch(rep) {
             case 1:
-                tmp64u = R_RCX;
-                if(rex.w) {
-                    while(tmp64u) {
-                        --tmp64u;
-                        tmp64u2 = *(uint64_t*)R_RDI;
-                        R_RDI += tmp8s;
-                        if(R_RAX==tmp64u2)
-                            break;
+                if(R_RCX) {
+                    if(rex.w) {
+                        while(R_RCX) {
+                            --R_RCX;
+                            tmp64u2 = *(uint64_t*)R_RDI;
+                            R_RDI += tmp8s;
+                            if(R_RAX==tmp64u2)
+                                break;
+                        }
+                        cmp64(emu, R_RAX, tmp64u2);
+                    } else {
+                        while(R_RCX) {
+                            --R_RCX;
+                            tmp16u = *(uint16_t*)R_RDI;
+                            R_RDI += tmp8s;
+                            if(R_AX==tmp16u)
+                                break;
+                        }
+                        cmp16(emu, R_AX, tmp16u);
                     }
-                    if(R_RCX) cmp64(emu, R_RAX, tmp64u2);
-                } else {
-                    while(tmp64u) {
-                        --tmp64u;
-                        tmp16u = *(uint16_t*)R_RDI;
-                        R_RDI += tmp8s;
-                        if(R_AX==tmp16u)
-                            break;
-                    }
-                    if(R_RCX) cmp16(emu, R_AX, tmp16u);
                 }
-                R_RCX = tmp64u;
                 break;
             case 2:
-                tmp64u = R_RCX;
-                if(rex.w) {
-                    while(tmp64u) {
-                        --tmp64u;
-                        tmp64u2 = *(uint64_t*)R_RDI;
-                        R_RDI += tmp8s;
-                        if(R_RAX!=tmp64u2)
-                            break;
+                if(R_RCX) {
+                    if(rex.w) {
+                        while(R_RCX) {
+                            --R_RCX;
+                            tmp64u2 = *(uint64_t*)R_RDI;
+                            R_RDI += tmp8s;
+                            if(R_RAX!=tmp64u2)
+                                break;
+                        }
+                        cmp64(emu, R_RAX, tmp64u2);
+                    } else {
+                        while(R_RCX) {
+                            --R_RCX;
+                            tmp16u = *(uint16_t*)R_RDI;
+                            R_RDI += tmp8s;
+                            if(R_AX!=tmp16u)
+                                break;
+                        }
+                        cmp16(emu, R_AX, tmp16u);
                     }
-                    if(R_RCX) cmp64(emu, R_RAX, tmp64u2);
-                } else {
-                    while(tmp64u) {
-                        --tmp64u;
-                        tmp16u = *(uint16_t*)R_RDI;
-                        R_RDI += tmp8s;
-                        if(R_AX!=tmp16u)
-                            break;
-                    }
-                    if(R_RCX) cmp16(emu, R_AX, tmp16u);
                 }
-                R_RCX = tmp64u;
                 break;
             default:
                 if(rex.w)
@@ -836,6 +839,9 @@ uintptr_t Run66(x64emu_t *emu, rex_t rex, int rep, uintptr_t addr)
                     break;
                 case 7:                 /* IDIV Ed */
                     idiv64(emu, ED->q[0]);
+                    #ifdef TEST_INTERPRETER
+                    test->notest = 1;
+                    #endif
                     break;
             }
         } else {
@@ -872,6 +878,14 @@ uintptr_t Run66(x64emu_t *emu, rex_t rex, int rep, uintptr_t addr)
             }
         }
         break;
+    case 0xF8:                      /* CLC */
+        CHECK_FLAGS(emu);
+        CLEAR_FLAG(F_CF);
+        break;
+    case 0xF9:                      /* STC */
+        CHECK_FLAGS(emu);
+        SET_FLAG(F_CF);
+        break;
 
     case 0xFF:                      /* GRP 5 Ew */
         nextop = F8;
@@ -894,10 +908,7 @@ uintptr_t Run66(x64emu_t *emu, rex_t rex, int rep, uintptr_t addr)
                 addr = tmp64u;
                 break;
            case 6:                  /* Push Ew */
-                if(rex.is32bits) {
-                    Push16(emu, EW->word[0]);
-                } else 
-                    return 0;
+                Push16(emu, EW->word[0]);
                 break;
             default:
                     printf_log(LOG_NONE, "Illegal Opcode %p: 66 %02X %02X %02X %02X %02X %02X\n",(void*)R_RIP, opcode, nextop, PK(2), PK(3), PK(4), PK(5));

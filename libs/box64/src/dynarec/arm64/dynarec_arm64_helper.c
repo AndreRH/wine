@@ -59,7 +59,7 @@ uintptr_t geted(dynarec_arm_t* dyn, uintptr_t addr, int ninst, uint8_t nextop, u
             if((sib&0x7)==5) {
                 int64_t tmp = F32S;
                 if (sib_reg!=4) {
-                    if(tmp && (!((tmp>=absmin) && (tmp<=absmax) && !(tmp&mask))) || !(unscaled && (tmp>-256) && (tmp<256))) {
+                    if(tmp && ((!((tmp>=absmin) && (tmp<=absmax) && !(tmp&mask))) || !(unscaled && (tmp>-256) && (tmp<256)))) {
                         MOV64x(scratch, tmp);
                         ADDx_REG_LSL(ret, scratch, xRAX+sib_reg, (sib>>6));
                     } else {
@@ -214,7 +214,7 @@ static uintptr_t geted_32(dynarec_arm_t* dyn, uintptr_t addr, int ninst, uint8_t
             if((sib&0x7)==5) {
                 int64_t tmp = F32S;
                 if (sib_reg!=4) {
-                    if(tmp && (!((tmp>=absmin) && (tmp<=absmax) && !(tmp&mask))) || !(unscaled && (tmp>-256) && (tmp<256))) {
+                    if(tmp && ((!((tmp>=absmin) && (tmp<=absmax) && !(tmp&mask))) || !(unscaled && (tmp>-256) && (tmp<256)))) {
                         MOV32w(scratch, tmp);
                         ADDw_REG_LSL(ret, scratch, xRAX+sib_reg, (sib>>6));
                     } else {
@@ -350,7 +350,7 @@ uintptr_t geted32(dynarec_arm_t* dyn, uintptr_t addr, int ninst, uint8_t nextop,
             if((sib&0x7)==5) {
                 int64_t tmp = F32S;
                 if (sib_reg!=4) {
-                    if(tmp && (!((tmp>=absmin) && (tmp<=absmax) && !(tmp&mask))) || !(unscaled && (tmp>-256) && (tmp<256))) {
+                    if(tmp && ((!((tmp>=absmin) && (tmp<=absmax) && !(tmp&mask))) || !(unscaled && (tmp>-256) && (tmp<256)))) {
                         MOV64x(scratch, tmp);
                         ADDw_REG_LSL(ret, scratch, xRAX+sib_reg, (sib>>6));
                     } else {
@@ -566,7 +566,7 @@ void jump_to_epilog(dynarec_arm_t* dyn, uintptr_t ip, int reg, int ninst)
     BR(x2);
 }
 
-void jump_to_next(dynarec_arm_t* dyn, uintptr_t ip, int reg, int ninst)
+void jump_to_next(dynarec_arm_t* dyn, uintptr_t ip, int reg, int ninst, int is32bits)
 {
     MAYUSE(dyn); MAYUSE(ninst);
     MESSAGE(LOG_DUMP, "Jump to next\n");
@@ -577,15 +577,17 @@ void jump_to_next(dynarec_arm_t* dyn, uintptr_t ip, int reg, int ninst)
             MOVx_REG(xRIP, reg);
         }
         NOTEST(x2);
-        uintptr_t tbl = getJumpTable64();
+        uintptr_t tbl = is32bits?getJumpTable32():getJumpTable64();
         MAYUSE(tbl);
         TABLE64(x3, tbl);
-        #ifdef JMPTABL_SHIFT4
-        UBFXx(x2, xRIP, JMPTABL_START4, JMPTABL_SHIFT4);
-        LDRx_REG_LSL3(x3, x3, x2);
-        #endif
-        UBFXx(x2, xRIP, JMPTABL_START3, JMPTABL_SHIFT3);
-        LDRx_REG_LSL3(x3, x3, x2);
+        if(!is32bits) {
+            #ifdef JMPTABL_SHIFT4
+            UBFXx(x2, xRIP, JMPTABL_START4, JMPTABL_SHIFT4);
+            LDRx_REG_LSL3(x3, x3, x2);
+            #endif
+            UBFXx(x2, xRIP, JMPTABL_START3, JMPTABL_SHIFT3);
+            LDRx_REG_LSL3(x3, x3, x2);
+        }
         UBFXx(x2, xRIP, JMPTABL_START2, JMPTABL_SHIFT2);
         LDRx_REG_LSL3(x3, x3, x2);
         UBFXx(x2, xRIP, JMPTABL_START1, JMPTABL_SHIFT1);
@@ -619,24 +621,24 @@ void ret_to_epilog(dynarec_arm_t* dyn, int ninst, rex_t rex)
     SMEND();
     if(box64_dynarec_callret) {
         // pop the actual return address for ARM stack
-        LDPx_S7_offset(x2, x6, xSP, 0);
-        CBZx(x6, 6*4);
-        ADDx_U12(xSP, xSP, 16);
+        LDPx_S7_postindex(x2, x6, xSP, 16);
         SUBx_REG(x6, x6, xRIP); // is it the right address?
         CBNZx(x6, 2*4);
         BLR(x2);
         // not the correct return address, regular jump, but purge the stack first, it's unsync now...
-        SUBx_U12(xSP, xSavedSP, 0);
+        SUBx_U12(xSP, xSavedSP, 16);
     }
-    uintptr_t tbl = getJumpTable64();
+    uintptr_t tbl = rex.is32bits?getJumpTable32():getJumpTable64();
     NOTEST(x2);
     MOV64x(x2, tbl);
-    #ifdef JMPTABL_SHIFT4
-    UBFXx(x3, xRIP, JMPTABL_START4, JMPTABL_SHIFT4);
-    LDRx_REG_LSL3(x2, x2, x3);
-    #endif
-    UBFXx(x3, xRIP, JMPTABL_START3, JMPTABL_SHIFT3);
-    LDRx_REG_LSL3(x2, x2, x3);
+    if(!rex.is32bits) {
+        #ifdef JMPTABL_SHIFT4
+        UBFXx(x3, xRIP, JMPTABL_START4, JMPTABL_SHIFT4);
+        LDRx_REG_LSL3(x2, x2, x3);
+        #endif
+        UBFXx(x3, xRIP, JMPTABL_START3, JMPTABL_SHIFT3);
+        LDRx_REG_LSL3(x2, x2, x3);
+    }
     UBFXx(x3, xRIP, JMPTABL_START2, JMPTABL_SHIFT2);
     LDRx_REG_LSL3(x2, x2, x3);
     UBFXx(x3, xRIP, JMPTABL_START1, JMPTABL_SHIFT1);
@@ -662,24 +664,24 @@ void retn_to_epilog(dynarec_arm_t* dyn, int ninst, rex_t rex, int n)
     SMEND();
     if(box64_dynarec_callret) {
         // pop the actual return address for ARM stack
-        LDPx_S7_offset(x2, x6, xSP, 0);
-        CBZx(x6, 6*4);
-        ADDx_U12(xSP, xSP, 16);
+        LDPx_S7_postindex(x2, x6, xSP, 16);
         SUBx_REG(x6, x6, xRIP); // is it the right address?
         CBNZx(x6, 2*4);
         BLR(x2);
         // not the correct return address, regular jump
-        SUBx_U12(xSP, xSavedSP, 0);
+        SUBx_U12(xSP, xSavedSP, 16);
     }
-    uintptr_t tbl = getJumpTable64();
+    uintptr_t tbl = rex.is32bits?getJumpTable32():getJumpTable64();
     NOTEST(x2);
     MOV64x(x2, tbl);
-    #ifdef JMPTABL_SHIFT4
-    UBFXx(x3, xRIP, JMPTABL_START4, JMPTABL_SHIFT4);
-    LDRx_REG_LSL3(x2, x2, x3);
-    #endif
-    UBFXx(x3, xRIP, JMPTABL_START3, JMPTABL_SHIFT3);
-    LDRx_REG_LSL3(x2, x2, x3);
+    if(!rex.is32bits) {
+        #ifdef JMPTABL_SHIFT4
+        UBFXx(x3, xRIP, JMPTABL_START4, JMPTABL_SHIFT4);
+        LDRx_REG_LSL3(x2, x2, x3);
+        #endif
+        UBFXx(x3, xRIP, JMPTABL_START3, JMPTABL_SHIFT3);
+        LDRx_REG_LSL3(x2, x2, x3);
+    }
     UBFXx(x3, xRIP, JMPTABL_START2, JMPTABL_SHIFT2);
     LDRx_REG_LSL3(x2, x2, x3);
     UBFXx(x3, xRIP, JMPTABL_START1, JMPTABL_SHIFT1);
@@ -696,6 +698,7 @@ void iret_to_epilog(dynarec_arm_t* dyn, int ninst, int is64bits)
     MAYUSE(ninst);
     MESSAGE(LOG_DUMP, "IRet to epilog\n");
     SMEND();
+    SET_DFNONE(x2);
     // POP IP
     NOTEST(x2);
     if(is64bits) {
@@ -777,7 +780,7 @@ void call_c(dynarec_arm_t* dyn, int ninst, void* fnc, int reg, int ret, int save
     if(saveflags) {
         LDRx_U12(xFlags, xEmu, offsetof(x64emu_t, eflags));
     }
-    SET_NODF();
+    //SET_NODF();
 }
 
 void call_n(dynarec_arm_t* dyn, int ninst, void* fnc, int w)
@@ -824,7 +827,7 @@ void call_n(dynarec_arm_t* dyn, int ninst, void* fnc, int w)
 
     fpu_popcache(dyn, ninst, x3, 1);
     LDRx_U12(xFlags, xEmu, offsetof(x64emu_t, eflags));
-    SET_NODF();
+    //SET_NODF();
 }
 
 void grab_segdata(dynarec_arm_t* dyn, uintptr_t addr, int ninst, int reg, int segment)
@@ -853,25 +856,6 @@ void grab_segdata(dynarec_arm_t* dyn, uintptr_t addr, int ninst, int reg, int se
 }
 
 // x87 stuffs
-static void x87_reset(dynarec_arm_t* dyn)
-{
-    for (int i=0; i<8; ++i)
-        dyn->n.x87cache[i] = -1;
-    dyn->n.x87stack = 0;
-    dyn->n.stack = 0;
-    dyn->n.stack_next = 0;
-    dyn->n.stack_pop = 0;
-    dyn->n.stack_push = 0;
-    dyn->n.combined1 = dyn->n.combined2 = 0;
-    dyn->n.swapped = 0;
-    dyn->n.barrier = 0;
-    for(int i=0; i<24; ++i)
-        if(dyn->n.neoncache[i].t == NEON_CACHE_ST_F
-         || dyn->n.neoncache[i].t == NEON_CACHE_ST_D
-         || dyn->n.neoncache[i].t == NEON_CACHE_ST_I64)
-            dyn->n.neoncache[i].v = 0;
-}
-
 int x87_stackcount(dynarec_arm_t* dyn, int ninst, int scratch)
 {
     MAYUSE(scratch);
@@ -914,7 +898,7 @@ void x87_unstackcount(dynarec_arm_t* dyn, int ninst, int scratch, int count)
         return;
     if(dyn->n.mmxcount)
         mmx_purgecache(dyn, ninst, 0, scratch);
-    MESSAGE(LOG_DUMP, "\tUnsynch x87 Stackcount (%d)\n", count);
+    MESSAGE(LOG_DUMP, "\tUnsynch x87 Unstackcount (%d)\n", count);
     int a = -count;
     // Add x87stack to emu fpu_stack
     LDRw_U12(scratch, xEmu, offsetof(x64emu_t, fpu_stack));
@@ -962,6 +946,9 @@ int x87_do_push(dynarec_arm_t* dyn, int ninst, int s1, int t)
     dyn->n.stack+=1;
     dyn->n.stack_next+=1;
     dyn->n.stack_push+=1;
+    ++dyn->n.pushed;
+    if(dyn->n.poped)
+        --dyn->n.poped;
     // move all regs in cache, and find a free one
     for(int j=0; j<24; ++j)
         if((dyn->n.neoncache[j].t == NEON_CACHE_ST_D)
@@ -969,7 +956,8 @@ int x87_do_push(dynarec_arm_t* dyn, int ninst, int s1, int t)
          ||(dyn->n.neoncache[j].t == NEON_CACHE_ST_I64))
             ++dyn->n.neoncache[j].n;
     int ret = -1;
-    for(int i=0; i<8; ++i)
+    dyn->n.tags<<=2;
+    for(int i=0; i<8; ++i) {
         if(dyn->n.x87cache[i]!=-1)
             ++dyn->n.x87cache[i];
         else if(ret==-1) {
@@ -977,6 +965,11 @@ int x87_do_push(dynarec_arm_t* dyn, int ninst, int s1, int t)
             ret=dyn->n.x87reg[i]=fpu_get_reg_x87(dyn, t, 0);
             dyn->n.neoncache[ret].t = X87_ST0;
         }
+    }
+    if(ret==-1) {
+        MESSAGE(LOG_DUMP, "Incoherent x87 stack cache, aborting\n");
+        dyn->abort = 1;
+    }
     return ret;
 }
 void x87_do_push_empty(dynarec_arm_t* dyn, int ninst, int s1)
@@ -987,26 +980,30 @@ void x87_do_push_empty(dynarec_arm_t* dyn, int ninst, int s1)
     dyn->n.stack+=1;
     dyn->n.stack_next+=1;
     dyn->n.stack_push+=1;
+    ++dyn->n.pushed;
+    if(dyn->n.poped)
+        --dyn->n.poped;
     // move all regs in cache
     for(int j=0; j<24; ++j)
         if((dyn->n.neoncache[j].t == NEON_CACHE_ST_D)
          ||(dyn->n.neoncache[j].t == NEON_CACHE_ST_F)
          ||(dyn->n.neoncache[j].t == NEON_CACHE_ST_I64))
             ++dyn->n.neoncache[j].n;
-    for(int i=0; i<8; ++i)
+    int ret = -1;
+    dyn->n.tags<<=2;
+    for(int i=0; i<8; ++i) {
         if(dyn->n.x87cache[i]!=-1)
             ++dyn->n.x87cache[i];
-    if(s1)
-        x87_stackcount(dyn, ninst, s1);
+        else if(ret==-1)
+            ret = i;
+    }
+    if(ret==-1) {
+        MESSAGE(LOG_DUMP, "Incoherent x87 stack cache, aborting\n");
+        dyn->abort = 1;
+    }
 }
-void x87_do_pop(dynarec_arm_t* dyn, int ninst, int s1)
+void static internal_x87_dopop(dynarec_arm_t* dyn)
 {
-    if(dyn->n.mmxcount)
-        mmx_purgecache(dyn, ninst, 0, s1);
-    dyn->n.x87stack-=1;
-    dyn->n.stack_next-=1;
-    dyn->n.stack_pop+=1;
-    // move all regs in cache, poping ST0
     for(int i=0; i<8; ++i)
         if(dyn->n.x87cache[i]!=-1) {
             --dyn->n.x87cache[i];
@@ -1016,7 +1013,37 @@ void x87_do_pop(dynarec_arm_t* dyn, int ninst, int s1)
             }
         }
 }
-
+int static internal_x87_dofree(dynarec_arm_t* dyn)
+{
+    if(dyn->n.tags&0b11) {
+        MESSAGE(LOG_DUMP, "\t--------x87 FREED ST0, poping 1 more\n");
+        return 1;
+    }
+    return 0;
+}
+void x87_do_pop(dynarec_arm_t* dyn, int ninst, int s1)
+{
+    if(dyn->n.mmxcount)
+        mmx_purgecache(dyn, ninst, 0, s1);
+    do {
+        dyn->n.x87stack-=1;
+        dyn->n.stack_next-=1;
+        dyn->n.stack_pop+=1;
+        dyn->n.tags>>=2;
+        ++dyn->n.poped;
+        if(dyn->n.pushed)
+            --dyn->n.pushed;
+        // move all regs in cache, poping ST0
+        internal_x87_dopop(dyn);
+    } while(internal_x87_dofree(dyn));
+}
+static int x87_is_stcached(dynarec_arm_t* dyn, int st)
+{
+    for (int i=0; i<8; ++i)
+        if(dyn->n.x87cache[i] == st)
+            return 1;
+    return 0;
+}
 void x87_purgecache(dynarec_arm_t* dyn, int ninst, int next, int s1, int s2, int s3)
 {
     int ret = 0;
@@ -1029,8 +1056,9 @@ void x87_purgecache(dynarec_arm_t* dyn, int ninst, int next, int s1, int s2, int
     int a = dyn->n.x87stack;
     if(a!=0) {
         // reset x87stack
-        if(!next)
+        if(!next) {
             dyn->n.x87stack = 0;
+        }
         // Add x87stack to emu fpu_stack
         LDRw_U12(s2, xEmu, offsetof(x64emu_t, fpu_stack));
         if(a>0) {
@@ -1041,30 +1069,33 @@ void x87_purgecache(dynarec_arm_t* dyn, int ninst, int next, int s1, int s2, int
         STRw_U12(s2, xEmu, offsetof(x64emu_t, fpu_stack));
         // Sub x87stack to top, with and 7
         LDRw_U12(s2, xEmu, offsetof(x64emu_t, top));
-        // update tags (and top at the same time)
         if(a>0) {
-            // new tag to fulls
-            MOVZw(s3, 0);
-            ADDx_U12(s1, xEmu, offsetof(x64emu_t, p_regs));
-            for (int i=0; i<a; ++i) {
-                SUBw_U12(s2, s2, 1);
-                ANDw_mask(s2, s2, 0, 2); //mask=7    // (emu->top + st)&7
-                STRw_REG_LSL2(s3, s1, s2);
-            }
+            SUBw_U12(s2, s2, a);
         } else {
-            // empty tags
-            MOVZw(s3, 0b11);
-            ADDx_U12(s1, xEmu, offsetof(x64emu_t, p_regs));
-            for (int i=0; i<-a; ++i) {
-                STRw_REG_LSL2(s3, s1, s2);
-                ADDw_U12(s2, s2, 1);
-                ANDw_mask(s2, s2, 0, 2); //mask=7    // (emu->top + st)&7
-            }
+            ADDw_U12(s2, s2, -a);
         }
+        ANDw_mask(s2, s2, 0, 2);
         STRw_U12(s2, xEmu, offsetof(x64emu_t, top));
+        // update tags
+        LDRH_U12(s1, xEmu, offsetof(x64emu_t, fpu_tags));
+        if(a>0) {
+            LSLw_IMM(s1, s1, a*2);
+        } else {
+            ORRw_mask(s1, s1, 0b010000, 0b001111);  // 0xffff0000
+            LSRw_IMM(s1, s1, -a*2);
+        }
+        STRH_U12(s1, xEmu, offsetof(x64emu_t, fpu_tags));
     } else {
         LDRw_U12(s2, xEmu, offsetof(x64emu_t, top));
     }
+    // check if free is used
+    if(dyn->n.tags) {
+        LDRH_U12(s1, xEmu, offsetof(x64emu_t, fpu_tags));
+        MOV32w(s3, dyn->n.tags);
+        ORRw_REG(s1, s1, s3);
+        STRH_U12(s1, xEmu, offsetof(x64emu_t, fpu_tags));
+    }
+
     if(ret!=0) {
         // --- set values
         // prepare offset to fpu => s1
@@ -1073,29 +1104,34 @@ void x87_purgecache(dynarec_arm_t* dyn, int ninst, int next, int s1, int s2, int
         // loop all cache entries
         for (int i=0; i<8; ++i)
             if(dyn->n.x87cache[i]!=-1) {
+                int st = dyn->n.x87cache[i]+dyn->n.stack_pop;
                 #if STEP == 1
                 if(!next) {   // don't force promotion here
                     // pre-apply pop, because purge happens in-between
-                    neoncache_promote_double(dyn, ninst, dyn->n.x87cache[i]+dyn->n.stack_pop);
+                    neoncache_promote_double(dyn, ninst, st);
                 }
                 #endif
                 #if STEP == 3
-                if(!next && neoncache_get_st_f(dyn, ninst, dyn->n.x87cache[i])>=0) {
-                    MESSAGE(LOG_DUMP, "Warning, incoherency with purged ST%d cache\n", dyn->n.x87cache[i]);
+                if(!next && neoncache_get_current_st(dyn, ninst, st)!=NEON_CACHE_ST_D) {
+                    MESSAGE(LOG_DUMP, "Warning, incoherency with purged ST%d cache\n", st);
                 }
                 #endif
-                ADDw_U12(s3, s2, dyn->n.x87cache[i]);
+                ADDw_U12(s3, s2, dyn->n.x87cache[i]);   // unadjusted count, as it's relative to real top
                 ANDw_mask(s3, s3, 0, 2); //mask=7   // (emu->top + st)&7
-                if(next) {
-                    // need to check if a ST_F need local promotion
-                    if(neoncache_get_st_f(dyn, ninst, dyn->n.x87cache[i])>=0) {
-                        FCVT_D_S(0, dyn->n.x87reg[i]);
-                        VSTR64_REG_LSL3(0, s1, s3);    // save the value
-                    } else {
+                switch(neoncache_get_current_st(dyn, ninst, st)) {
+                    case NEON_CACHE_ST_D:
                         VSTR64_REG_LSL3(dyn->n.x87reg[i], s1, s3);    // save the value
-                    }
-                } else {
-                    VSTR64_REG_LSL3(dyn->n.x87reg[i], s1, s3);
+                        break;
+                    case NEON_CACHE_ST_F:
+                        FCVT_D_S(SCRATCH, dyn->n.x87reg[i]);
+                        VSTR64_REG_LSL3(SCRATCH, s1, s3);    // save the value
+                        break;
+                    case NEON_CACHE_ST_I64:
+                        SCVTFDD(SCRATCH, dyn->n.x87reg[i]);
+                        VSTR64_REG_LSL3(SCRATCH, s1, s3);    // save the value
+                        break;
+                }
+                if(!next) {
                     fpu_free_reg(dyn, dyn->n.x87reg[i]);
                     dyn->n.x87reg[i] = -1;
                     dyn->n.x87cache[i] = -1;
@@ -1105,9 +1141,13 @@ void x87_purgecache(dynarec_arm_t* dyn, int ninst, int next, int s1, int s2, int
     }
     if(!next) {
         dyn->n.stack_next = 0;
+        dyn->n.tags = 0;
         #if STEP < 2
         // refresh the cached valued, in case it's a purge outside a instruction
         dyn->insts[ninst].n.barrier = 1;
+        dyn->n.pushed = 0;
+        dyn->n.poped = 0;
+
         #endif
     }
     MESSAGE(LOG_DUMP, "\t---Purge x87 Cache and Synch Stackcount\n");
@@ -1135,6 +1175,15 @@ static void x87_reflectcache(dynarec_arm_t* dyn, int ninst, int s1, int s2, int 
         }
         ANDw_mask(s2, s2, 0, 2);  //mask=7
         STRw_U12(s2, xEmu, offsetof(x64emu_t, top));
+        // update tags
+        LDRH_U12(s1, xEmu, offsetof(x64emu_t, fpu_tags));
+        if(a>0) {
+            LSLw_IMM(s1, s1, a*2);
+        } else {
+            ORRw_mask(s1, s1, 0b010000, 0b001111);  // 0xffff0000
+            LSRw_IMM(s1, s1, -a*2);
+        }
+        STRH_U12(s1, xEmu, offsetof(x64emu_t, fpu_tags));
     }
     int ret = 0;
     for (int i=0; (i<8) && (!ret); ++i)
@@ -1183,6 +1232,15 @@ static void x87_unreflectcache(dynarec_arm_t* dyn, int ninst, int s1, int s2, in
         }
         ANDw_mask(s2, s2, 0, 2);  //mask=7
         STRw_U12(s2, xEmu, offsetof(x64emu_t, top));
+        // update tags
+        LDRH_U12(s1, xEmu, offsetof(x64emu_t, fpu_tags));
+        if(a>0) {
+            ORRw_mask(s1, s1, 0b010000, 0b001111);  // 0xffff0000
+            LSRw_IMM(s1, s1, a*2);
+        } else {
+            LSLw_IMM(s1, s1, -a*2);
+        }
+        STRH_U12(s1, xEmu, offsetof(x64emu_t, fpu_tags));
     }
 }
 
@@ -1259,38 +1317,6 @@ int x87_get_st_empty(dynarec_arm_t* dyn, int ninst, int s1, int s2, int a, int t
     return dyn->n.x87reg[x87_get_cache(dyn, ninst, 0, s1, s2, a, t)];
 }
 
-
-void x87_refresh(dynarec_arm_t* dyn, int ninst, int s1, int s2, int st)
-{
-    x87_stackcount(dyn, ninst, s1);
-    int ret = -1;
-    for (int i=0; (i<8) && (ret==-1); ++i)
-        if(dyn->n.x87cache[i] == st)
-            ret = i;
-    if(ret==-1)    // nothing to do
-        return;
-    MESSAGE(LOG_DUMP, "\tRefresh x87 Cache for ST%d\n", st);
-    // prepare offset to fpu => s1
-    ADDx_U12(s1, xEmu, offsetof(x64emu_t, x87));
-    // Get top
-    LDRw_U12(s2, xEmu, offsetof(x64emu_t, top));
-    // Update
-    if(st) {
-        ADDw_U12(s2, s2, st);
-        ANDw_mask(s2, s2, 0, 2); //mask=7    // (emu->top + i)&7
-    }
-    if(dyn->n.neoncache[dyn->n.x87reg[ret]].t==NEON_CACHE_ST_F) {
-        FCVT_D_S(31, dyn->n.x87reg[ret]);
-        VSTR64_REG_LSL3(31, s1, s2);
-    } else if(dyn->n.neoncache[dyn->n.x87reg[ret]].t==NEON_CACHE_ST_I64) {
-        SCVTFDD(31, dyn->n.x87reg[ret]);
-        VSTR64_REG_LSL3(31, s1, s2);
-    } else {
-        VSTR64_REG_LSL3(dyn->n.x87reg[ret], s1, s2);
-    }
-    MESSAGE(LOG_DUMP, "\t--------x87 Cache for ST%d\n", st);
-}
-
 void x87_forget(dynarec_arm_t* dyn, int ninst, int s1, int s2, int st)
 {
     int ret = -1;
@@ -1320,11 +1346,11 @@ void x87_forget(dynarec_arm_t* dyn, int ninst, int s1, int s2, int st)
         ANDw_mask(s2, s2, 0, 2); //mask=7    // (emu->top + i)&7
     }
     if(dyn->n.neoncache[reg].t==NEON_CACHE_ST_F) {
-        FCVT_D_S(31, reg);
-        VSTR64_REG_LSL3(31, s1, s2);
+        FCVT_D_S(SCRATCH, reg);
+        VSTR64_REG_LSL3(SCRATCH, s1, s2);
     } else if(dyn->n.neoncache[reg].t==NEON_CACHE_ST_I64) {
-        SCVTFDD(31, reg);
-        VSTR64_REG_LSL3(31, s1, s2);
+        SCVTFDD(SCRATCH, reg);
+        VSTR64_REG_LSL3(SCRATCH, s1, s2);
     } else {
         VSTR64_REG_LSL3(reg, s1, s2);
     }
@@ -1384,6 +1410,66 @@ void x87_reget_st(dynarec_arm_t* dyn, int ninst, int s1, int s2, int st)
     ANDw_mask(s2, s2, 0, 2); //mask=7    // (emu->top + i)&7
     VLDR64_REG_LSL3(dyn->n.x87reg[ret], s1, s2);
     MESSAGE(LOG_DUMP, "\t-------x87 Cache for ST%d\n", st);
+}
+
+void x87_free(dynarec_arm_t* dyn, int ninst, int s1, int s2, int s3, int st)
+{
+    int ret = -1;
+    for (int i=0; (i<8) && (ret==-1); ++i)
+        if(dyn->n.x87cache[i] == st)
+            ret = i;
+    MESSAGE(LOG_DUMP, "\tFFREE%s x87 Cache for ST%d\n", (ret!=-1)?" (and Forget)":"", st);
+    if(ret!=-1) {
+        const int reg = dyn->n.x87reg[ret];
+        #if STEP == 1
+        if(dyn->n.neoncache[reg].t==NEON_CACHE_ST_F || dyn->n.neoncache[reg].t==NEON_CACHE_ST_I64)
+            neoncache_promote_double(dyn, ninst, st);
+        #endif
+        // prepare offset to fpu => s1
+        ADDx_U12(s1, xEmu, offsetof(x64emu_t, x87));
+        // Get top
+        LDRw_U12(s2, xEmu, offsetof(x64emu_t, top));
+        // Update
+        int ast = st - dyn->n.x87stack;
+        if(ast) {
+            if(ast>0) {
+                ADDw_U12(s2, s2, ast);
+            } else {
+                SUBw_U12(s2, s2, -ast);
+            }
+            ANDw_mask(s2, s2, 0, 2); //mask=7    // (emu->top + i)&7
+        }
+        if(dyn->n.neoncache[reg].t==NEON_CACHE_ST_F) {
+            FCVT_D_S(SCRATCH, reg);
+            VSTR64_REG_LSL3(SCRATCH, s1, s2);
+        } else if(dyn->n.neoncache[reg].t==NEON_CACHE_ST_I64) {
+            SCVTFDD(SCRATCH, reg);
+            VSTR64_REG_LSL3(SCRATCH, s1, s2);
+        } else {
+            VSTR64_REG_LSL3(reg, s1, s2);
+        }
+        // and forget that cache
+        fpu_free_reg(dyn, reg);
+        dyn->n.neoncache[reg].v = 0;
+        dyn->n.x87cache[ret] = -1;
+        dyn->n.x87reg[ret] = -1;
+    } else {
+        // Get top
+        LDRw_U12(s2, xEmu, offsetof(x64emu_t, top));
+        // Update
+        int ast = st - dyn->n.x87stack;
+        if(ast) {
+            if(ast>0) {
+                ADDw_U12(s2, s2, ast);
+            } else {
+                SUBw_U12(s2, s2, -ast);
+            }
+            ANDw_mask(s2, s2, 0, 2); //mask=7    // (emu->top + i)&7
+        }
+    }
+    // add mark in the freed array
+    dyn->n.tags |= 0b11<<(st*2);
+    MESSAGE(LOG_DUMP, "\t--------x87 FFREE for ST%d\n", st);
 }
 
 void x87_swapreg(dynarec_arm_t* dyn, int ninst, int s1, int s2, int a, int b)
@@ -1446,12 +1532,6 @@ void x87_restoreround(dynarec_arm_t* dyn, int ninst, int s1)
 }
 
 // MMX helpers
-static void mmx_reset(dynarec_arm_t* dyn)
-{
-    dyn->n.mmxcount = 0;
-    for (int i=0; i<8; ++i)
-        dyn->n.mmxcache[i] = -1;
-}
 static int isx87Empty(dynarec_arm_t* dyn)
 {
     for (int i=0; i<8; ++i)
@@ -1518,11 +1598,6 @@ static void mmx_reflectcache(dynarec_arm_t* dyn, int ninst, int s1)
 
 
 // SSE / SSE2 helpers
-static void sse_reset(dynarec_arm_t* dyn)
-{
-    for (int i=0; i<16; ++i)
-        dyn->n.ssecache[i].v = -1;
-}
 // get neon register for a SSE reg, create the entry if needed
 int sse_get_reg(dynarec_arm_t* dyn, int ninst, int s1, int a, int forwrite)
 {
@@ -1741,7 +1816,6 @@ static void swapCache(dynarec_arm_t* dyn, int ninst, int i, int j, neoncache_t *
     MESSAGE(LOG_DUMP, "\t  - Swapping %d <-> %d\n", i, j);
     // There is no VSWP in Arm64 NEON to swap 2 register contents!
     // so use a scratch...
-    #define SCRATCH 31
     if(quad) {
         VMOVQ(SCRATCH, i);
         VMOVQ(i, j);
@@ -1916,43 +1990,6 @@ static void fpuCacheTransform(dynarec_arm_t* dyn, int ninst, int s1, int s2, int
     }
     int stack_cnt = dyn->n.stack_next;
     int s3_top = 0xffff;
-    if(stack_cnt != cache_i2.stack) {
-        MESSAGE(LOG_DUMP, "\t    - adjust stack count %d -> %d -\n", stack_cnt, cache_i2.stack);
-        int a = stack_cnt - cache_i2.stack;
-        // Add x87stack to emu fpu_stack
-        LDRw_U12(s3, xEmu, offsetof(x64emu_t, fpu_stack));
-        if(a>0) {
-            ADDw_U12(s3, s3, a);
-        } else {
-            SUBw_U12(s3, s3, -a);
-        }
-        STRw_U12(s3, xEmu, offsetof(x64emu_t, fpu_stack));
-        // Sub x87stack to top, with and 7
-        LDRw_U12(s3, xEmu, offsetof(x64emu_t, top));
-        // update tags (and top at the same time)
-        if(a>0) {
-            // new tag to fulls
-            MOVZw(s2, 0);
-            ADDx_U12(s1, xEmu, offsetof(x64emu_t, p_regs));
-            for (int i=0; i<a; ++i) {
-                SUBw_U12(s3, s3, 1);
-                ANDw_mask(s3, s3, 0, 2);    // (emu->top + st)&7
-                STRw_REG_LSL2(s2, s1, s3);    // that slot is full
-            }
-        } else {
-            // empty tags
-            MOVZw(s2, 0b11);
-            ADDx_U12(s1, xEmu, offsetof(x64emu_t, p_regs));
-            for (int i=0; i<-a; ++i) {
-                STRw_REG_LSL2(s2, s1, s3);    // empty slot before leaving it
-                ADDw_U12(s3, s3, 1);
-                ANDw_mask(s3, s3, 0, 2);    // (emu->top + st)&7
-            }
-        }
-        STRw_U12(s3, xEmu, offsetof(x64emu_t, top));
-        s3_top = 0;
-        stack_cnt = cache_i2.stack;
-    }
     neoncache_t cache = dyn->n;
     int s1_val = 0;
     int s2_val = 0;
@@ -2023,6 +2060,38 @@ static void fpuCacheTransform(dynarec_arm_t* dyn, int ninst, int s1, int s2, int
             }
         }
     }
+    if(stack_cnt != cache_i2.stack) {
+        MESSAGE(LOG_DUMP, "\t    - adjust stack count %d -> %d -\n", stack_cnt, cache_i2.stack);
+        int a = stack_cnt - cache_i2.stack;
+        // Add x87stack to emu fpu_stack
+        LDRw_U12(s3, xEmu, offsetof(x64emu_t, fpu_stack));
+        if(a>0) {
+            ADDw_U12(s3, s3, a);
+        } else {
+            SUBw_U12(s3, s3, -a);
+        }
+        STRw_U12(s3, xEmu, offsetof(x64emu_t, fpu_stack));
+        // Sub x87stack to top, with and 7
+        LDRw_U12(s3, xEmu, offsetof(x64emu_t, top));
+        if(a>0) {
+            SUBw_U12(s3, s3, a);
+        } else {
+            ADDw_U12(s3, s3, -a);
+        }
+        ANDw_mask(s3, s3, 0, 2);   //mask=7
+        STRw_U12(s3, xEmu, offsetof(x64emu_t, top));
+        // update tags
+        LDRH_U12(s2, xEmu, offsetof(x64emu_t, fpu_tags));
+        if(a>0) {
+            LSLw_IMM(s2, s2, a*2);
+        } else {
+            ORRw_mask(s2, s2, 0b010000, 0b001111);  // 0xffff0000
+            LSRw_IMM(s2, s2, -a*2);
+        }
+        STRH_U12(s2, xEmu, offsetof(x64emu_t, fpu_tags));
+        s3_top = 0;
+        stack_cnt = cache_i2.stack;
+    }
     MESSAGE(LOG_DUMP, "\t---- Cache Transform\n");
 #endif
 }
@@ -2090,14 +2159,6 @@ void fpu_unreflectcache(dynarec_arm_t* dyn, int ninst, int s1, int s2, int s3)
     x87_unreflectcache(dyn, ninst, s1, s2, s3);
 }
 
-void fpu_reset(dynarec_arm_t* dyn)
-{
-    x87_reset(dyn);
-    mmx_reset(dyn);
-    sse_reset(dyn);
-    fpu_reset_reg(dyn);
-}
-
 void emit_pf(dynarec_arm_t* dyn, int ninst, int s1, int s3, int s4)
 {
     MAYUSE(dyn); MAYUSE(ninst);
@@ -2113,6 +2174,82 @@ void emit_pf(dynarec_arm_t* dyn, int ninst, int s1, int s3, int s4)
     BFIw(xFlags, s4, F_PF, 1);
 }
 
+void arm64_move32(dynarec_arm_t* dyn, int ninst, int reg, uint32_t val)
+{
+    // simple cases with only 1 operations
+    for(int i=0; i<2; ++i)
+        if((val&(0xFFFF<<(i*16)))==val) {
+            MOVZw_LSL(reg, (val>>(i*16))&0xFFFF, i*16);
+            return;
+        }
+    // same but with negation
+    for(int i=0; i<2; ++i)
+        if(((~val)&(0xFFFF<<(i*16)))==(~val)) {
+            MOVNw_LSL(reg, ((~val)>>(i*16))&0xFFFF, i*16);
+            return;
+        }
+    // generic cases
+    int mask = convert_bitmask_w(val);
+    if(mask) {
+        ORRw_mask(reg, xZR, mask&0x3F, (mask>>6)&0x3F);
+    } else {
+        MOVZw(reg, val&0xFFFF);
+        MOVKw_LSL(reg, (val>>16)&0xFFFF, 16);
+    }
+}
+void arm64_move64(dynarec_arm_t* dyn, int ninst, int reg, uint64_t val)
+{
+    // simple cases with only 1 operations
+    for(int i=0; i<4; ++i)
+        if((val&(0xFFFFLL<<(i*16)))==val) {
+            MOVZx_LSL(reg, (val>>(i*16))&0xFFFF, i*16);
+            return;
+        }
+    // same but with negation
+    for(int i=0; i<4; ++i)
+        if(((~val)&(0xFFFFLL<<(i*16)))==(~val)) {
+            MOVNx_LSL(reg, ((~val)>>(i*16))&0xFFFF, i*16);
+            return;
+        }
+    // mask
+    int mask = convert_bitmask_x(val);
+    if(mask) {
+        ORRx_mask(reg, xZR, (mask>>12)&1, mask&0x3F, (mask>>6)&0x3F);
+        return;
+    }
+    // 32bit value?
+    if((val&0xFFFFFFFF)==val) {
+        arm64_move32(dyn, ninst, reg, val);
+        return;
+    }
+    int n = 0;
+    // negatives values
+    if((val&0xFFFF000000000000LL)==0xFFFF000000000000LL) {
+        for(int i=0; i<3; ++i) {
+            if(((~val)>>(i*16))&0xFFFF) {
+                if(n) {
+                    MOVKx_LSL(reg, (val>>(i*16))&0xFFFF, i*16);
+                } else {
+                    MOVNx_LSL(reg, ((~val)>>(i*16))&0xFFFF, i*16);
+                    n = 1;
+                }
+            }
+        }
+        return;
+    }
+    // positive values
+    for(int i=0; i<4; ++i) {
+        if((val>>(i*16))&0xFFFF) {
+            if(n) {
+                MOVKx_LSL(reg, (val>>(i*16))&0xFFFF, i*16);
+            } else {
+                MOVZx_LSL(reg, (val>>(i*16))&0xFFFF, i*16);
+                n = 1;
+            }
+        }
+    }
+}
+
 
 void fpu_reset_cache(dynarec_arm_t* dyn, int ninst, int reset_n)
 {
@@ -2120,8 +2257,14 @@ void fpu_reset_cache(dynarec_arm_t* dyn, int ninst, int reset_n)
     #if STEP > 1
     // for STEP 2 & 3, just need to refrest with current, and undo the changes (push & swap)
     dyn->n = dyn->insts[ninst].n;
+    #else
+    dyn->n = dyn->insts[reset_n].n;
+    #endif
     neoncacheUnwind(&dyn->n);
-    #ifdef HAVE_TRACE
+    #if STEP == 0
+    if(box64_dynarec_dump) dynarec_log(LOG_NONE, "New x87stack=%d\n", dyn->n.x87stack);
+        #endif
+    #if defined(HAVE_TRACE) && (STEP>2)
     if(box64_dynarec_dump)
         if(memcmp(&dyn->n, &dyn->insts[reset_n].n, sizeof(neon_cache_t))) {
             MESSAGE(LOG_DEBUG, "Warning, difference in neoncache: reset=");
@@ -2151,9 +2294,6 @@ void fpu_reset_cache(dynarec_arm_t* dyn, int ninst, int reset_n)
             MESSAGE(LOG_DEBUG, "\n");
         }
     #endif //HAVE_TRACE
-    #else
-    dyn->n = dyn->insts[reset_n].n;
-    #endif
 }
 
 // propagate ST stack state, especial stack pop that are deferred
