@@ -1,19 +1,39 @@
 EXTLIB    = libbox64.a
 EXTRAINCL = $(BOX64_PE_CFLAGS) $(ZYDIS_PE_CFLAGS)
-EXTRADEFS = -DDYNAREC -DARM64 -D_ACRTIMP= -D_NO_CRT_MATH_INLINE
+EXTRADEFS = -DDYNAREC -D_ACRTIMP= -D_NO_CRT_MATH_INLINE
 
 SOURCES = \
+       src/custommem.c \
        src/dynarec/arm64/arm64_epilog.S \
+       src/dynarec/arm64/arm64_immenc.c \
        src/dynarec/arm64/arm64_lock.S \
        src/dynarec/arm64/arm64_next.S \
-       src/dynarec/arm64/arm64_prolog.S \
        src/dynarec/arm64/arm64_printer.c \
-       src/dynarec/arm64/dynarec_arm64_functions.c \
-       src/dynarec/arm64/dynarec_arm64_jmpnext.c \
+       src/dynarec/arm64/arm64_prolog.S \
+       src/dynarec/arm64/dynarec_arm64_00_0.c \
+       src/dynarec/arm64/dynarec_arm64_00_1.c \
+       src/dynarec/arm64/dynarec_arm64_00_2.c \
+       src/dynarec/arm64/dynarec_arm64_00_3.c \
+       src/dynarec/arm64/dynarec_arm64_0f_0.c \
+       src/dynarec/arm64/dynarec_arm64_0f_1.c \
+       src/dynarec/arm64/dynarec_arm64_0f_2.c \
+       src/dynarec/arm64/dynarec_arm64_0f_3.c \
+       src/dynarec/arm64/dynarec_arm64_64_0.c \
+       src/dynarec/arm64/dynarec_arm64_64_1.c \
+       src/dynarec/arm64/dynarec_arm64_64_2.c \
+       src/dynarec/arm64/dynarec_arm64_64_3.c \
+       src/dynarec/arm64/dynarec_arm64_660f_0.c \
+       src/dynarec/arm64/dynarec_arm64_660f_1.c \
+       src/dynarec/arm64/dynarec_arm64_660f_2.c \
+       src/dynarec/arm64/dynarec_arm64_660f_3.c \
        src/dynarec/arm64/dynarec_arm64_6664_0.c \
        src/dynarec/arm64/dynarec_arm64_6664_1.c \
        src/dynarec/arm64/dynarec_arm64_6664_2.c \
        src/dynarec/arm64/dynarec_arm64_6664_3.c \
+       src/dynarec/arm64/dynarec_arm64_66_0.c \
+       src/dynarec/arm64/dynarec_arm64_66_1.c \
+       src/dynarec/arm64/dynarec_arm64_66_2.c \
+       src/dynarec/arm64/dynarec_arm64_66_3.c \
        src/dynarec/arm64/dynarec_arm64_66f0_0.c \
        src/dynarec/arm64/dynarec_arm64_66f0_1.c \
        src/dynarec/arm64/dynarec_arm64_66f0_2.c \
@@ -26,54 +46,10 @@ SOURCES = \
        src/dynarec/arm64/dynarec_arm64_66f30f_1.c \
        src/dynarec/arm64/dynarec_arm64_66f30f_2.c \
        src/dynarec/arm64/dynarec_arm64_66f30f_3.c \
-       src/dynarec/arm64/dynarec_arm64_f20f_0.c \
-       src/dynarec/arm64/dynarec_arm64_f20f_1.c \
-       src/dynarec/arm64/dynarec_arm64_f20f_2.c \
-       src/dynarec/arm64/dynarec_arm64_f20f_3.c \
-       src/dynarec/arm64/dynarec_arm64_0f_0.c \
-       src/dynarec/arm64/dynarec_arm64_0f_1.c \
-       src/dynarec/arm64/dynarec_arm64_0f_2.c \
-       src/dynarec/arm64/dynarec_arm64_0f_3.c \
-       src/dynarec/arm64/dynarec_arm64_00_0.c \
-       src/dynarec/arm64/dynarec_arm64_00_1.c \
-       src/dynarec/arm64/dynarec_arm64_00_2.c \
-       src/dynarec/arm64/dynarec_arm64_00_3.c \
-       src/dynarec/arm64/dynarec_arm64_da_0.c \
-       src/dynarec/arm64/dynarec_arm64_da_1.c \
-       src/dynarec/arm64/dynarec_arm64_da_2.c \
-       src/dynarec/arm64/dynarec_arm64_da_3.c \
-       src/dynarec/arm64/dynarec_arm64_db_0.c \
-       src/dynarec/arm64/dynarec_arm64_db_1.c \
-       src/dynarec/arm64/dynarec_arm64_db_2.c \
-       src/dynarec/arm64/dynarec_arm64_db_3.c \
-       src/dynarec/arm64/dynarec_arm64_de_0.c \
-       src/dynarec/arm64/dynarec_arm64_de_1.c \
-       src/dynarec/arm64/dynarec_arm64_de_2.c \
-       src/dynarec/arm64/dynarec_arm64_de_3.c \
-       src/dynarec/arm64/dynarec_arm64_df_0.c \
-       src/dynarec/arm64/dynarec_arm64_df_1.c \
-       src/dynarec/arm64/dynarec_arm64_df_2.c \
-       src/dynarec/arm64/dynarec_arm64_df_3.c \
-       src/dynarec/arm64/dynarec_arm64_f0_0.c \
-       src/dynarec/arm64/dynarec_arm64_f0_1.c \
-       src/dynarec/arm64/dynarec_arm64_f0_2.c \
-       src/dynarec/arm64/dynarec_arm64_f0_3.c \
-       src/dynarec/arm64/dynarec_arm64_f30f_0.c \
-       src/dynarec/arm64/dynarec_arm64_f30f_1.c \
-       src/dynarec/arm64/dynarec_arm64_f30f_2.c \
-       src/dynarec/arm64/dynarec_arm64_f30f_3.c \
-       src/dynarec/arm64/dynarec_arm64_helper_0.c \
-       src/dynarec/arm64/dynarec_arm64_helper_1.c \
-       src/dynarec/arm64/dynarec_arm64_helper_2.c \
-       src/dynarec/arm64/dynarec_arm64_helper_3.c \
-       src/dynarec/arm64/dynarec_arm64_64_0.c \
-       src/dynarec/arm64/dynarec_arm64_64_1.c \
-       src/dynarec/arm64/dynarec_arm64_64_2.c \
-       src/dynarec/arm64/dynarec_arm64_64_3.c \
-       src/dynarec/arm64/dynarec_arm64_66_0.c \
-       src/dynarec/arm64/dynarec_arm64_66_1.c \
-       src/dynarec/arm64/dynarec_arm64_66_2.c \
-       src/dynarec/arm64/dynarec_arm64_66_3.c \
+       src/dynarec/arm64/dynarec_arm64_6764_32_0.c \
+       src/dynarec/arm64/dynarec_arm64_6764_32_1.c \
+       src/dynarec/arm64/dynarec_arm64_6764_32_2.c \
+       src/dynarec/arm64/dynarec_arm64_6764_32_3.c \
        src/dynarec/arm64/dynarec_arm64_67_0.c \
        src/dynarec/arm64/dynarec_arm64_67_1.c \
        src/dynarec/arm64/dynarec_arm64_67_2.c \
@@ -82,22 +58,6 @@ SOURCES = \
        src/dynarec/arm64/dynarec_arm64_67_32_1.c \
        src/dynarec/arm64/dynarec_arm64_67_32_2.c \
        src/dynarec/arm64/dynarec_arm64_67_32_3.c \
-       src/dynarec/arm64/dynarec_arm64_6764_32_0.c \
-       src/dynarec/arm64/dynarec_arm64_6764_32_1.c \
-       src/dynarec/arm64/dynarec_arm64_6764_32_2.c \
-       src/dynarec/arm64/dynarec_arm64_6764_32_3.c \
-       src/dynarec/arm64/dynarec_arm64_660f_0.c \
-       src/dynarec/arm64/dynarec_arm64_660f_1.c \
-       src/dynarec/arm64/dynarec_arm64_660f_2.c \
-       src/dynarec/arm64/dynarec_arm64_660f_3.c \
-       src/dynarec/arm64/dynarec_arm64_emit_math_0.c \
-       src/dynarec/arm64/dynarec_arm64_emit_math_1.c \
-       src/dynarec/arm64/dynarec_arm64_emit_math_2.c \
-       src/dynarec/arm64/dynarec_arm64_emit_math_3.c \
-       src/dynarec/arm64/dynarec_arm64_emit_logic_0.c \
-       src/dynarec/arm64/dynarec_arm64_emit_logic_1.c \
-       src/dynarec/arm64/dynarec_arm64_emit_logic_2.c \
-       src/dynarec/arm64/dynarec_arm64_emit_logic_3.c \
        src/dynarec/arm64/dynarec_arm64_d8_0.c \
        src/dynarec/arm64/dynarec_arm64_d8_1.c \
        src/dynarec/arm64/dynarec_arm64_d8_2.c \
@@ -106,6 +66,14 @@ SOURCES = \
        src/dynarec/arm64/dynarec_arm64_d9_1.c \
        src/dynarec/arm64/dynarec_arm64_d9_2.c \
        src/dynarec/arm64/dynarec_arm64_d9_3.c \
+       src/dynarec/arm64/dynarec_arm64_da_0.c \
+       src/dynarec/arm64/dynarec_arm64_da_1.c \
+       src/dynarec/arm64/dynarec_arm64_da_2.c \
+       src/dynarec/arm64/dynarec_arm64_da_3.c \
+       src/dynarec/arm64/dynarec_arm64_db_0.c \
+       src/dynarec/arm64/dynarec_arm64_db_1.c \
+       src/dynarec/arm64/dynarec_arm64_db_2.c \
+       src/dynarec/arm64/dynarec_arm64_db_3.c \
        src/dynarec/arm64/dynarec_arm64_dc_0.c \
        src/dynarec/arm64/dynarec_arm64_dc_1.c \
        src/dynarec/arm64/dynarec_arm64_dc_2.c \
@@ -114,14 +82,48 @@ SOURCES = \
        src/dynarec/arm64/dynarec_arm64_dd_1.c \
        src/dynarec/arm64/dynarec_arm64_dd_2.c \
        src/dynarec/arm64/dynarec_arm64_dd_3.c \
-       src/dynarec/arm64/dynarec_arm64_emit_tests_0.c \
-       src/dynarec/arm64/dynarec_arm64_emit_tests_1.c \
-       src/dynarec/arm64/dynarec_arm64_emit_tests_2.c \
-       src/dynarec/arm64/dynarec_arm64_emit_tests_3.c \
+       src/dynarec/arm64/dynarec_arm64_de_0.c \
+       src/dynarec/arm64/dynarec_arm64_de_1.c \
+       src/dynarec/arm64/dynarec_arm64_de_2.c \
+       src/dynarec/arm64/dynarec_arm64_de_3.c \
+       src/dynarec/arm64/dynarec_arm64_df_0.c \
+       src/dynarec/arm64/dynarec_arm64_df_1.c \
+       src/dynarec/arm64/dynarec_arm64_df_2.c \
+       src/dynarec/arm64/dynarec_arm64_df_3.c \
+       src/dynarec/arm64/dynarec_arm64_emit_logic_0.c \
+       src/dynarec/arm64/dynarec_arm64_emit_logic_1.c \
+       src/dynarec/arm64/dynarec_arm64_emit_logic_2.c \
+       src/dynarec/arm64/dynarec_arm64_emit_logic_3.c \
+       src/dynarec/arm64/dynarec_arm64_emit_math_0.c \
+       src/dynarec/arm64/dynarec_arm64_emit_math_1.c \
+       src/dynarec/arm64/dynarec_arm64_emit_math_2.c \
+       src/dynarec/arm64/dynarec_arm64_emit_math_3.c \
        src/dynarec/arm64/dynarec_arm64_emit_shift_0.c \
        src/dynarec/arm64/dynarec_arm64_emit_shift_1.c \
        src/dynarec/arm64/dynarec_arm64_emit_shift_2.c \
        src/dynarec/arm64/dynarec_arm64_emit_shift_3.c \
+       src/dynarec/arm64/dynarec_arm64_emit_tests_0.c \
+       src/dynarec/arm64/dynarec_arm64_emit_tests_1.c \
+       src/dynarec/arm64/dynarec_arm64_emit_tests_2.c \
+       src/dynarec/arm64/dynarec_arm64_emit_tests_3.c \
+       src/dynarec/arm64/dynarec_arm64_f0_0.c \
+       src/dynarec/arm64/dynarec_arm64_f0_1.c \
+       src/dynarec/arm64/dynarec_arm64_f0_2.c \
+       src/dynarec/arm64/dynarec_arm64_f0_3.c \
+       src/dynarec/arm64/dynarec_arm64_f20f_0.c \
+       src/dynarec/arm64/dynarec_arm64_f20f_1.c \
+       src/dynarec/arm64/dynarec_arm64_f20f_2.c \
+       src/dynarec/arm64/dynarec_arm64_f20f_3.c \
+       src/dynarec/arm64/dynarec_arm64_f30f_0.c \
+       src/dynarec/arm64/dynarec_arm64_f30f_1.c \
+       src/dynarec/arm64/dynarec_arm64_f30f_2.c \
+       src/dynarec/arm64/dynarec_arm64_f30f_3.c \
+       src/dynarec/arm64/dynarec_arm64_functions.c \
+       src/dynarec/arm64/dynarec_arm64_helper_0.c \
+       src/dynarec/arm64/dynarec_arm64_helper_1.c \
+       src/dynarec/arm64/dynarec_arm64_helper_2.c \
+       src/dynarec/arm64/dynarec_arm64_helper_3.c \
+       src/dynarec/arm64/dynarec_arm64_jmpnext.c \
        src/dynarec/dynablock.c \
        src/dynarec/dynarec.c \
        src/dynarec/dynarec_native.c \
@@ -130,6 +132,137 @@ SOURCES = \
        src/dynarec/dynarec_native_pass_1.c \
        src/dynarec/dynarec_native_pass_2.c \
        src/dynarec/dynarec_native_pass_3.c \
+       src/dynarec/rv64/dynarec_rv64_00_0_0.c \
+       src/dynarec/rv64/dynarec_rv64_00_0_1.c \
+       src/dynarec/rv64/dynarec_rv64_00_0_2.c \
+       src/dynarec/rv64/dynarec_rv64_00_0_3.c \
+       src/dynarec/rv64/dynarec_rv64_00_1_0.c \
+       src/dynarec/rv64/dynarec_rv64_00_1_1.c \
+       src/dynarec/rv64/dynarec_rv64_00_1_2.c \
+       src/dynarec/rv64/dynarec_rv64_00_1_3.c \
+       src/dynarec/rv64/dynarec_rv64_00_2_0.c \
+       src/dynarec/rv64/dynarec_rv64_00_2_1.c \
+       src/dynarec/rv64/dynarec_rv64_00_2_2.c \
+       src/dynarec/rv64/dynarec_rv64_00_2_3.c \
+       src/dynarec/rv64/dynarec_rv64_00_3_0.c \
+       src/dynarec/rv64/dynarec_rv64_00_3_1.c \
+       src/dynarec/rv64/dynarec_rv64_00_3_2.c \
+       src/dynarec/rv64/dynarec_rv64_00_3_3.c \
+       src/dynarec/rv64/dynarec_rv64_00__0.c \
+       src/dynarec/rv64/dynarec_rv64_00__1.c \
+       src/dynarec/rv64/dynarec_rv64_00__2.c \
+       src/dynarec/rv64/dynarec_rv64_00__3.c \
+       src/dynarec/rv64/dynarec_rv64_0f_0.c \
+       src/dynarec/rv64/dynarec_rv64_0f_1.c \
+       src/dynarec/rv64/dynarec_rv64_0f_2.c \
+       src/dynarec/rv64/dynarec_rv64_0f_3.c \
+       src/dynarec/rv64/dynarec_rv64_64_0.c \
+       src/dynarec/rv64/dynarec_rv64_64_1.c \
+       src/dynarec/rv64/dynarec_rv64_64_2.c \
+       src/dynarec/rv64/dynarec_rv64_64_3.c \
+       src/dynarec/rv64/dynarec_rv64_660f_0.c \
+       src/dynarec/rv64/dynarec_rv64_660f_1.c \
+       src/dynarec/rv64/dynarec_rv64_660f_2.c \
+       src/dynarec/rv64/dynarec_rv64_660f_3.c \
+       src/dynarec/rv64/dynarec_rv64_6664_0.c \
+       src/dynarec/rv64/dynarec_rv64_6664_1.c \
+       src/dynarec/rv64/dynarec_rv64_6664_2.c \
+       src/dynarec/rv64/dynarec_rv64_6664_3.c \
+       src/dynarec/rv64/dynarec_rv64_66_0.c \
+       src/dynarec/rv64/dynarec_rv64_66_1.c \
+       src/dynarec/rv64/dynarec_rv64_66_2.c \
+       src/dynarec/rv64/dynarec_rv64_66_3.c \
+       src/dynarec/rv64/dynarec_rv64_66f0_0.c \
+       src/dynarec/rv64/dynarec_rv64_66f0_1.c \
+       src/dynarec/rv64/dynarec_rv64_66f0_2.c \
+       src/dynarec/rv64/dynarec_rv64_66f0_3.c \
+       src/dynarec/rv64/dynarec_rv64_66f20f_0.c \
+       src/dynarec/rv64/dynarec_rv64_66f20f_1.c \
+       src/dynarec/rv64/dynarec_rv64_66f20f_2.c \
+       src/dynarec/rv64/dynarec_rv64_66f20f_3.c \
+       src/dynarec/rv64/dynarec_rv64_66f30f_0.c \
+       src/dynarec/rv64/dynarec_rv64_66f30f_1.c \
+       src/dynarec/rv64/dynarec_rv64_66f30f_2.c \
+       src/dynarec/rv64/dynarec_rv64_66f30f_3.c \
+       src/dynarec/rv64/dynarec_rv64_67_0.c \
+       src/dynarec/rv64/dynarec_rv64_67_1.c \
+       src/dynarec/rv64/dynarec_rv64_67_2.c \
+       src/dynarec/rv64/dynarec_rv64_67_3.c \
+       src/dynarec/rv64/dynarec_rv64_67_32_0.c \
+       src/dynarec/rv64/dynarec_rv64_67_32_1.c \
+       src/dynarec/rv64/dynarec_rv64_67_32_2.c \
+       src/dynarec/rv64/dynarec_rv64_67_32_3.c \
+       src/dynarec/rv64/dynarec_rv64_d8_0.c \
+       src/dynarec/rv64/dynarec_rv64_d8_1.c \
+       src/dynarec/rv64/dynarec_rv64_d8_2.c \
+       src/dynarec/rv64/dynarec_rv64_d8_3.c \
+       src/dynarec/rv64/dynarec_rv64_d9_0.c \
+       src/dynarec/rv64/dynarec_rv64_d9_1.c \
+       src/dynarec/rv64/dynarec_rv64_d9_2.c \
+       src/dynarec/rv64/dynarec_rv64_d9_3.c \
+       src/dynarec/rv64/dynarec_rv64_da_0.c \
+       src/dynarec/rv64/dynarec_rv64_da_1.c \
+       src/dynarec/rv64/dynarec_rv64_da_2.c \
+       src/dynarec/rv64/dynarec_rv64_da_3.c \
+       src/dynarec/rv64/dynarec_rv64_db_0.c \
+       src/dynarec/rv64/dynarec_rv64_db_1.c \
+       src/dynarec/rv64/dynarec_rv64_db_2.c \
+       src/dynarec/rv64/dynarec_rv64_db_3.c \
+       src/dynarec/rv64/dynarec_rv64_dc_0.c \
+       src/dynarec/rv64/dynarec_rv64_dc_1.c \
+       src/dynarec/rv64/dynarec_rv64_dc_2.c \
+       src/dynarec/rv64/dynarec_rv64_dc_3.c \
+       src/dynarec/rv64/dynarec_rv64_dd_0.c \
+       src/dynarec/rv64/dynarec_rv64_dd_1.c \
+       src/dynarec/rv64/dynarec_rv64_dd_2.c \
+       src/dynarec/rv64/dynarec_rv64_dd_3.c \
+       src/dynarec/rv64/dynarec_rv64_de_0.c \
+       src/dynarec/rv64/dynarec_rv64_de_1.c \
+       src/dynarec/rv64/dynarec_rv64_de_2.c \
+       src/dynarec/rv64/dynarec_rv64_de_3.c \
+       src/dynarec/rv64/dynarec_rv64_df_0.c \
+       src/dynarec/rv64/dynarec_rv64_df_1.c \
+       src/dynarec/rv64/dynarec_rv64_df_2.c \
+       src/dynarec/rv64/dynarec_rv64_df_3.c \
+       src/dynarec/rv64/dynarec_rv64_emit_logic_0.c \
+       src/dynarec/rv64/dynarec_rv64_emit_logic_1.c \
+       src/dynarec/rv64/dynarec_rv64_emit_logic_2.c \
+       src/dynarec/rv64/dynarec_rv64_emit_logic_3.c \
+       src/dynarec/rv64/dynarec_rv64_emit_math_0.c \
+       src/dynarec/rv64/dynarec_rv64_emit_math_1.c \
+       src/dynarec/rv64/dynarec_rv64_emit_math_2.c \
+       src/dynarec/rv64/dynarec_rv64_emit_math_3.c \
+       src/dynarec/rv64/dynarec_rv64_emit_shift_0.c \
+       src/dynarec/rv64/dynarec_rv64_emit_shift_1.c \
+       src/dynarec/rv64/dynarec_rv64_emit_shift_2.c \
+       src/dynarec/rv64/dynarec_rv64_emit_shift_3.c \
+       src/dynarec/rv64/dynarec_rv64_emit_tests_0.c \
+       src/dynarec/rv64/dynarec_rv64_emit_tests_1.c \
+       src/dynarec/rv64/dynarec_rv64_emit_tests_2.c \
+       src/dynarec/rv64/dynarec_rv64_emit_tests_3.c \
+       src/dynarec/rv64/dynarec_rv64_f0_0.c \
+       src/dynarec/rv64/dynarec_rv64_f0_1.c \
+       src/dynarec/rv64/dynarec_rv64_f0_2.c \
+       src/dynarec/rv64/dynarec_rv64_f0_3.c \
+       src/dynarec/rv64/dynarec_rv64_f20f_0.c \
+       src/dynarec/rv64/dynarec_rv64_f20f_1.c \
+       src/dynarec/rv64/dynarec_rv64_f20f_2.c \
+       src/dynarec/rv64/dynarec_rv64_f20f_3.c \
+       src/dynarec/rv64/dynarec_rv64_f30f_0.c \
+       src/dynarec/rv64/dynarec_rv64_f30f_1.c \
+       src/dynarec/rv64/dynarec_rv64_f30f_2.c \
+       src/dynarec/rv64/dynarec_rv64_f30f_3.c \
+       src/dynarec/rv64/dynarec_rv64_functions.c \
+       src/dynarec/rv64/dynarec_rv64_helper_0.c \
+       src/dynarec/rv64/dynarec_rv64_helper_1.c \
+       src/dynarec/rv64/dynarec_rv64_helper_2.c \
+       src/dynarec/rv64/dynarec_rv64_helper_3.c \
+       src/dynarec/rv64/dynarec_rv64_jmpnext.c \
+       src/dynarec/rv64/rv64_epilog.S \
+       src/dynarec/rv64/rv64_lock.S \
+       src/dynarec/rv64/rv64_next.S \
+       src/dynarec/rv64/rv64_printer.c \
+       src/dynarec/rv64/rv64_prolog.S \
        src/emu/x64compstrings.c \
        src/emu/x64emu.c \
        src/emu/x64primop.c \
@@ -144,12 +277,13 @@ SOURCES = \
        src/emu/x64run66f0.c \
        src/emu/x64run66f20f.c \
        src/emu/x64run66f30f.c \
+       src/emu/x64run67.c \
        src/emu/x64run670f.c \
+       src/emu/x64run6764_32.c \
        src/emu/x64run6766.c \
        src/emu/x64run67660f.c \
-       src/emu/x64run67.c \
        src/emu/x64run67_32.c \
-       src/emu/x64run6764_32.c \
+       src/emu/x64run_private.c \
        src/emu/x64rund8.c \
        src/emu/x64rund9.c \
        src/emu/x64runda.c \
@@ -161,8 +295,8 @@ SOURCES = \
        src/emu/x64runf0.c \
        src/emu/x64runf20f.c \
        src/emu/x64runf30f.c \
-       src/emu/x64run_private.c \
        src/emu/x64shaext.c \
        src/emu/x64trace.c \
        src/emu/x87emu_private.c \
-       src/custommem.c
+       src/tools/bitutils.c \
+       src/tools/rbtree.c
