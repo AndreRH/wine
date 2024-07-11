@@ -50,8 +50,9 @@ uintptr_t RunF0(x64emu_t *emu, rex_t rex, uintptr_t addr)
     #endif
 
     opcode = F8;
-    while(opcode==0x2E) // ignoring CS: prefix
+    while((opcode==0x36) || (opcode==0x2E) || (opcode==0x3E) || (opcode==0x26))
         opcode = F8;
+
     // REX prefix before the F0 are ignored
     rex.rex = 0;
     if(!rex.is32bits)
@@ -76,6 +77,25 @@ uintptr_t RunF0(x64emu_t *emu, rex_t rex, uintptr_t addr)
             nextop = F8;                                            \
             GETED(0);                                               \
             GETGD;                                                  \
+            if(((uintptr_t)ED)&(3<<rex.w)) {                        \
+                if(rex.w) {                                             \
+                    do {                                                \
+                        tmp8u = native_lock_read_b(ED);                 \
+                        tmp64u = ED->q[0];                              \
+                        tmp64u = OP##64(emu, tmp64u, GD->q[0]);         \
+                    } while (native_lock_write_b(ED, tmp8u));           \
+                    ED->q[0] = tmp64u;                                  \
+                } else {                                                \
+                    do {                                                \
+                        tmp8u = native_lock_read_b(ED);                 \
+                        tmp32u = ED->dword[0];                          \
+                        tmp32u = OP##32(emu, tmp32u, GD->dword[0]);     \
+                    } while (native_lock_write_b(ED, tmp8u));           \
+                    ED->dword[0] = tmp32u;                              \
+                    if(MODREG)                                          \
+                        ED->dword[1] = 0;                               \
+                }                                                       \
+            } else {                                                \
             if(rex.w) {                                             \
                 do {                                                \
                     tmp64u = native_lock_read_dd(ED);               \
@@ -88,6 +108,7 @@ uintptr_t RunF0(x64emu_t *emu, rex_t rex, uintptr_t addr)
                 } while (native_lock_write_d(ED, tmp32u));          \
                 if(MODREG)                                          \
                     ED->dword[1] = 0;                               \
+            }                                                       \
             }                                                       \
             break;                                                  \
         case B+2:                                                   \
@@ -120,15 +141,15 @@ uintptr_t RunF0(x64emu_t *emu, rex_t rex, uintptr_t addr)
             nextop = F8;                                            \
             GETEB(0);                                               \
             GETGB;                                                  \
-            pthread_mutex_lock(&my_context->mutex_lock);          \
+            pthread_mutex_lock(&my_context->mutex_lock);            \
             EB->byte[0] = OP##8(emu, EB->byte[0], GB);              \
-            pthread_mutex_unlock(&my_context->mutex_lock);        \
+            pthread_mutex_unlock(&my_context->mutex_lock);          \
             break;                                                  \
         case B+1:                                                   \
             nextop = F8;                                            \
             GETED(0);                                               \
             GETGD;                                                  \
-            pthread_mutex_lock(&my_context->mutex_lock);          \
+            pthread_mutex_lock(&my_context->mutex_lock);            \
             if(rex.w)                                               \
                 ED->q[0] = OP##64(emu, ED->q[0], GD->q[0]);         \
             else                                                    \
@@ -496,17 +517,31 @@ uintptr_t RunF0(x64emu_t *emu, rex_t rex, uintptr_t addr)
                                     } while(tmp32s);
                                 } else {
                                     tmp8u&=31;
-                                    do {
-                                        tmp32u = native_lock_read_d(ED);
-                                        if(tmp32u & (1<<tmp8u)) {
-                                            SET_FLAG(F_CF);
-                                            tmp32s = 0;
-                                        } else {
-                                            tmp32u ^= (1<<tmp8u);
-                                            tmp32s = native_lock_write_d(ED, tmp32u);
-                                            CLEAR_FLAG(F_CF);
-                                        }
-                                    } while(tmp32s);
+                                    if((uintptr_t)ED&3) {
+                                        do {
+                                            tmp32u = native_lock_read_b(ED+(tmp8u>>3));
+                                            if(tmp32u & (1<<(tmp8u&7))) {
+                                                SET_FLAG(F_CF);
+                                                tmp32s = 0;
+                                            } else {
+                                                tmp32u ^= (1<<(tmp8u&7));
+                                                tmp32s = native_lock_write_b(ED+(tmp8u>>3), tmp32u);
+                                                CLEAR_FLAG(F_CF);
+                                            }
+                                        } while(tmp32s);
+                                    } else {
+                                        do {
+                                            tmp32u = native_lock_read_d(ED);
+                                            if(tmp32u & (1<<tmp8u)) {
+                                                SET_FLAG(F_CF);
+                                                tmp32s = 0;
+                                            } else {
+                                                tmp32u ^= (1<<tmp8u);
+                                                tmp32s = native_lock_write_d(ED, tmp32u);
+                                                CLEAR_FLAG(F_CF);
+                                            }
+                                        } while(tmp32s);
+                                    }
                                 }
 #else
                                 pthread_mutex_lock(&my_context->mutex_lock);
@@ -711,7 +746,42 @@ uintptr_t RunF0(x64emu_t *emu, rex_t rex, uintptr_t addr)
                             CHECK_FLAGS(emu);
                             GETGD;
 #if defined(DYNAREC) && !defined(TEST_INTERPRETER)
-                            if(rex.w)
+                            if (rex.w) {
+#if defined(__riscv) || defined(__loongarch64)
+                                while (native_lock_xchg_d(&emu->context->mutex_16b, 1)); // lock
+                                tmp64u = ((uint64_t*)ED)[0];
+                                tmp64u2 = ((uint64_t*)ED)[1];
+                                if(R_RAX == tmp64u && R_RDX == tmp64u2) {
+                                    SET_FLAG(F_ZF);
+                                    ((uint64_t*)ED)[0] = R_RBX;
+                                    ((uint64_t*)ED)[1] = R_RCX;
+                                } else {
+                                    CLEAR_FLAG(F_ZF);
+                                    R_RAX = tmp64u;
+                                    R_RDX = tmp64u2;
+                                }
+                                native_lock_xchg_d(&emu->context->mutex_16b, 0); // unlock
+#else
+                                if(((uintptr_t)ED)&0xf) {
+                                    do {
+                                        native_lock_read_b(ED);
+                                        tmp64u = ED->q[0];
+                                        tmp64u2 = ED->q[1];
+                                        if(R_RAX == tmp64u && R_RDX == tmp64u2) {
+                                            SET_FLAG(F_ZF);
+                                            tmp32s = native_lock_write_b(ED, emu->regs[_BX].byte[0]);
+                                            if(!tmp32s) {
+                                                ED->q[0] = R_RBX;
+                                                ED->q[1] = R_RCX;
+                                            }
+                                        } else {
+                                            CLEAR_FLAG(F_ZF);
+                                            R_RAX = tmp64u;
+                                            R_RDX = tmp64u2;
+                                            tmp32s = 0;
+                                        }
+                                    } while(tmp32s);
+                                } else
                                 do {
                                     native_lock_read_dq(&tmp64u, &tmp64u2, ED);
                                     if(R_RAX == tmp64u && R_RDX == tmp64u2) {
@@ -724,7 +794,25 @@ uintptr_t RunF0(x64emu_t *emu, rex_t rex, uintptr_t addr)
                                         tmp32s = 0;
                                     }
                                 } while(tmp32s);
-                            else
+#endif
+                            } else
+                                if(((uintptr_t)ED)&0x7) {
+                                    do {
+                                        native_lock_get_b(ED);
+                                        tmp64u = ED->q[0];
+                                        if((R_EAX == (tmp64u&0xffffffff)) && (R_EDX == ((tmp64u>>32)&0xffffffff))) {
+                                            SET_FLAG(F_ZF);
+                                            tmp32s = native_lock_write_b(ED, emu->regs[_BX].byte[0]);
+                                            if(!tmp32s)
+                                                ED->q[0] = R_EBX|(((uint64_t)R_ECX)<<32);
+                                        } else {
+                                            CLEAR_FLAG(F_ZF);
+                                            R_RAX = tmp64u&0xffffffff;
+                                            R_RDX = (tmp64u>>32)&0xffffffff;
+                                            tmp32s = 0;
+                                        }
+                                    } while(tmp32s);
+                                } else
                                 do {
                                     tmp64u = native_lock_read_dd(ED);
                                     if((R_EAX == (tmp64u&0xffffffff)) && (R_EDX == ((tmp64u>>32)&0xffffffff))) {
@@ -855,12 +943,20 @@ uintptr_t RunF0(x64emu_t *emu, rex_t rex, uintptr_t addr)
                     }
                 else
                     switch((nextop>>3)&7) {
-                        case 0: do { tmp32u2 = native_lock_read_d(ED); tmp32u2 = add32(emu, tmp32u2, tmp64u);} while(native_lock_write_d(ED, tmp32u2)); break;
+                        case 0: if(((uintptr_t)ED)&3) {
+                                    // unaligned case
+                                    do { tmp32u2 = native_lock_read_b(ED); tmp32u2=ED->dword[0]; tmp32u2 = add32(emu, tmp32u2, tmp64u);} while(native_lock_write_b(ED, tmp32u2)); ED->dword[0]=tmp32u2; break;    
+                                } else
+                                do { tmp32u2 = native_lock_read_d(ED); tmp32u2 = add32(emu, tmp32u2, tmp64u);} while(native_lock_write_d(ED, tmp32u2)); break;
                         case 1: do { tmp32u2 = native_lock_read_d(ED); tmp32u2 =  or32(emu, tmp32u2, tmp64u);} while(native_lock_write_d(ED, tmp32u2)); break;
                         case 2: do { tmp32u2 = native_lock_read_d(ED); tmp32u2 = adc32(emu, tmp32u2, tmp64u);} while(native_lock_write_d(ED, tmp32u2)); break;
                         case 3: do { tmp32u2 = native_lock_read_d(ED); tmp32u2 = sbb32(emu, tmp32u2, tmp64u);} while(native_lock_write_d(ED, tmp32u2)); break;
                         case 4: do { tmp32u2 = native_lock_read_d(ED); tmp32u2 = and32(emu, tmp32u2, tmp64u);} while(native_lock_write_d(ED, tmp32u2)); break;
-                        case 5: do { tmp32u2 = native_lock_read_d(ED); tmp32u2 = sub32(emu, tmp32u2, tmp64u);} while(native_lock_write_d(ED, tmp32u2)); break;
+                        case 5: if(((uintptr_t)ED)&3) {
+                                    // unaligned case
+                                    do { tmp32u2 = native_lock_read_b(ED); tmp32u2=ED->dword[0]; tmp32u2 = sub32(emu, tmp32u2, tmp64u);} while(native_lock_write_b(ED, tmp32u2)); ED->dword[0]=tmp32u2; break;    
+                                } else
+                                do { tmp32u2 = native_lock_read_d(ED); tmp32u2 = sub32(emu, tmp32u2, tmp64u);} while(native_lock_write_d(ED, tmp32u2)); break;
                         case 6: do { tmp32u2 = native_lock_read_d(ED); tmp32u2 = xor32(emu, tmp32u2, tmp64u);} while(native_lock_write_d(ED, tmp32u2)); break;
                         case 7:                                                 cmp32(emu, ED->dword[0], tmp64u); break;
                     }
@@ -963,7 +1059,18 @@ uintptr_t RunF0(x64emu_t *emu, rex_t rex, uintptr_t addr)
                         GD->q[0] = native_lock_xchg_dd(ED, GD->q[0]);
                     }
                 } else {
-                    GD->dword[0] = native_lock_xchg_d(ED, GD->dword[0]);
+                    if((uintptr_t)ED&3) {
+                        // unaligned
+                        do {
+                            tmp32u = ED->dword[0] & 0xffffff00;
+                            tmp32u |= native_lock_read_b(ED);
+                            
+                        } while(native_lock_write_b(ED, GD->byte[0]));
+                        ED->dword[0] = GD->dword[0];
+                        GD->dword[0] = tmp32u;
+                    } else {
+                        GD->dword[0] = native_lock_xchg_d(ED, GD->dword[0]);
+                    }
                 }
             }
 #else

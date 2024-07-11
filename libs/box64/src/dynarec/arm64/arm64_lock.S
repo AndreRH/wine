@@ -1,3 +1,4 @@
+#if defined(ARM64) || defined(__aarch64__)
 //arm lock helper
 //there is 2 part: read and write
 // write return 0 on success, 1 on fail (value has been changed)
@@ -275,3 +276,4 @@ arm64_lock_get_d:
 arm64_lock_get_dd:
     ldaxr   x0, [x0]
     ret
+#endif
