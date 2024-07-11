@@ -287,6 +287,101 @@ uintptr_t Run64(x64emu_t *emu, rex_t rex, int seg, uintptr_t addr)
                     }
                     break;
 
+                case 0xBA:                      
+                    nextop = F8;
+                    switch((nextop>>3)&7) {
+                        case 4:                 /* BT Ed,Ib */
+                            CHECK_FLAGS(emu);
+                            GETED_OFFS(1, tlsdata);
+                            tmp8u = F8;
+                            if(rex.w) {
+                                tmp8u&=63;
+                                if(ED->q[0] & (1LL<<tmp8u))
+                                    SET_FLAG(F_CF);
+                                else
+                                    CLEAR_FLAG(F_CF);
+                            } else {
+                                tmp8u&=31;
+                                if(ED->dword[0] & (1<<tmp8u))
+                                    SET_FLAG(F_CF);
+                                else
+                                    CLEAR_FLAG(F_CF);
+                            }
+                            break;
+                        case 5:             /* BTS Ed, Ib */
+                            CHECK_FLAGS(emu);
+                            GETED_OFFS(1, tlsdata);
+                            tmp8u = F8;
+                            if(rex.w) {
+                                tmp8u&=63;
+                                if(ED->q[0] & (1LL<<tmp8u)) {
+                                    SET_FLAG(F_CF);
+                                } else {
+                                    ED->q[0] ^= (1LL<<tmp8u);
+                                    CLEAR_FLAG(F_CF);
+                                }
+                            } else {
+                                tmp8u&=31;
+                                if(ED->dword[0] & (1<<tmp8u)) {
+                                    SET_FLAG(F_CF);
+                                } else {
+                                    ED->dword[0] ^= (1<<tmp8u);
+                                    CLEAR_FLAG(F_CF);
+                                }
+                                if(MODREG)
+                                    ED->dword[1] = 0;
+                            }
+                            break;
+                        case 6:             /* BTR Ed, Ib */
+                            CHECK_FLAGS(emu);
+                            GETED_OFFS(1, tlsdata);
+                            tmp8u = F8;
+                            if(rex.w) {
+                                tmp8u&=63;
+                                if(ED->q[0] & (1LL<<tmp8u)) {
+                                    SET_FLAG(F_CF);
+                                    ED->q[0] ^= (1LL<<tmp8u);
+                                } else
+                                    CLEAR_FLAG(F_CF);
+                            } else {
+                                tmp8u&=31;
+                                if(ED->dword[0] & (1<<tmp8u)) {
+                                    SET_FLAG(F_CF);
+                                    ED->dword[0] ^= (1<<tmp8u);
+                                } else
+                                    CLEAR_FLAG(F_CF);
+                                if(MODREG)
+                                    ED->dword[1] = 0;
+                            }
+                            break;
+                        case 7:             /* BTC Ed, Ib */
+                            CHECK_FLAGS(emu);
+                            GETED_OFFS(1, tlsdata);
+                            tmp8u = F8;
+                            if(rex.w) {
+                                tmp8u&=63;
+                                if(ED->q[0] & (1LL<<tmp8u))
+                                    SET_FLAG(F_CF);
+                                else
+                                    CLEAR_FLAG(F_CF);
+                                ED->q[0] ^= (1LL<<tmp8u);
+                            } else {
+                                tmp8u&=31;
+                                if(ED->dword[0] & (1<<tmp8u))
+                                    SET_FLAG(F_CF);
+                                else
+                                    CLEAR_FLAG(F_CF);
+                                ED->dword[0] ^= (1<<tmp8u);
+                                if(MODREG)
+                                    ED->dword[1] = 0;
+                            }
+                            break;
+
+                        default:
+                            return 0;
+                    }
+                    break;
+
                 default:
                     return 0;
             }
@@ -420,6 +515,32 @@ uintptr_t Run64(x64emu_t *emu, rex_t rex, int seg, uintptr_t addr)
                         case 7:                cmp32(emu, ED->dword[0], tmp32u); break;
                     }
             }
+            break;
+
+        case 0x86:                      /* XCHG Eb,Gb */
+            nextop = F8;
+#if defined(DYNAREC) && !defined(TEST_INTERPRETER)
+            GETEB_OFFS(0, tlsdata);
+            GETGB;
+            if(MODREG) { // reg / reg: no lock
+                tmp8u = GB;
+                GB = EB->byte[0];
+                EB->byte[0] = tmp8u;
+            } else {
+                GB = native_lock_xchg_b(EB, GB);
+            }
+            // dynarec use need it's own mecanism
+#else
+            GETEB_OFFS(0, tlsdata);
+            GETGB;
+            if(!MODREG)
+                pthread_mutex_lock(&my_context->mutex_lock); // XCHG always LOCK (but when accessing memory only)
+            tmp8u = GB;
+            GB = EB->byte[0];
+            EB->byte[0] = tmp8u;
+            if(!MODREG)
+                pthread_mutex_unlock(&my_context->mutex_lock);
+#endif                
             break;
 
         case 0x88:                      /* MOV FS:Eb,Gb */
@@ -580,6 +701,11 @@ uintptr_t Run64(x64emu_t *emu, rex_t rex, int seg, uintptr_t addr)
             }
             break;
 
+        case 0xEB:                      /* JMP Ib */
+            tmp32s = F8S; // jump is relative
+            addr += tmp32s;
+            break;
+
         case 0xF7:                      /* GRP3 Ed(,Id) */
             nextop = F8;
             tmp8u = (nextop>>3)&7;
@@ -608,6 +734,9 @@ uintptr_t Run64(x64emu_t *emu, rex_t rex, int seg, uintptr_t addr)
                         break;
                     case 7:                 /* IDIV Ed */
                         idiv64(emu, ED->q[0]);
+                        #ifdef TEST_INTERPRETER
+                        test->notest = 1;
+                        #endif
                         break;
                 }
             } else {
