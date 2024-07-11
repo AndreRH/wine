@@ -1,6 +1,12 @@
 #ifndef __X86EMU_PRIVATE_H_
 #define __X86EMU_PRIVATE_H_
 
+#if defined(__aarch64__)
+#define ARM64
+#elif defined(__riscv64__)
+#define RV64
+#endif
+
 #include "regs.h"
 #ifdef _WIN32
 #include "windef.h"
@@ -24,9 +30,13 @@ typedef struct forkpty_s {
 
 typedef union multiuint_s {
     uint8_t     u8;
+    int8_t      i8;
     uint16_t    u16;
+    int16_t     i16;
     uint32_t    u32;
+    int32_t     i32;
     uint64_t    u64;
+    int64_t     i64;
 } multiuint_t;
 
 typedef struct x64emu_s x64emu_t;
@@ -37,6 +47,7 @@ typedef struct x64test_s {
     int         memsize;
     int         test;
     int         clean;
+    int         notest;
     uint8_t     mem[16];
 } x64test_t;
 
@@ -71,9 +82,12 @@ typedef struct x64emu_s {
 	x87control_t cw;
     uint16_t    dummy_cw;   // align...
     mmxcontrol_t mxcsr;
+    #ifdef RV64         // it would be better to use a dedicated register for this like arm64 xSavedSP, but we're running of of free registers.
+    uintptr_t xSPSave;  // sp base value of current dynarec frame, used by call/ret optimization to reset stack when unmatch.
+    #endif
     fpu_ld_t    fpu_ld[8]; // for long double emulation / 80bits fld fst
     fpu_ll_t    fpu_ll[8]; // for 64bits fild / fist sequence
-	fpu_p_reg_t p_regs[8];
+    uint64_t    fpu_tags;   // tags for the x87 regs, stacked, only on a 16bits anyway
     // old ip
     uintptr_t   old_ip;
     // deferred flags
@@ -118,6 +132,9 @@ typedef struct x64emu_s {
     void*       init_stack; // initial stack (owned or not)
     uint32_t    size_stack; // stack size (owned or not)
     JUMPBUFF*   jmpbuf;
+    #ifdef RV64
+    uintptr_t   old_savedsp;
+    #endif
 
     x64_ucontext_t *uc_link; // to handle setcontext
 
