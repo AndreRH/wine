@@ -1,3 +1,4 @@
+#if defined(ARM64) || defined(__aarch64__)
 //arm update linker table for dynarec
 //called with pointer to emu as 1st parameter
 //and address of table to as 2nd parameter
@@ -22,7 +23,7 @@ arm64_next:
     stp     x16, x17, [sp, (8 *  8)]
     stp     x18, x27, [sp, (8 * 10)]    // also save x27(rip) to allow change in LinkNext
 
-    ldr     x18, [x0, 2888]
+    ldr     x18, [x0, 2864]
     mov     x2, x30      // "from" is in lr, so put in x2
     add     x3, sp, 8*11    // x3 is address to change rip
     // call the function
@@ -39,4 +40,4 @@ arm64_next:
     add     sp,  sp, (8 * 12)
     // return offset is jump address
     br      x3
-
+#endif

@@ -1,3 +1,4 @@
+#if defined(ARM64) || defined(__aarch64__)
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
@@ -36,10 +37,12 @@ uint64_t DecodeBitMasks(int N, int imms, int immr)
     if(s==levels) return 0;
     uint64_t mask = (1LL<<(s+1))-1;
     if(r) { // rotate
-         mask=(mask>>r)|(mask<<(e-r));
-         mask&=((1LL<<e)-1);
+        mask=(mask>>r)|(mask<<(e-r));
+        if(e<64) {
+            mask&=((1LL<<e)-1);
+        }
     }
-    while (e<64) {  // replicate
+    while(e<64) {  // replicate
         mask|=(mask<<e);
         e<<=1;
     }
@@ -389,13 +392,13 @@ const char* arm64_print(uint32_t opcode, uintptr_t addr)
     }
     if(isMask(opcode, "f00100101wwiiiiiiiiiiiiiiiiddddd", &a)) {
         if(sf) {
-            uint64_t noti=~(uint64_t)imm;
+            uint64_t noti=~(((uint64_t)imm)<<(hw*16));
             if(!hw)
                 snprintf(buff, sizeof(buff), "MOVN %s, 0x%x\t; 0x%lx", Xt[Rd], imm, noti);
             else
                 snprintf(buff, sizeof(buff), "MOVN %s, 0x%x LSL %d\t; 0x%lx", Xt[Rd], imm, 16*hw, noti);
         } else {
-            uint32_t noti=~(uint32_t)imm;
+            uint32_t noti=~(((uint32_t)imm)<<(hw*16));
             if(!hw)
                 snprintf(buff, sizeof(buff), "MOVN %s, 0x%x\t; 0x%x", Wt[Rd], imm, noti);
             else
@@ -1576,6 +1579,17 @@ const char* arm64_print(uint32_t opcode, uintptr_t addr)
             snprintf(buff, sizeof(buff), "%cSHLL%s V%d.%s, V%d.%s, #%d", a.U?'U':'S', a.Q?"2":"", Rd, Va, Rn, Vd, sh);
         return buff;
     }
+    if(isMask(opcode, "0Q0011110hhhhiii010101nnnnnddddd", &a) && (a.h != 0b1000)) {
+        const char* Y[] = {"8B", "16B", "4H", "8H", "2S", "4S", "??", "2D"};
+        int sz = 3;
+        if((a.h&0b1111)==0b0001) sz=0;
+        else if((a.h&0b1110)==0b0010) sz=1;
+        else if((a.h&0b1100)==0b0100) sz=2;
+        int sh=(((a.h)<<3)|(imm)) - (8<<sz);
+        const char* Vd = Y[(sz<<1)|a.Q];
+        snprintf(buff, sizeof(buff), "SHL%s V%d.%s, V%d.%s, #%d", a.Q?"Q":"", Rd, Vd, Rn, Vd, sh);
+        return buff;
+    }
 
     // DUP
     if(isMask(opcode, "0Q001110000iiiii000001nnnnnddddd", &a)) {
@@ -1761,7 +1775,13 @@ const char* arm64_print(uint32_t opcode, uintptr_t addr)
         snprintf(buff, sizeof(buff), "SHA256H2 Q%d, Q%d, V%d.4S", Rd, Rn, Rm);
         return buff;
     }
+    // UDF
+    if(isMask(opcode, "0000000000000000iiiiiiiiiiiiiiii", &a)) {
+        snprintf(buff, sizeof(buff), "UDF 0x%x", a.i);
+        return buff;
+    }
 
     snprintf(buff, sizeof(buff), "%08X ???", __builtin_bswap32(opcode));
     return buff;
 }
+#endif /* arm64 */
