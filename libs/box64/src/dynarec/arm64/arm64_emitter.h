@@ -5,6 +5,41 @@
 
 */
 
+/* 
+    ARM64 Linux Call Convention
+
+SP          The Stack Pointer.
+r30 LR      The Link Register.
+r29 FP      The Frame Pointer
+r19…r28     Callee-saved registers
+r18         The Platform Register, if needed; otherwise a temporary register. See notes.
+r17 IP1     The second intra-procedure-call temporary register (can be used by call veneers and PLT code); at other times may be used as a temporary register.
+r16 IP0     The first intra-procedure-call scratch register (can be used by call veneers and PLT code); at other times may be used as a temporary register.
+r9…r15      Temporary registers
+r8          Indirect result location register
+r0…r7       Parameter/result registers
+
+For SIMD:
+The first eight registers, v0-v7, are used to pass argument values into a subroutine and to return result values from a function. 
+    They may also be used to hold intermediate values within a routine (but, in general, only between subroutine calls).
+
+Registers v8-v15 must be preserved by a callee across subroutine calls; 
+    the remaining registers (v0-v7, v16-v31) do not need to be preserved (or should be preserved by the caller).
+    Additionally, only the bottom 64 bits of each value stored in v8-v15 need to be preserved [8];
+    it is the responsibility of the caller to preserve larger values.
+
+For SVE:
+z0-z7 are used to pass scalable vector arguments to a subroutine, and to return scalable vector results from a function.
+    If a subroutine takes at least one argument in scalable vector registers or scalable predicate registers,
+    or returns results in such regisers, the subroutine must ensure that the entire contents of z8-z23 are preserved across the call.
+    In other cases it need only preserve the low 64 bits of z8-z15, as described in SIMD and Floating-Point registers.
+p0-p3 are used to pass scalable predicate arguments to a subroutine and to return scalable predicate results from a function.
+    If a subroutine takes at least one argument in scalable vector registers or scalable predicate registers,
+    or returns results in such registers, the subroutine must ensure that p4-p15 are preserved across the call.
+    In other cases it need not preserve any scalable predicate register contents.
+
+*/
+
 // x86 Register mapping
 #define xRAX    10
 #define xRCX    11
@@ -782,8 +817,10 @@ int convert_bitmask(uint64_t bitmask);
 #define MSR_fpsr(Rt)                    EMIT(MRS_gen(0, 1, 3, 4, 4, 1, Rt))
 // mrs   x0, cntvct_el0     op0=0b11 op1=0b011 CRn=0b1110 CRm=0b0000 op2=0b010
 #define MRS_cntvct_el0(Rt)              EMIT(MRS_gen(1, 1, 0b011, 0b1110, 0b0000, 0b010, Rt))
-// mrs   x0, cntpctss_el0     op0=0b11 op1=0b011 CRn=0b1110 CRm=0b0000 op2=0b101
+// mrs   x0, cntpctss_el0   op0=0b11 op1=0b011 CRn=0b1110 CRm=0b0000 op2=0b101
 #define MRS_cntpctss_el0(Rt)            EMIT(MRS_gen(1, 1, 0b011, 0b1110, 0b0000, 0b101, Rt))
+// mrs   rt, rndr           op0=0b11 op1=0b011 CRn=0b0010 CRm=0b0100 op2=0b000
+#define MRS_rndr(Rt)                    EMIT(MRS_gen(1, 1, 0b011, 0b0010, 0b0100, 0b000, Rt))
 // NEON Saturation Bit
 #define FPSR_QC 27
 // NEON Input Denormal Cumulative
@@ -1080,6 +1117,12 @@ int convert_bitmask(uint64_t bitmask);
 #define VMOVHto(Wd, Vn, index)      EMIT(UMOV_gen(0, ((index)<<2) | 2, Vn, Wd))
 #define VMOVSto(Wd, Vn, index)      EMIT(UMOV_gen(0, ((index)<<3) | 4, Vn, Wd))
 
+#define SMOV_gen(Q, imm5, Rn, Rd)   ((Q)<<30 | 0b01110000<<21 | (imm5)<<16 | 0b01<<13 | 0<<12 | 1<<11 | 1<<10 | (Rn)<<5 | (Rd))
+#define SMOVQDto(Xd, Vn, index)     EMIT(SMOV_gen(1, ((index)<<4) | 8, Vn, Xd))
+#define SMOVQBto(Xd, Vn, index)     EMIT(SMOV_gen(1, ((index)<<1) | 1, Vn, Xd))
+#define SMOVQHto(Xd, Vn, index)     EMIT(SMOV_gen(1, ((index)<<2) | 2, Vn, Xd))
+#define SMOVQSto(Xd, Vn, index)     EMIT(SMOV_gen(1, ((index)<<3) | 4, Vn, Xd))
+
 #define MVN_vector(Q, Rn, Rd)       ((Q)<<30 | 1<<29 | 0b01110<<24 | 0b10000<<17 | 0b00101<<12 | 0b10<<10 | (Rn)<<5 | (Rd))
 #define VMVNQ(Rd, Rn)               EMIT(MVN_vector(1, Rn, Rd))
 
@@ -1150,6 +1193,13 @@ int convert_bitmask(uint64_t bitmask);
 #define FABSS(Sd, Sn)               EMIT(FNEGABS_scalar(0b00, 0b01, Sn, Sd))
 #define FABSD(Dd, Dn)               EMIT(FNEGABS_scalar(0b01, 0b01, Dn, Dd))
 
+#define FNEGABS_vector(Q, U, sz, Rn, Rd)    ((Q)<<30 | (U)<<29 | 0b01110<<24 | 1<<23 | (sz)<<22 | 0b10000<<17 | 0b01111<<12 | 0b10<<10 | (Rn)<<5 | (Rd))
+#define VFNEGS(Vd, Vn)              EMIT(FNEGABS_vector(0, 1, 0, Vn, Vd))
+#define VFNEGQS(Vd, Vn)             EMIT(FNEGABS_vector(1, 1, 0, Vn, Vd))
+#define VFNEGQD(Vd, Vn)             EMIT(FNEGABS_vector(1, 1, 1, Vn, Vd))
+#define VFABSS(Vd, Vn)              EMIT(FNEGABS_vector(0, 0, 0, Vn, Vd))
+#define VFABSQS(Vd, Vn)             EMIT(FNEGABS_vector(1, 0, 0, Vn, Vd))
+#define VFABSQD(Vd, Vn)             EMIT(FNEGABS_vector(1, 0, 1, Vn, Vd))
 
 // MUL
 #define FMUL_vector(Q, sz, Rm, Rn, Rd)  ((Q)<<30 | 1<<29 | 0b01110<<24 | (sz)<<22 | 1<<21 | (Rm)<<16 | 0b11011<<11 | 1<<10 | (Rn)<<5 | (Rd))
@@ -1160,11 +1210,6 @@ int convert_bitmask(uint64_t bitmask);
 #define FMUL_scalar(type, Rm, Rn, Rd)   (0b11110<<24 | (type)<<22 | 1<<21 | (Rm)<<16 | 0b10<<10 | (Rn)<<5 | Rd)
 #define FMULS(Sd, Sn, Sm)           EMIT(FMUL_scalar(0b00, Sm, Sn, Sd))
 #define FMULD(Dd, Dn, Dm)           EMIT(FMUL_scalar(0b01, Dm, Dn, Dd))
-
-#define FMLA_vector(Q, op, sz, Rm, Rn, Rd)	((Q)<<30 | 0b01110<<24 | (op)<<23 | (sz)<<22 | 1<<21 | (Rm)<<16 | 0b11001<<11 | 1<<10 | (Rn)<<5 | (Rd))
-#define VFMLAS(Sd, Sn, Sm)	        EMIT(FMLA_vector(0, 0, 0, Sm, Sn, Sd))
-#define VFMLAQS(Sd, Sn, Sm)	        EMIT(FMLA_vector(1, 0, 0, Sm, Sn, Sd))
-#define VFMLAQD(Dd, Dn, Dm)	        EMIT(FMLA_vector(1, 0, 1, Dm, Dn, Dd))
 
 // DIV
 #define FDIV_vector(Q, sz, Rm, Rn, Rd)  ((Q)<<30 | 1<<29 | 0b01110<<24 | (sz)<<22 | 1<<21 | (Rm)<<16 | 0b11111<<11 | 1<<10 | (Rn)<<5 | (Rd))
@@ -1367,18 +1412,30 @@ int convert_bitmask(uint64_t bitmask);
 #define FCVTN(Vd, Vn)               EMIT(FCVTN_vector(0, 1, Vn, Vd))
 // Convert Vn from 2*Double to higher Vd as 2*float, use FPCR rounding
 #define FCVTN2(Vd, Vn)              EMIT(FCVTN_vector(1, 1, Vn, Vd))
+// Convert Vn from 2*Float to lower Vd as 2*float16 and clears the upper half, use FPCR rounding
+#define FCVTN16(Vd, Vn)             EMIT(FCVTN_vector(0, 0, Vn, Vd))
+// Convert Vn from 2*Float to higher Vd as 2*float16, use FPCR rounding
+#define FCVTN162(Vd, Vn)            EMIT(FCVTN_vector(1, 0, Vn, Vd))
 
 #define FCVTXN_vector(Q, sz, Rn, Rd)   ((Q)<<30 | 1<<29 | 0b01110<<24 | (sz)<<22 | 0b10000<<17 | 0b10110<<12 | 0b10<<10 | (Rn)<<5 | (Rd))
 // Convert Vn from 2*Double to lower Vd as 2*float and clears the upper half
 #define FCVTXN(Vd, Vn)              EMIT(FCVTXN_vector(0, 1, Vn, Vd))
 // Convert Vn from 2*Double to higher Vd as 2*float
 #define FCVTXN2(Vd, Vn)             EMIT(FCVTXN_vector(1, 1, Vn, Vd))
+// Convert Vn from 2*Float to lower Vd as 2*float16 and clears the upper half
+#define FCVTXN16(Vd, Vn)            EMIT(FCVTXN_vector(0, 0, Vn, Vd))
+// Convert Vn from 2*Float to higher Vd as 2*float16
+#define FCVTXN162(Vd, Vn)           EMIT(FCVTXN_vector(1, 0, Vn, Vd))
 
 #define FCVTL_vector(Q, sz, Rn, Rd)     ((Q)<<30 | 0<<29 | 0b01110<<24 | (sz)<<22 | 0b10000<<17 | 0b10111<<12 | 0b10<<10 | (Rn)<<5 | (Rd))
 // Convert lower Vn from 2*float to Vd as 2*double
 #define FCVTL(Vd, Vn)               EMIT(FCVTL_vector(0, 1, Vn, Vd))
 // Convert higher Vn from 2*float to Vd as 2*double
 #define FCVTL2(Vd, Vn)              EMIT(FCVTL_vector(1, 1, Vn, Vd))
+// Convert lower Vn from 2*float16 to Vd as 2*float
+#define FCVTL16(Vd, Vn)             EMIT(FCVTL_vector(0, 0, Vn, Vd))
+// Convert higher Vn from 2*float16 to Vd as 2*float
+#define FCVTL162(Vd, Vn)            EMIT(FCVTL_vector(1, 0, Vn, Vd))
 
 #define SCVTF_scalar(sf, type, rmode, opcode, Rn, Rd)   ((sf)<<31 | 0b11110<<24 | (type)<<22 | 1<<21 | (rmode)<<19 | (opcode)<<16 | (Rn)<<5 | (Rd))
 #define SCVTFSw(Sd, Wn)             EMIT(SCVTF_scalar(0, 0b00, 0b00, 0b010, Wn, Sd))
@@ -1450,6 +1507,37 @@ int convert_bitmask(uint64_t bitmask);
 // FMAXNM NaN vs Number: number is picked
 #define FMAXNMD(Dd, Dn, Dm)         EMIT(FMINMAX_scalar(0b01, Dm, 0b10, Dn, Dd))
 
+// Fused Add Multiply
+#define FMADD_gen(type, o1, Rm, o0, Ra, Rn, Rd) (0b11111<<24 | (type)<<22 | (o1)<<21 | (Rm)<<16 | (o0)<<15 | (Ra)<<10 | (Rn)<<5 | (Rd))
+// scalar Rd = Ra + Rn*Rm
+#define FMADD_32(Sd, Sa, Sn, Sm)    EMIT(FMADD_gen(0b00, 0, Sm, 0, Sa, Sn, Sd))
+// scalar Rd = Ra + Rn*Rm
+#define FMADD_64(Dd, Da, Dn, Dm)    EMIT(FMADD_gen(0b01, 0, Dm, 0, Da, Dn, Dd))
+// scalar Rd = -Ra - Rn*Rm
+#define FNMADD_32(Sd, Sa, Sn, Sm)   EMIT(FMADD_gen(0b00, 1, Sm, 0, Sa, Sn, Sd))
+// scalar Rd = -Ra - Rn*Rm
+#define FNMADD_64(Dd, Da, Dn, Dm)   EMIT(FMADD_gen(0b01, 1, Dm, 0, Da, Dn, Dd))
+// scalar Rd = Ra - Rn*Rm
+#define FMSUB_32(Sd, Sa, Sn, Sm)    EMIT(FMADD_gen(0b00, 0, Sm, 1, Sa, Sn, Sd))
+// scalar Rd = Ra - Rn*Rm
+#define FMSUB_64(Dd, Da, Dn, Dm)    EMIT(FMADD_gen(0b01, 0, Dm, 1, Da, Dn, Dd))
+// scalar Rd = -Ra + Rn*Rm
+#define FNMSUB_32(Sd, Sa, Sn, Sm)   EMIT(FMADD_gen(0b00, 1, Sm, 1, Sa, Sn, Sd))
+// scalar Rd = -Ra + Rn*Rm
+#define FNMSUB_64(Dd, Da, Dn, Dm)   EMIT(FMADD_gen(0b01, 1, Dm, 1, Da, Dn, Dd))
+
+#define FMLA_vector(Q, op, sz, Rm, Rn, Rd)  ((Q)<<30 | 0b01110<<24 | (op)<<23 | (sz)<<22 | 1<<21 | (Rm)<<16 | 0b11001<<11 | 1<<10 | (Rn)<<5 | (Rd))
+// Vd += Vn*Vm
+#define VFMLAS(Vd, Vn, Vm)          EMIT(FMLA_vector(0, 0, 0, Vm, Vn, Vd))
+// Vd += Vn*Vm
+#define VFMLAQS(Vd, Vn, Vm)         EMIT(FMLA_vector(1, 0, 0, Vm, Vn, Vd))
+// Vd += Vn*Vm
+#define VFMLAQD(Vd, Vn, Vm)         EMIT(FMLA_vector(1, 0, 1, Vm, Vn, Vd))
+// Vd -= Vn*Vm
+#define VFMLSQS(Vd, Vn, Vm)         EMIT(FMLA_vector(1, 1, 0, Vm, Vn, Vd))
+// Vd -= Vn*Vm
+#define VFMLSQD(Vd, Vn, Vm)         EMIT(FMLA_vector(1, 1, 1, Vm, Vn, Vd))
+
 // ZIP / UZP
 #define ZIP_gen(Q, size, Rm, op, Rn, Rd)    ((Q)<<30 | 0b001110<<24 | (size)<<22 | (Rm)<<16 | (op)<<14 | 0b11<<12 | 0b10<<10 | (Rn)<<5 | (Rd))
 #define VZIP1Q_8(Rt, Rn, Rm)        EMIT(ZIP_gen(1, 0b00, Rm, 0, Rn, Rt))
@@ -1482,6 +1570,16 @@ int convert_bitmask(uint64_t bitmask);
 #define VUZP2_32(Rt, Rn, Rm)        EMIT(UZP_gen(0, 0b10, Rm, 1, Rn, Rt))
 #define VUZP1Q_64(Rt, Rn, Rm)       EMIT(UZP_gen(1, 0b11, Rm, 0, Rn, Rt))
 #define VUZP2Q_64(Rt, Rn, Rm)       EMIT(UZP_gen(1, 0b11, Rm, 1, Rn, Rt))
+
+#define BITBIF_gen(Q, opc2, Rm, Rn, Rd) ((Q)<<30 | 0b101110<<24 | (opc2)<<22 | 1<<21 | (Rm)<<16 | 0b000111<<10 | (Rn)<<5 | (Rd))
+// Bitwise insert Vn in Vd if Vm is "0"
+#define VBIF(Vd, Vn,Vm)             EMIT(BITBIF_gen(0, 0b11, Vm, Vn, Vd))
+// Bitwise insert Vn in Vd if Vm is "0"
+#define VBIFQ(Vd, Vn,Vm)            EMIT(BITBIF_gen(1, 0b11, Vm, Vn, Vd))
+// Bitwise insert Vn in Vd if Vm is "1"
+#define VBIT(Vd, Vn,Vm)             EMIT(BITBIF_gen(0, 0b10, Vm, Vn, Vd))
+// Bitwise insert Vn in Vd if Vm is "1"
+#define VBITQ(Vd, Vn,Vm)            EMIT(BITBIF_gen(1, 0b10, Vm, Vn, Vd))
 
 #define DUP_element(Q, imm5, Rn, Rd)    ((Q)<<30 | 0b01110000<<21 | (imm5)<<16 | 1<<10 | (Rn)<<5 | (Rd))
 #define VDUP_8(Vd, Vn, idx)         EMIT(DUP_element(0, ((idx)<<1|1), Vn, Vd))
@@ -1627,8 +1725,8 @@ int convert_bitmask(uint64_t bitmask);
 #define VCHIQQ_64(Rd, Rn, Rm)       EMIT(CMG_vector(1, 1, 0b11, 0, Rm, Rn, Rd))
 
 // Less Than 0
-#define CMLT_0_vector(Q, size, Rn, Rd)		((Q)<<30 | 0b01110<<24 | (size)<<22 | 0b10000<<17 | 0b01010<<12 | 0b10<<10 | (Rn)<<5 | (Rd))
-#define CMLT_0_8(Rd, Rn)		    EMIT(CMLT_0_vector(0, 0b00, Rn, Rd))
+#define CMLT_0_vector(Q, size, Rn, Rd)      ((Q)<<30 | 0b01110<<24 | (size)<<22 | 0b10000<<17 | 0b01010<<12 | 0b10<<10 | (Rn)<<5 | (Rd))
+#define CMLT_0_8(Rd, Rn)            EMIT(CMLT_0_vector(0, 0b00, Rn, Rd))
 #define CMLT_0_16(Rd, Rn)           EMIT(CMLT_0_vector(0, 0b01, Rn, Rd))
 #define CMLT_0_32(Rd, Rn)           EMIT(CMLT_0_vector(0, 0b10, Rn, Rd))
 #define CMLTQ_0_8(Rd, Rn)           EMIT(CMLT_0_vector(1, 0b00, Rn, Rd))
@@ -1812,8 +1910,12 @@ int convert_bitmask(uint64_t bitmask);
 #define MOVI_vector(Q, op, abc, cmode, defgh, Rd)   ((Q)<<30 | (op)<<29 | 0b0111100000<<19 | (abc)<<16 | (cmode)<<12 | 1<<10 | (defgh)<<5 | (Rd))
 #define MOVIQ_8(Rd, imm8)           EMIT(MOVI_vector(1, 0, (((imm8)>>5)&0b111), 0b1110, ((imm8)&0b11111), Rd))
 #define MOVIQ_16(Rd, imm8, lsl8)    EMIT(MOVI_vector(1, 0, (((imm8)>>5)&0b111), 0b1000|((lsl8)?0b10:0), ((imm8)&0b11111), Rd))
+#define MOVIQ_32(Rd, imm8)          EMIT(MOVI_vector(1, 0, (((imm8)>>5)&0b111), 0b0000, ((imm8)&0b11111), Rd))
+#define MOVIQ_32_lsl(Rd, imm8, lsl8) EMIT(MOVI_vector(1, 0, (((imm8)>>5)&0b111), (lsl8<<1), ((imm8)&0b11111), Rd))
+#define MOVIQ_64(Rd, imm8)          EMIT(MOVI_vector(1, 1, (((imm8)>>5)&0b111), 0b1110, ((imm8)&0b11111), Rd))
 #define MOVI_8(Rd, imm8)            EMIT(MOVI_vector(0, 0, (((imm8)>>5)&0b111), 0b1110, ((imm8)&0b11111), Rd))
 #define MOVI_16(Rd, imm8, lsl8)     EMIT(MOVI_vector(0, 0, (((imm8)>>5)&0b111), 0b1000|((lsl8)?0b10:0), ((imm8)&0b11111), Rd))
+#define MOVI_32_lsl(Rd, imm8, lsl8) EMIT(MOVI_vector(0, 0, (((imm8)>>5)&0b111), (lsl8<<1), ((imm8)&0b11111), Rd))
 #define MOVI_32(Rd, imm8)           EMIT(MOVI_vector(0, 0, (((imm8)>>5)&0b111), 0b0000, ((imm8)&0b11111), Rd))
 #define MOVI_64(Rd, imm8)           EMIT(MOVI_vector(0, 1, (((imm8)>>5)&0b111), 0b1110, ((imm8)&0b11111), Rd))
 
@@ -1914,6 +2016,33 @@ int convert_bitmask(uint64_t bitmask);
 #define UMINQ_16(Vd, Vn, Vm)        EMIT(MINMAX_vector(1, 1, 0b01, Vm, 1, Vn, Vd))
 #define UMINQ_32(Vd, Vn, Vm)        EMIT(MINMAX_vector(1, 1, 0b10, Vm, 1, Vn, Vd))
 //#define UMINQ_64(Vd, Vn, Vm)        EMIT(MINMAX_vector(1, 1, 0b11, Vm, 1, Vn, Vd))
+
+// MIN or MAX accros vector
+#define MAXMINV_vector(Q, U, size, op, Rn, Rd)  ((Q)<<30 | (U)<<29 | 0b01110<<24 | (size)<<22 | 0b11000<<17 | (op)<<16 | 0b1010<<12 | 0b10<<10 | (Rn)<<5 | (Rd))
+#define SMAXV_8(Vd, Vn)             EMIT(MAXMINV_vector(0, 0, 0b00, 0, Vn, Vd))
+#define SMINV_8(Vd, Vn)             EMIT(MAXMINV_vector(0, 0, 0b00, 1, Vn, Vd))
+#define UMAXV_8(Vd, Vn)             EMIT(MAXMINV_vector(0, 1, 0b00, 0, Vn, Vd))
+#define UMINV_8(Vd, Vn)             EMIT(MAXMINV_vector(0, 1, 0b00, 1, Vn, Vd))
+#define SMAXV_16(Vd, Vn)            EMIT(MAXMINV_vector(0, 0, 0b01, 0, Vn, Vd))
+#define SMINV_16(Vd, Vn)            EMIT(MAXMINV_vector(0, 0, 0b01, 1, Vn, Vd))
+#define UMAXV_16(Vd, Vn)            EMIT(MAXMINV_vector(0, 1, 0b01, 0, Vn, Vd))
+#define UMINV_16(Vd, Vn)            EMIT(MAXMINV_vector(0, 1, 0b01, 1, Vn, Vd))
+#define SMAXV_32(Vd, Vn)            EMIT(MAXMINV_vector(0, 0, 0b10, 0, Vn, Vd))
+#define SMINV_32(Vd, Vn)            EMIT(MAXMINV_vector(0, 0, 0b10, 1, Vn, Vd))
+#define UMAXV_32(Vd, Vn)            EMIT(MAXMINV_vector(0, 1, 0b10, 0, Vn, Vd))
+#define UMINV_32(Vd, Vn)            EMIT(MAXMINV_vector(0, 1, 0b10, 1, Vn, Vd))
+#define SMAXVQ_8(Vd, Vn)            EMIT(MAXMINV_vector(1, 0, 0b00, 0, Vn, Vd))
+#define SMINVQ_8(Vd, Vn)            EMIT(MAXMINV_vector(1, 0, 0b00, 1, Vn, Vd))
+#define UMAXVQ_8(Vd, Vn)            EMIT(MAXMINV_vector(1, 1, 0b00, 0, Vn, Vd))
+#define UMINVQ_8(Vd, Vn)            EMIT(MAXMINV_vector(1, 1, 0b00, 1, Vn, Vd))
+#define SMAXVQ_16(Vd, Vn)           EMIT(MAXMINV_vector(1, 0, 0b01, 0, Vn, Vd))
+#define SMINVQ_16(Vd, Vn)           EMIT(MAXMINV_vector(1, 0, 0b01, 1, Vn, Vd))
+#define UMAXVQ_16(Vd, Vn)           EMIT(MAXMINV_vector(1, 1, 0b01, 0, Vn, Vd))
+#define UMINVQ_16(Vd, Vn)           EMIT(MAXMINV_vector(1, 1, 0b01, 1, Vn, Vd))
+#define SMAXVQ_32(Vd, Vn)           EMIT(MAXMINV_vector(1, 0, 0b10, 0, Vn, Vd))
+#define SMINVQ_32(Vd, Vn)           EMIT(MAXMINV_vector(1, 0, 0b10, 1, Vn, Vd))
+#define UMAXVQ_32(Vd, Vn)           EMIT(MAXMINV_vector(1, 1, 0b10, 0, Vn, Vd))
+#define UMINVQ_32(Vd, Vn)           EMIT(MAXMINV_vector(1, 1, 0b10, 1, Vn, Vd))
 
 // HADD vector
 #define HADD_vector(Q, U, size, Rm, Rn, Rd)     ((Q)<<30 | (U)<<29 | 0b01110<<24 | (size)<<22 | 1<<21 | (Rm)<<16 | 1<<10 | (Rn)<<5 | (Rd))

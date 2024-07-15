@@ -89,6 +89,7 @@ int arm64_sha1 = 0;
 int arm64_sha2 = 0;
 int arm64_uscat = 0;
 int arm64_frintts = 0;
+int arm64_rndr = 0;
 int box64_log = 1;
 uintptr_t box64_pagesize = 4096;
 uint32_t default_gs = 0x2b;
@@ -426,6 +427,21 @@ uint64_t ReadTSC( x64emu_t *emu )
     return counter.QuadPart;  /* FIXME */
 }
 
+uint32_t get_random32()
+{
+    ULONG seed = NtGetTickCount();
+    return RtlRandom(&seed);
+}
+
+uint64_t get_random64()
+{
+    ULONG seed = NtGetTickCount();
+    return RtlRandom(&seed) | (RtlRandom(&seed) << 32);
+}
+
+uint32_t helper_getcpu(x64emu_t* emu) {
+    return 0;
+}
 
 void my_cpuid(x64emu_t* emu, uint32_t tmp32u)
 {
@@ -635,16 +651,16 @@ typedef struct dynablock_s {
 void WINAPI BTCpuSimulate(void)
 {
     WOW64_CPURESERVED *cpu = NtCurrentTeb()->TlsSlots[WOW64_TLS_CPURESERVED];
-	CONTEXT *tlsctx = NtCurrentTeb()->TlsSlots[WOW64_TLS_MAX_NUMBER]; // FIXME
+    CONTEXT *tlsctx = NtCurrentTeb()->TlsSlots[WOW64_TLS_MAX_NUMBER]; // FIXME
     x64emu_t *emu = NtCurrentTeb()->TlsSlots[0]; // FIXME
     I386_CONTEXT *ctx = (I386_CONTEXT *)(cpu + 1);
-	CONTEXT entry_context;
+    CONTEXT entry_context;
 
     TRACE( "START %lx\n", ctx->Eip );
 
-	RtlCaptureContext(&entry_context);
-	if (!tlsctx || tlsctx->Sp <= entry_context.Sp)
-		NtCurrentTeb()->TlsSlots[WOW64_TLS_MAX_NUMBER] = &entry_context;
+    RtlCaptureContext(&entry_context);
+    if (!tlsctx || tlsctx->Sp <= entry_context.Sp)
+        NtCurrentTeb()->TlsSlots[WOW64_TLS_MAX_NUMBER] = &entry_context;
 
     R_EAX = ctx->Eax;
     R_EBX = ctx->Ebx;
@@ -678,8 +694,8 @@ void WINAPI BTCpuSimulate(void)
 
 static uint8_t box64_is_addr_in_jit(void* addr)
 {
-	if (!addr)
-		return FALSE;
+    if (!addr)
+        return FALSE;
     return !!FindDynablockFromNativeAddress(addr);
 }
 
@@ -711,7 +727,7 @@ uintptr_t getX64Address(dynablock_t* db, uintptr_t arm_addr)
 /* Note: This works on Linux by emulating the access to the register,
  * other platforms might have issues here
  * https://www.kernel.org/doc/html/latest/arch/arm64/cpu-feature-registers.html
- * https://developer.arm.com/documentation/ddi0595/2021-12/AArch64-Registers/ID-AA64ISAR0-EL1--AArch64-Instruction-Set-Attribute-Register-0
+ * https://developer.arm.com/documentation/ddi0601/latest/
 */
 static void box64_detect_cpu_features(void)
 {
@@ -780,6 +796,14 @@ static void box64_detect_cpu_features(void)
     {
         TRACE("FlagM supported\n");
         arm64_flagm = TRUE;
+    }
+
+    /* RNDR */
+    feat = (isar0 >> 60) & 0x0f;
+    if (feat > 0)
+    {
+        TRACE("RNDR supported\n");
+        arm64_rndr = TRUE;
     }
 
     /* USCAT */
@@ -858,14 +882,14 @@ NTSTATUS WINAPI BTCpuProcessInit(void)
 
 static uint32_t x86emu_parity_tab[8] =
 {
-	0x96696996,
-	0x69969669,
-	0x69969669,
-	0x96696996,
-	0x69969669,
-	0x96696996,
-	0x96696996,
-	0x69969669,
+    0x96696996,
+    0x69969669,
+    0x69969669,
+    0x96696996,
+    0x69969669,
+    0x96696996,
+    0x96696996,
+    0x69969669,
 };
 
 /**********************************************************************
