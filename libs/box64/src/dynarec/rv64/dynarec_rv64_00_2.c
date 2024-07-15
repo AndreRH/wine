@@ -228,7 +228,7 @@ uintptr_t dynarec64_00_2(dynarec_rv64_t* dyn, uintptr_t addr, uintptr_t ip, int 
             emit_test32(dyn, ninst, rex, ed, gd, x3, x4, x5);
             break;
         case 0x86:
-            INST_NAME("(LOCK)XCHG Eb, Gb");
+            INST_NAME("(LOCK) XCHG Eb, Gb");
             nextop = F8;
             if(MODREG) {
                 GETGB(x1);
@@ -242,9 +242,39 @@ uintptr_t dynarec64_00_2(dynarec_rv64_t* dyn, uintptr_t addr, uintptr_t ip, int 
                 GETGB(x3);
                 addr = geted(dyn, addr, ninst, nextop, &ed, x2, x1, &fixedaddress, rex, LOCK_LOCK, 0, 0);
                 SMDMB();
-                LBU(x1, ed, 0);
-                SB(gd, ed, 0);
-                SMDMB();
+
+                // calculate shift amount
+                ANDI(x1, ed, 0x3);
+                SLLI(x1, x1, 3);
+
+                // align address to 4-bytes to use ll.w/sc.w
+                ADDI(x4, xZR, 0xffc);
+                AND(x6, ed, x4);
+
+                // load aligned data
+                LWU(x5, x6, 0);
+
+                // insert gd byte into the aligned data
+                ADDI(x4, xZR, 0xff);
+                SLL(x4, x4, x1);
+                NOT(x4, x4);
+                AND(x4, x5, x4);
+                SLL(x5, gd, x1);
+                OR(x4, x4, x5);
+
+                // do aligned ll/sc sequence
+                MARKLOCK;
+                LR_W(x1, x6, 1, 1);
+                SC_W(x5, x4, x6, 1, 1);
+                BNEZ_MARKLOCK(x5);
+
+                // calculate shift amount again
+                ANDI(x4, ed, 0x3);
+                SLLI(x4, x4, 3);
+
+                // extract loaded byte
+                SRL(x1, x1, x4);
+
                 gd = x1;
                 GBBACK(x3);
             }
@@ -519,7 +549,7 @@ uintptr_t dynarec64_00_2(dynarec_rv64_t* dyn, uintptr_t addr, uintptr_t ip, int 
         case 0x9F:
             INST_NAME("LAHF");
             READFLAGS(X_CF | X_PF | X_AF | X_ZF | X_SF);
-            ANDI(x1, xFlags, 0xFF);
+            ANDI(x1, xFlags, 0b11010111); // leave reserved bits out (we are using one as OF2)
             SLLI(x1, x1, 8);
             MOV64x(x2, 0xffffffffffff00ffLL);
             AND(xRAX, xRAX, x2);
