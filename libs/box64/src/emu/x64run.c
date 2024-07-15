@@ -70,10 +70,10 @@ int Run(x64emu_t *emu, int step)
     //ref opcode: http://ref.x64asm.net/geek32.html#xA1
     if (box64_dynarec_log) printf_log(LOG_DEBUG, "Run X86 (%p), RIP=%p, Stack=%p is32bits=%d\n", emu, (void*)addr, (void*)R_RSP, is32bits);
 
-x64emurun:
 #ifdef TEST_INTERPRETER
     test->memsize = 0;
 #else
+x64emurun:
     while(1) 
 #endif
     {
@@ -280,7 +280,7 @@ x64emurun:
                 goto fini;
             }
             break;
-	    case 0x2E:	    /* segments are ignored */
+        case 0x2E:          /* segments are ignored */
         case 0x26:
         case 0x36:          /* SS: (ignored) */
             break;
@@ -441,7 +441,7 @@ x64emurun:
             break;
         case 0x63:                      /* MOVSXD Gd,Ed */
             nextop = F8;
-            GETED(0);
+            GETE4(0);
             GETGD;
             if(rex.is32bits) {
                 // ARPL here
@@ -1350,29 +1350,72 @@ x64emurun:
             #endif
             break;
         case 0xC4:                      /* LES Gd,Ed */
-            if(rex.is32bits && !(PK(0)&0x80)) {
-                nextop = F8;
+            nextop = F8;
+            if(rex.is32bits && !(MODREG)) {
                 GETED(0);
                 GETGD;
                 emu->segs[_ES] = *(uint16_t*)(((char*)ED)+4);
                 emu->segs_serial[_ES] = 0;
                 GD->dword[0] = *(uint32_t*)ED;
             } else {
-                // AVX not supported yet
-                emit_signal(emu, SIGILL, (void*)R_RIP, 0);
+                vex_t vex = {0};
+                vex.rex = rex;
+                tmp8u = nextop;
+                vex.m = tmp8u&0b00011111;
+                vex.rex.b = (tmp8u&0b00100000)?0:1;
+                vex.rex.x = (tmp8u&0b01000000)?0:1;
+                vex.rex.r = (tmp8u&0b10000000)?0:1;
+                tmp8u = F8;
+                vex.p = tmp8u&0b00000011;
+                vex.l = (tmp8u>>2)&1;
+                vex.v = ((~tmp8u)>>3)&0b1111;
+                vex.rex.w = (tmp8u>>7)&1;
+                #ifdef TEST_INTERPRETER 
+                if(!(addr = TestAVX(test, vex, addr, &step)))
+                    unimp = 1;
+                #else
+                if(!(addr = RunAVX(emu, vex, addr, &step))) {
+                    unimp = 1;
+                    goto fini;
+                }
+                if(step==2) {
+                    STEP2;
+                }
+                #endif
             }
             break;
         case 0xC5:                      /* LDS Gd,Ed */
-            if(rex.is32bits && !(PK(0)&0x80)) {
-                nextop = F8;
+            nextop = F8;
+            if(rex.is32bits && !(MODREG)) {
                 GETED(0);
                 GETGD;
                 emu->segs[_DS] = *(uint16_t*)(((char*)ED)+4);
                 emu->segs_serial[_DS] = 0;
                 GD->dword[0] = *(uint32_t*)ED;
             } else {
-                // AVX not supported yet
-                emit_signal(emu, SIGILL, (void*)R_RIP, 0);
+                vex_t vex = {0};
+                vex.rex = rex;
+                tmp8u = nextop;
+                vex.p = tmp8u&0b00000011;
+                vex.l = (tmp8u>>2)&1;
+                vex.v = ((~tmp8u)>>3)&0b1111;
+                vex.rex.r = (tmp8u&0b10000000)?0:1;
+                vex.rex.b = 0;
+                vex.rex.x = 0;
+                vex.rex.w = 0;
+                vex.m = VEX_M_0F;
+                #ifdef TEST_INTERPRETER 
+                if(!(addr = TestAVX(test, vex, addr, &step)))
+                    unimp = 1;
+                #else
+                if(!(addr = RunAVX(emu, vex, addr, &step))) {
+                    unimp = 1;
+                    goto fini;
+                }
+                if(step==2) {
+                    STEP2;
+                }
+                #endif
             }
             break;
         case 0xC6:                      /* MOV Eb,Ib */
@@ -1837,6 +1880,12 @@ x64emurun:
                 R_RIP = addr;
                 goto fini;
             }
+            #endif
+            break;
+        case 0xF1:                      /* INT1 */
+            emu->old_ip = R_RIP;
+            #ifndef TEST_INTERPRETER
+            emit_signal(emu, SIGSEGV, (void*)R_RIP, 128);
             #endif
             break;
 

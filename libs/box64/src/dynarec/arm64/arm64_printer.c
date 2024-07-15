@@ -919,7 +919,6 @@ const char* arm64_print(uint32_t opcode, uintptr_t addr)
     }
     // UMOV
     if(isMask(opcode, "0Q001110000rrrrr001111nnnnnddddd", &a)) {
-        char q = a.Q?'Q':'D';
         char s = '?';
         int sz=0;
         if(a.Q==0 && immr&1) {s='B'; sz=0; }
@@ -928,9 +927,24 @@ const char* arm64_print(uint32_t opcode, uintptr_t addr)
         else if(a.Q==1 && (immr&15)==8) {s='D'; sz=3; }
         int index = (immr)>>(sz+1);
         if(sz>2)
-            snprintf(buff, sizeof(buff), "MOV %s, %c%d.%c[%d]", a.Q?Xt[Rd]:Wt[Rd], q, Rn, s, index);
+            snprintf(buff, sizeof(buff), "MOV %s, V%d.%c[%d]", a.Q?Xt[Rd]:Wt[Rd], Rn, s, index);
         else
-            snprintf(buff, sizeof(buff), "UMOV %s, %c%d.%c[%d]", a.Q?Xt[Rd]:Wt[Rd], q, Rn, s, index);
+            snprintf(buff, sizeof(buff), "UMOV %s, V%d.%c[%d]", a.Q?Xt[Rd]:Wt[Rd], Rn, s, index);
+        return buff;
+    }
+    // SMOV
+    if(isMask(opcode, "0Q001110000rrrrr001011nnnnnddddd", &a)) {
+        char s = '?';
+        int sz=0;
+        if(a.Q==0 && immr&1) {s='B'; sz=0; }
+        else if(/*a.Q==0 &&*/ (immr&3)==2) {s='H'; sz=1; }
+        else if(/*a.Q==0 &&*/ (immr&7)==4) {s='S'; sz=2; }
+        else if(a.Q==1 && (immr&15)==8) {s='D'; sz=3; }
+        int index = (immr)>>(sz+1);
+        if(sz>2)
+            snprintf(buff, sizeof(buff), "MOV %s, V%d.%c[%d]", a.Q?Xt[Rd]:Wt[Rd], Rn, s, index);
+        else
+            snprintf(buff, sizeof(buff), "SMOV %s, V%d.%c[%d]", a.Q?Xt[Rd]:Wt[Rd], Rn, s, index);
         return buff;
     }
     // VEOR
@@ -953,6 +967,12 @@ const char* arm64_print(uint32_t opcode, uintptr_t addr)
         const char* Y[] = {"8B", "16B", "4H", "8H", "2S", "4S", "??", "2D"};
         const char* Vd = Y[((sf)<<1) | a.Q];
         snprintf(buff, sizeof(buff), "VMUL V%d.%s, V%d.%s, V%d.%s", Rd, Vd, Rn, Vd, Rm, Vd);
+        return buff;
+    }
+    // VBIT / VBIF
+    if(isMask(opcode, "0Q1011101o1mmmmm000111nnnnnddddd", &a)) {
+        char q = a.Q?'Q':'D';
+        snprintf(buff, sizeof(buff), "VBI%c %c%d, %c%d, %c%d", a.o?'F':'T', q, Rd, q, Rn, q, Rm);
         return buff;
     }
     // CMP
@@ -1008,6 +1028,19 @@ const char* arm64_print(uint32_t opcode, uintptr_t addr)
         const char* Vd = Y[a.Q];
 
         snprintf(buff, sizeof(buff), "MOVI V%d.%s, #0x%x", Rd, Vd, imm<<8);
+        return buff;
+    }
+    // MOV immediate 64bits
+    if(isMask(opcode, "0Q10111100000iii111001iiiiiddddd", &a)) {
+        uint64_t tmp64u = 0;
+        for(int i=0; i<8; ++i)
+            if((imm)&(1<<i))
+                tmp64u |= 0xffLL<<(i*8);
+
+        if(a.Q)
+            snprintf(buff, sizeof(buff), "MOVI V%d.2D, #0x%016lx", Rd, tmp64u);
+        else
+            snprintf(buff, sizeof(buff), "MOVI D%d, #0x%016lx", Rd, tmp64u);
         return buff;
     }
 
@@ -1298,6 +1331,28 @@ const char* arm64_print(uint32_t opcode, uintptr_t addr)
         int n = (sf==0)?2:1;
         n *= a.Q?2:1;
         snprintf(buff, sizeof(buff), "F%s%s V%d.%d%c, V%d.%d%c, V%d.%d%c", option?"MIN":"MAX", a.Q?"Q":"", Rd, n, s, Rn, n, s, Rm, n, s);
+        return buff;
+    }
+    // FMADD
+    if(isMask(opcode, "00011111tt0mmmmmoaaaaannnnnddddd", &a)) {
+        char s = (a.t==0b00)?'S':((a.t==0b01)?'D':'?');
+        int n = (a.t==0)?1:2;
+        snprintf(buff, sizeof(buff), "FM%s V%d.%d%c, V%d.%d%c, V%d.%d%c, V%d.%d%c", option?"SUB":"ADD", Rd, n, s, Ra, n, s, Rn, n, s, Rm, n, s);
+        return buff;
+    }
+    // FNMADD
+    if(isMask(opcode, "00011111tt1mmmmmoaaaaannnnnddddd", &a)) {
+        char s = (a.t==0b00)?'S':((a.t==0b01)?'D':'?');
+        int n = (a.t==0)?1:2;
+        snprintf(buff, sizeof(buff), "FNM%s V%d.%d%c, V%d.%d%c, V%d.%d%c, V%d.%d%c", option?"SUB":"ADD", Rd, n, s, Ra, n, s, Rn, n, s, Rm, n, s);
+        return buff;
+    }
+    // FMLA
+    if(isMask(opcode, "0Q001110of1mmmmm110011nnnnnddddd", &a)) {
+        char s = (sf==0)?'S':((sf==1)?'D':'?');
+        int n = (sf==0)?2:1;
+        n *= a.Q?2:1;
+        snprintf(buff, sizeof(buff), "FML%s%s V%d.%d%c, V%d.%d%c, V%d.%d%c", option?"S":"A", a.Q?"Q":"", Rd, n, s, Rn, n, s, Rm, n, s);
         return buff;
     }
     // NEG
@@ -1599,7 +1654,7 @@ const char* arm64_print(uint32_t opcode, uintptr_t addr)
         if((imm&0b0001)==0b0001) sz=0;
         else if((imm&0b0011)==0b0010) sz=1;
         else if((imm&0b0111)==0b0100) sz=2;
-        int sh=imm - (1<<sz);
+        int sh=(imm>>sz) - 1;
         const char* Vd = Y[(sz<<1)|a.Q];
         const char* Vn = Z[sz];
         snprintf(buff, sizeof(buff), "DUP V%d.%s, V%d.%s[%d]", Rd, Vd, Rn, Vn, sh);
