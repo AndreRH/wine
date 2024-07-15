@@ -401,12 +401,12 @@ uintptr_t Run66(x64emu_t *emu, rex_t rex, int rep, uintptr_t addr)
         break;
     case 0x8D:                              /* LEA Gw,M */
         nextop = F8;
-        GETGD;
+        GETGW;
         tmp64u = GETEA(0);
         if(rex.w)
-            GD->q[0] = tmp64u;
+            GW->q[0] = tmp64u;
         else
-            GD->word[0] = (uint16_t)tmp64u;
+            GW->word[0] = (uint16_t)tmp64u;
         break;
     case 0x8E:                               /* MOV Seg,Ew */
         nextop = F8;
@@ -479,7 +479,20 @@ uintptr_t Run66(x64emu_t *emu, rex_t rex, int rep, uintptr_t addr)
                 *(uint16_t*)F64 = R_AX;
         }
         break;
-
+    case 0xA4:                      /* (REP) MOVSB */
+        tmp8s = ACCESS_FLAG(F_DF)?-1:+1;
+        tmp64u = (rep)?R_RCX:1L;
+        while(tmp64u) {
+            #ifndef TEST_INTERPRETER
+            *(uint8_t*)R_RDI = *(uint8_t*)R_RSI;
+            #endif
+            R_RDI += tmp8s;
+            R_RSI += tmp8s;
+            --tmp64u;
+        }
+        if(rep)
+            R_RCX = tmp64u;
+        break;
     case 0xA5:              /* (REP) MOVSW */
         tmp8s = ACCESS_FLAG(F_DF)?-1:+1;
         tmp64u = (rep)?R_RCX:1L;

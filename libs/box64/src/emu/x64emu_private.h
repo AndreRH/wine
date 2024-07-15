@@ -48,7 +48,7 @@ typedef struct x64test_s {
     int         test;
     int         clean;
     int         notest;
-    uint8_t     mem[16];
+    uint8_t     mem[32];
 } x64test_t;
 
 typedef struct emu_flags_s {
@@ -68,18 +68,19 @@ typedef struct emu_flags_s {
 
 typedef struct x64emu_s {
     // cpu
-	reg64_t     regs[16];
-	x64flags_t  eflags;
+    reg64_t     regs[16];
+    x64flags_t  eflags;
     reg64_t     ip;
     // sse
     sse_regs_t  xmm[16];
+    sse_regs_t  ymm[16];
     // fpu / mmx
-	mmx87_regs_t x87[8];
-	mmx87_regs_t mmx[8];
-	x87flags_t  sw;
-	uint32_t    top;        // top is part of sw, but it's faster to have it separately
+    mmx87_regs_t x87[8];
+    mmx87_regs_t mmx[8];
+    x87flags_t  sw;
+    uint32_t    top;        // top is part of sw, but it's faster to have it separately
     int         fpu_stack;
-	x87control_t cw;
+    x87control_t cw;
     uint16_t    dummy_cw;   // align...
     mmxcontrol_t mxcsr;
     #ifdef RV64         // it would be better to use a dedicated register for this like arm64 xSavedSP, but we're running of of free registers.
@@ -100,10 +101,6 @@ typedef struct x64emu_s {
     multiuint_t res_sav;
     deferred_flags_t df_sav;
     uint32_t    *x64emu_parity_tab; // helper
-    #ifdef HAVE_TRACE
-    reg64_t     oldregs[16];
-    uintptr_t   prev2_ip;
-    #endif
     // segments
     uint16_t    segs[6];        // only 32bits value?
     uint16_t    dummy_seg6, dummy_seg7; // to stay aligned
@@ -124,6 +121,9 @@ typedef struct x64emu_s {
     x64test_t   test;       // used for dynarec testing
     #ifdef HAVE_TRACE
     sse_regs_t  old_xmm[16];
+    sse_regs_t  old_ymm[16];
+    reg64_t     oldregs[16];
+    uintptr_t   prev2_ip;
     #endif
     // scratch stack, used for alignment of double and 64bits ints on arm. 200 elements should be enough
     uint64_t    scratch[200];

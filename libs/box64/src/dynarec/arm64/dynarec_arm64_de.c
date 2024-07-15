@@ -188,7 +188,7 @@ uintptr_t dynarec64_DE(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 0:
                 INST_NAME("FIADD ST0, word[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
-                v2 = fpu_get_scratch(dyn);
+                v2 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<1, 1, rex, NULL, 0, 0);
                 VLD16(v2, wback, fixedaddress);
                 SXTL_16(v2, v2);
@@ -199,7 +199,7 @@ uintptr_t dynarec64_DE(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 1:
                 INST_NAME("FIMUL ST0, word[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
-                v2 = fpu_get_scratch(dyn);
+                v2 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<1, 1, rex, NULL, 0, 0);
                 VLD16(v2, wback, fixedaddress);
                 SXTL_16(v2, v2);
@@ -210,7 +210,7 @@ uintptr_t dynarec64_DE(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 2:
                 INST_NAME("FICOM ST0, word[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
-                v2 = fpu_get_scratch(dyn);
+                v2 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<1, 1, rex, NULL, 0, 0);
                 VLD16(v2, wback, fixedaddress);
                 SXTL_16(v2, v2);
@@ -222,7 +222,7 @@ uintptr_t dynarec64_DE(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 3:
                 INST_NAME("FICOMP ST0, word[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
-                v2 = fpu_get_scratch(dyn);
+                v2 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<1, 1, rex, NULL, 0, 0);
                 VLD16(v2, wback, fixedaddress);
                 SXTL_16(v2, v2);
@@ -235,7 +235,7 @@ uintptr_t dynarec64_DE(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 4:
                 INST_NAME("FISUB ST0, word[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
-                v2 = fpu_get_scratch(dyn);
+                v2 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<1, 1, rex, NULL, 0, 0);
                 VLD16(v2, wback, fixedaddress);
                 SXTL_16(v2, v2);
@@ -246,7 +246,7 @@ uintptr_t dynarec64_DE(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 5:
                 INST_NAME("FISUBR ST0, word[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
-                v2 = fpu_get_scratch(dyn);
+                v2 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<1, 1, rex, NULL, 0, 0);
                 VLD16(v2, wback, fixedaddress);
                 SXTL_16(v2, v2);
@@ -257,7 +257,7 @@ uintptr_t dynarec64_DE(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 6:
                 INST_NAME("FIDIV ST0, word[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
-                v2 = fpu_get_scratch(dyn);
+                v2 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<1, 1, rex, NULL, 0, 0);
                 VLD16(v2, wback, fixedaddress);
                 SXTL_16(v2, v2);
@@ -268,7 +268,7 @@ uintptr_t dynarec64_DE(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 7:
                 INST_NAME("FIDIVR ST0, word[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
-                v2 = fpu_get_scratch(dyn);
+                v2 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<1, 1, rex, NULL, 0, 0);
                 VLD16(v2, wback, fixedaddress);
                 SXTL_16(v2, v2);

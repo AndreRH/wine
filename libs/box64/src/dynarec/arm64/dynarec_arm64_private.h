@@ -16,7 +16,9 @@ typedef struct instsize_s instsize_t;
 #define NEON_CACHE_MM       4
 #define NEON_CACHE_XMMW     5
 #define NEON_CACHE_XMMR     6
-#define NEON_CACHE_SCR      7
+#define NEON_CACHE_YMMW     7
+#define NEON_CACHE_YMMR     8
+#define NEON_CACHE_SCR      9
 typedef union neon_cache_s {
     int8_t           v;
     struct {
@@ -33,7 +35,7 @@ typedef union sse_cache_s {
 } sse_cache_t;
 typedef struct neoncache_s {
     // Neon cache
-    neon_cache_t        neoncache[24];
+    neon_cache_t        neoncache[32];
     int8_t              stack;
     int8_t              stack_next;
     int8_t              stack_pop;
@@ -51,17 +53,21 @@ typedef struct neoncache_s {
     int16_t             tags;           // similar to fpu_tags
     int8_t              mmxcache[8];    // cache status for the 8 MMX registers
     sse_cache_t         ssecache[16];   // cache status for the 16 SSE(2) registers
-    int8_t              fpuused[24];    // all 0..24 double reg from fpu, used by x87, sse and mmx
+    int8_t              fpuused[32];    // all neon regs, used by x87, mmx, sse and avx
     int8_t              x87stack;       // cache stack counter
     int8_t              mmxcount;       // number of mmx register used (not both mmx and x87 at the same time)
     int8_t              fpu_scratch;    // scratch counter
-    int8_t              fpu_extra_qscratch; // some opcode need an extra quad scratch register
     int8_t              fpu_reg;        // x87/sse/mmx reg counter
+    uint16_t            ymm_used;       // mask of the ymm regs used in this opcode
+    uint64_t            ymm_regs;       // 4bits (0-15) position of 16 ymmXX regs removed
+    uint16_t            ymm_write;      // 1bits of ymmXX removed write
+    uint16_t            ymm_removed;    // 1bits if ymmXX was removed
 } neoncache_t;
 
 typedef struct flagcache_s {
     int                 pending;    // is there a pending flags here, or to check?
-    int                 dfnone;     // if deferred flags is already set to df_none
+    uint8_t             dfnone;     // if deferred flags is already set to df_none
+    uint8_t             dfnone_here;// defered flags is cleared in this opcode
 } flagcache_t;
 
 typedef struct instruction_arm64_s {
@@ -78,7 +84,13 @@ typedef struct instruction_arm64_s {
     uintptr_t           marklock;
     int                 pass2choice;// value for choices that are fixed on pass2 for pass3
     uintptr_t           natcall;
-    int                 retn;
+    uint16_t            retn;
+    uint16_t            purge_ymm;  // need to purge some ymm
+    uint16_t            ymm0_in;    // bitmap of ymm to zero at purge
+    uint16_t            ymm0_add;   // the ymm0 added by the opcode
+    uint16_t            ymm0_sub;   // the ymm0 removed by the opcode
+    uint16_t            ymm0_out;   // the ymmm0 at th end of the opcode
+    uint16_t            ymm0_pass2, ymm0_pass3;
     uint8_t             barrier_maybe;
     uint8_t             will_write;
     uint8_t             last_write;
@@ -118,6 +130,7 @@ typedef struct dynarec_arm_s {
     uintptr_t           forward_to; // address of the next jump to (to check if everything is ok)
     int32_t             forward_size;   // size at the forward point
     int                 forward_ninst;  // ninst at the forward point
+    uint16_t            ymm_zero;   // bitmap of ymm to zero at purge
     uint8_t             smwrite;    // for strongmem model emulation
     uint8_t             smread;
     uint8_t             doublepush;
@@ -130,6 +143,7 @@ void add_next(dynarec_arm_t *dyn, uintptr_t addr);
 uintptr_t get_closest_next(dynarec_arm_t *dyn, uintptr_t addr);
 void add_jump(dynarec_arm_t *dyn, int ninst);
 int get_first_jump(dynarec_arm_t *dyn, int next);
+int get_first_jump_addr(dynarec_arm_t *dyn, uintptr_t next);
 int is_nops(dynarec_arm_t *dyn, uintptr_t addr, int n);
 int is_instructions(dynarec_arm_t *dyn, uintptr_t addr, int n);
 

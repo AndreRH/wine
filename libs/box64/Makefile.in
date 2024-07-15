@@ -58,6 +58,50 @@ SOURCES = \
        src/dynarec/arm64/dynarec_arm64_67_32_1.c \
        src/dynarec/arm64/dynarec_arm64_67_32_2.c \
        src/dynarec/arm64/dynarec_arm64_67_32_3.c \
+       src/dynarec/arm64/dynarec_arm64_67_avx_0.c \
+       src/dynarec/arm64/dynarec_arm64_67_avx_1.c \
+       src/dynarec/arm64/dynarec_arm64_67_avx_2.c \
+       src/dynarec/arm64/dynarec_arm64_67_avx_3.c \
+       src/dynarec/arm64/dynarec_arm64_avx_0f38_0.c \
+       src/dynarec/arm64/dynarec_arm64_avx_0f38_1.c \
+       src/dynarec/arm64/dynarec_arm64_avx_0f38_2.c \
+       src/dynarec/arm64/dynarec_arm64_avx_0f38_3.c \
+       src/dynarec/arm64/dynarec_arm64_avx_0f_0.c \
+       src/dynarec/arm64/dynarec_arm64_avx_0f_1.c \
+       src/dynarec/arm64/dynarec_arm64_avx_0f_2.c \
+       src/dynarec/arm64/dynarec_arm64_avx_0f_3.c \
+       src/dynarec/arm64/dynarec_arm64_avx_66_0f38_0.c \
+       src/dynarec/arm64/dynarec_arm64_avx_66_0f38_1.c \
+       src/dynarec/arm64/dynarec_arm64_avx_66_0f38_2.c \
+       src/dynarec/arm64/dynarec_arm64_avx_66_0f38_3.c \
+       src/dynarec/arm64/dynarec_arm64_avx_66_0f3a_0.c \
+       src/dynarec/arm64/dynarec_arm64_avx_66_0f3a_1.c \
+       src/dynarec/arm64/dynarec_arm64_avx_66_0f3a_2.c \
+       src/dynarec/arm64/dynarec_arm64_avx_66_0f3a_3.c \
+       src/dynarec/arm64/dynarec_arm64_avx_66_0f_0.c \
+       src/dynarec/arm64/dynarec_arm64_avx_66_0f_1.c \
+       src/dynarec/arm64/dynarec_arm64_avx_66_0f_2.c \
+       src/dynarec/arm64/dynarec_arm64_avx_66_0f_3.c \
+       src/dynarec/arm64/dynarec_arm64_avx_0.c \
+       src/dynarec/arm64/dynarec_arm64_avx_1.c \
+       src/dynarec/arm64/dynarec_arm64_avx_2.c \
+       src/dynarec/arm64/dynarec_arm64_avx_3.c \
+       src/dynarec/arm64/dynarec_arm64_avx_f2_0f38_0.c \
+       src/dynarec/arm64/dynarec_arm64_avx_f2_0f38_1.c \
+       src/dynarec/arm64/dynarec_arm64_avx_f2_0f38_2.c \
+       src/dynarec/arm64/dynarec_arm64_avx_f2_0f38_3.c \
+       src/dynarec/arm64/dynarec_arm64_avx_f2_0f3a_0.c \
+       src/dynarec/arm64/dynarec_arm64_avx_f2_0f3a_1.c \
+       src/dynarec/arm64/dynarec_arm64_avx_f2_0f3a_2.c \
+       src/dynarec/arm64/dynarec_arm64_avx_f2_0f3a_3.c \
+       src/dynarec/arm64/dynarec_arm64_avx_f2_0f_0.c \
+       src/dynarec/arm64/dynarec_arm64_avx_f2_0f_1.c \
+       src/dynarec/arm64/dynarec_arm64_avx_f2_0f_2.c \
+       src/dynarec/arm64/dynarec_arm64_avx_f2_0f_3.c \
+       src/dynarec/arm64/dynarec_arm64_avx_f3_0f_0.c \
+       src/dynarec/arm64/dynarec_arm64_avx_f3_0f_1.c \
+       src/dynarec/arm64/dynarec_arm64_avx_f3_0f_2.c \
+       src/dynarec/arm64/dynarec_arm64_avx_f3_0f_3.c \
        src/dynarec/arm64/dynarec_arm64_d8_0.c \
        src/dynarec/arm64/dynarec_arm64_d8_1.c \
        src/dynarec/arm64/dynarec_arm64_d8_2.c \
@@ -283,7 +327,20 @@ SOURCES = \
        src/emu/x64run6766.c \
        src/emu/x64run67660f.c \
        src/emu/x64run67_32.c \
+       src/emu/x64run67avx.c \
        src/emu/x64run_private.c \
+       src/emu/x64runavx0f38.c \
+       src/emu/x64runavx0f.c \
+       src/emu/x64runavx660f38.c \
+       src/emu/x64runavx660f3a.c \
+       src/emu/x64runavx660f.c \
+       src/emu/x64runavx.c \
+       src/emu/x64runavxf20f38.c \
+       src/emu/x64runavxf20f3a.c \
+       src/emu/x64runavxf20f.c \
+       src/emu/x64runavxf30f38.c \
+       src/emu/x64runavxf30f3a.c \
+       src/emu/x64runavxf30f.c \
        src/emu/x64rund8.c \
        src/emu/x64rund9.c \
        src/emu/x64runda.c \

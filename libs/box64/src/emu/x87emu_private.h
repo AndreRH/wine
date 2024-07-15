@@ -9,11 +9,11 @@
 #include "debug.h"
 typedef struct x64emu_s x64emu_t;
 
-#define PI		3.14159265358979323846
-#define L2E		1.4426950408889634
-#define L2T		3.3219280948873623
-#define LN2		0.69314718055994531
-#define LG2		0.3010299956639812
+#define PI      3.14159265358979323846
+#define L2E     1.4426950408889634
+#define L2T     3.3219280948873623
+#define LN2     0.69314718055994531
+#define LG2     0.3010299956639812
 
 #define TAGS_EMPTY 0b1111111111111111
 
@@ -234,5 +234,11 @@ void fpu_fxsave32(x64emu_t* emu, void* ed);
 void fpu_fxrstor32(x64emu_t* emu, void* ed);
 void fpu_fxsave64(x64emu_t* emu, void* ed);
 void fpu_fxrstor64(x64emu_t* emu, void* ed);
+void fpu_xsave(x64emu_t* emu, void* ed, int is32bits);
+void fpu_xsave_mask(x64emu_t* emu, void* ed, int is32bits, uint64_t mask);
+void fpu_xrstor(x64emu_t* emu, void* ed, int is32bits);
+
+uint32_t cvtf16_32(uint16_t v);
+uint16_t cvtf32_16(uint32_t v, uint8_t rounding);
 
 #endif //__X87RUN_PRIVATE_H_

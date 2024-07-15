@@ -51,6 +51,7 @@ uintptr_t native_pass(dynarec_native_t* dyn, uintptr_t addr, int alternate, int 
     dyn->forward_to = 0;
     dyn->forward_size = 0;
     dyn->forward_ninst = 0;
+    dyn->ymm_zero = 0;
     #if STEP == 0
     memset(&dyn->insts[ninst], 0, sizeof(instruction_native_t));
     #endif
@@ -109,7 +110,9 @@ uintptr_t native_pass(dynarec_native_t* dyn, uintptr_t addr, int alternate, int 
         else if(ninst && (dyn->insts[ninst].pred_sz>1 || (dyn->insts[ninst].pred_sz==1 && dyn->insts[ninst].pred[0]!=ninst-1)))
             dyn->last_ip = 0;   // reset IP if some jump are coming here
         #endif
+        dyn->f.dfnone_here = 0;
         NEW_INST;
+        MESSAGE(LOG_DUMP, "New Instruction x64:%p, native:%p\n", (void*)addr, (void*)dyn->block);
         #if STEP == 0
         if(ninst && dyn->insts[ninst-1].x64.barrier_next) {
             BARRIER(dyn->insts[ninst-1].x64.barrier_next);
@@ -119,12 +122,11 @@ uintptr_t native_pass(dynarec_native_t* dyn, uintptr_t addr, int alternate, int 
             GOTEST(x1, x2);
         }
         if(dyn->insts[ninst].pred_sz>1) {SMSTART();}
-        fpu_reset_scratch(dyn);
         if((dyn->insts[ninst].x64.need_before&~X_PEND) && !dyn->insts[ninst].pred_sz) {
             READFLAGS(dyn->insts[ninst].x64.need_before&~X_PEND);
         }
 #if 0 // FIXME (AZ)
-        if(box64_dynarec_test) {
+        if(box64_dynarec_test && (!box64_dynarec_test_end || (ip>=box64_dynarec_test_start && ip<box64_dynarec_test_end) )) {
             MESSAGE(LOG_DUMP, "TEST STEP ----\n");
             fpu_reflectcache(dyn, ninst, x1, x2, x3);
             GO_TRACE(x64test_step, 1, x5);
@@ -170,11 +172,9 @@ uintptr_t native_pass(dynarec_native_t* dyn, uintptr_t addr, int alternate, int 
         if(dyn->abort)
             return ip;
         INST_EPILOG;
-
+        fpu_reset_scratch(dyn);
         int next = ninst+1;
         #if STEP > 0
-        if(!dyn->insts[ninst].x64.has_next && dyn->insts[ninst].x64.jmp && dyn->insts[ninst].x64.jmp_insts!=-1)
-            next = dyn->insts[ninst].x64.jmp_insts;
         if(dyn->insts[ninst].x64.has_next && dyn->insts[next].x64.barrier) {
             if(dyn->insts[next].x64.barrier&BARRIER_FLOAT) {
                 fpu_purgecache(dyn, ninst, 0, x1, x2, x3);
@@ -193,26 +193,30 @@ uintptr_t native_pass(dynarec_native_t* dyn, uintptr_t addr, int alternate, int 
         if(!ok && !need_epilog && (addr < (dyn->start+dyn->isize))) {
             ok = 1;
             // we use the 1st predecessor here
-            int ii = ninst+1;
-            if(ii<dyn->size && !dyn->insts[ii].x64.alive) {
-                while(ii<dyn->size && !dyn->insts[ii].x64.alive) {
+            if((ninst+1)<dyn->size && !dyn->insts[ninst+1].x64.alive) {
+                // reset fpu value...
+                dyn->f.dfnone = 0;
+                dyn->f.pending = 0;
+                fpu_reset(dyn);
+                while((ninst+1)<dyn->size && !dyn->insts[ninst+1].x64.alive) {
                     // may need to skip opcodes to advance
                     ++ninst;
                     NEW_INST;
                     MESSAGE(LOG_DEBUG, "Skipping unused opcode\n");
                     INST_NAME("Skipped opcode");
+                    addr += dyn->insts[ninst].x64.size;
                     INST_EPILOG;
-                    addr += dyn->insts[ii].x64.size;
-                    ++ii;
                 }
             }
-            if((dyn->insts[ii].x64.barrier&BARRIER_FULL)==BARRIER_FULL)
+            if((dyn->insts[ninst+1].x64.barrier&BARRIER_FULL)==BARRIER_FULL)
                 reset_n = -2;    // hack to say Barrier!
             else {
-                reset_n = getNominalPred(dyn, ii);  // may get -1 if no predecessor are available
+                reset_n = getNominalPred(dyn, ninst+1);  // may get -1 if no predecessor are available
                 if(reset_n==-1) {
                     reset_n = -2;
-                    MESSAGE(LOG_DEBUG, "Warning, Reset Caches mark not found\n");
+                    if(!dyn->insts[ninst].x64.has_callret) {
+                        MESSAGE(LOG_DEBUG, "Warning, Reset Caches mark not found\n");
+                    }
                 }
             }
         }
@@ -226,7 +230,7 @@ uintptr_t native_pass(dynarec_native_t* dyn, uintptr_t addr, int alternate, int 
         if(dyn->forward) {
             if(dyn->forward_to == addr && !need_epilog && ok>=0) {
                 // we made it!
-                reset_n = get_first_jump(dyn, addr);
+                reset_n = get_first_jump_addr(dyn, addr);
                 if(box64_dynarec_dump) dynarec_log(LOG_NONE, "Forward extend block for %d bytes %s%p -> %p (ninst %d - %d)\n", dyn->forward_to-dyn->forward, dyn->insts[dyn->forward_ninst].x64.has_callret?"(opt. call) ":"", (void*)dyn->forward, (void*)dyn->forward_to, reset_n, ninst);
                 if(dyn->insts[dyn->forward_ninst].x64.has_callret && !dyn->insts[dyn->forward_ninst].x64.has_next)
                     dyn->insts[dyn->forward_ninst].x64.has_next = 1;  // this block actually continue
@@ -264,7 +268,7 @@ uintptr_t native_pass(dynarec_native_t* dyn, uintptr_t addr, int alternate, int 
                         reset_n = get_first_jump(dyn, next);
                     }
                     if(box64_dynarec_dump) dynarec_log(LOG_NONE, "Extend block %p, %s%p -> %p (ninst=%d, jump from %d)\n", dyn, dyn->insts[ninst].x64.has_callret?"(opt. call) ":"", (void*)addr, (void*)next, ninst+1, dyn->insts[ninst].x64.has_callret?ninst:reset_n);
-                } else if(next && (next-addr)<box64_dynarec_forward && (getProtection(next)&PROT_READ)/*box64_dynarec_bigblock>=stopblock*/) {
+                } else if(next && (int)(next-addr)<box64_dynarec_forward && (getProtection(next)&PROT_READ)/*box64_dynarec_bigblock>=stopblock*/) {
                     if(!((box64_dynarec_bigblock<stopblock) && !isJumpTableDefault64((void*)next))) {
                         if(dyn->forward) {
                             if(next<dyn->forward_to)
@@ -308,6 +312,8 @@ uintptr_t native_pass(dynarec_native_t* dyn, uintptr_t addr, int alternate, int 
         }
         if((ok>0) && dyn->insts[ninst].x64.has_callret)
             reset_n = -2;
+        if((ok>0) && reset_n==-1 && dyn->insts[ninst+1].purge_ymm)
+            PURGE_YMM();
         ++ninst;
         #if STEP == 0
         memset(&dyn->insts[ninst], 0, sizeof(instruction_native_t));

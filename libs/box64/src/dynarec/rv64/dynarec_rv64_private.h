@@ -18,6 +18,9 @@ typedef struct instsize_s instsize_t;
 #define EXT_CACHE_SS     5
 #define EXT_CACHE_SD     6
 #define EXT_CACHE_SCR    7
+#define EXT_CACHE_XMMW   8
+#define EXT_CACHE_XMMR   9
+
 typedef union ext_cache_s {
     int8_t           v;
     struct {
@@ -25,13 +28,18 @@ typedef union ext_cache_s {
         uint8_t n:4;   // reg number
     };
 } ext_cache_t;
+
 typedef union sse_cache_s {
-    int8_t      v;
+    int16_t v;
     struct {
-        uint8_t     reg:7;
-        uint8_t     single:1;
+        uint16_t reg : 7;
+        uint16_t vector : 1;
+        uint16_t single : 1;
+        uint16_t write : 1;
+        uint16_t unused : 7;
     };
 } sse_cache_t;
+
 typedef union sse_old_s {
     int8_t      v;
     struct {
@@ -41,6 +49,7 @@ typedef union sse_old_s {
         uint8_t     single:1;
     };
 } sse_old_t;
+
 typedef struct extcache_s {
     // ext cache
     ext_cache_t         extcache[24];
@@ -72,7 +81,8 @@ typedef struct extcache_s {
 
 typedef struct flagcache_s {
     int                 pending;    // is there a pending flags here, or to check?
-    int                 dfnone;     // if deferred flags is already set to df_none
+    uint8_t             dfnone;     // if deferred flags is already set to df_none
+    uint8_t             dfnone_here;// defered flags is cleared in this opcode
 } flagcache_t;
 
 typedef struct instruction_rv64_s {
@@ -89,7 +99,13 @@ typedef struct instruction_rv64_s {
     uintptr_t           marklock;
     int                 pass2choice;// value for choices that are fixed on pass2 for pass3
     uintptr_t           natcall;
-    int                 retn;
+    uint16_t            retn;
+    uint16_t            purge_ymm;  // need to purge some ymm
+    uint16_t            ymm0_in;    // bitmap of ymm to zero at purge
+    uint16_t            ymm0_add;   // the ymm0 added by the opcode
+    uint16_t            ymm0_sub;   // the ymm0 removed by the opcode
+    uint16_t            ymm0_out;   // the ymmm0 at th end of the opcode
+    uint16_t            ymm0_pass2, ymm0_pass3;
     int                 barrier_maybe;
     flagcache_t         f_exit;     // flags status at end of intruction
     extcache_t          e;          // extcache at end of intruction (but before poping)
@@ -129,6 +145,7 @@ typedef struct dynarec_rv64_s {
     uintptr_t           forward_to; // address of the next jump to (to check if everything is ok)
     int32_t             forward_size;   // size at the forward point
     int                 forward_ninst;  // ninst at the forward point
+    uint16_t            ymm_zero;   // bitmap of ymm to zero at purge
     uint8_t             always_test;
     uint8_t             abort;
 } dynarec_rv64_t;
@@ -142,6 +159,7 @@ void add_next(dynarec_rv64_t *dyn, uintptr_t addr);
 uintptr_t get_closest_next(dynarec_rv64_t *dyn, uintptr_t addr);
 void add_jump(dynarec_rv64_t *dyn, int ninst);
 int get_first_jump(dynarec_rv64_t *dyn, int next);
+int get_first_jump_addr(dynarec_rv64_t *dyn, uintptr_t next);
 int is_nops(dynarec_rv64_t *dyn, uintptr_t addr, int n);
 int is_instructions(dynarec_rv64_t *dyn, uintptr_t addr, int n);
 
@@ -152,9 +170,11 @@ void CreateJmpNext(void* addr, void* next);
 #define GO_TRACE(A, B, s0)  \
     GETIP(addr);            \
     MV(A1, xRIP);           \
+    FLAGS_ADJUST_TO11(xFlags, xFlags, s0); \
     STORE_XEMU_CALL(s0);    \
     MOV64x(A2, B);          \
     CALL(A, -1);            \
-    LOAD_XEMU_CALL()
+    LOAD_XEMU_CALL();       \
+    FLAGS_ADJUST_FROM11(xFlags, xFlags, s0);
 
 #endif //__DYNAREC_RV64_PRIVATE_H_
