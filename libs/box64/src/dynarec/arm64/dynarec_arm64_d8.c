@@ -189,7 +189,7 @@ uintptr_t dynarec64_D8(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 0:
                 INST_NAME("FADD ST0, float[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, X87_ST0);
-                s0 = fpu_get_scratch(dyn);
+                s0 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &ed, x2, &fixedaddress, &unscaled, 0xfff<<2, 3, rex, NULL, 0, 0);
                 VLD32(s0, ed, fixedaddress);
                 if(ST_IS_F(0)) {
@@ -202,7 +202,7 @@ uintptr_t dynarec64_D8(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 1:
                 INST_NAME("FMUL ST0, float[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, X87_ST0);
-                s0 = fpu_get_scratch(dyn);
+                s0 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &ed, x2, &fixedaddress, &unscaled, 0xfff<<2, 3, rex, NULL, 0, 0);
                 VLD32(s0, ed, fixedaddress);
                 if(ST_IS_F(0)) {
@@ -215,7 +215,7 @@ uintptr_t dynarec64_D8(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 2:
                 INST_NAME("FCOM ST0, float[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, X87_ST0);
-                s0 = fpu_get_scratch(dyn);
+                s0 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &ed, x2, &fixedaddress, &unscaled, 0xfff<<2, 3, rex, NULL, 0, 0);
                 VLD32(s0, ed, fixedaddress);
                 if(ST_IS_F(0)) {
@@ -229,7 +229,7 @@ uintptr_t dynarec64_D8(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 3:
                 INST_NAME("FCOMP ST0, float[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, X87_ST0);
-                s0 = fpu_get_scratch(dyn);
+                s0 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &ed, x2, &fixedaddress, &unscaled, 0xfff<<2, 3, rex, NULL, 0, 0);
                 VLD32(s0, ed, fixedaddress);
                 if(ST_IS_F(0)) {
@@ -244,7 +244,7 @@ uintptr_t dynarec64_D8(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 4:
                 INST_NAME("FSUB ST0, float[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, X87_ST0);
-                s0 = fpu_get_scratch(dyn);
+                s0 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &ed, x2, &fixedaddress, &unscaled, 0xfff<<2, 3, rex, NULL, 0, 0);
                 VLD32(s0, ed, fixedaddress);
                 if(ST_IS_F(0)) {
@@ -257,7 +257,7 @@ uintptr_t dynarec64_D8(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 5:
                 INST_NAME("FSUBR ST0, float[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, X87_ST0);
-                s0 = fpu_get_scratch(dyn);
+                s0 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &ed, x2, &fixedaddress, &unscaled, 0xfff<<2, 3, rex, NULL, 0, 0);
                 VLD32(s0, ed, fixedaddress);
                 if(ST_IS_F(0)) {
@@ -270,7 +270,7 @@ uintptr_t dynarec64_D8(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 6:
                 INST_NAME("FDIV ST0, float[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, X87_ST0);
-                s0 = fpu_get_scratch(dyn);
+                s0 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &ed, x2, &fixedaddress, &unscaled, 0xfff<<2, 3, rex, NULL, 0, 0);
                 VLD32(s0, ed, fixedaddress);
                 if(ST_IS_F(0)) {
@@ -283,7 +283,7 @@ uintptr_t dynarec64_D8(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 7:
                 INST_NAME("FDIVR ST0, float[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, X87_ST0);
-                s0 = fpu_get_scratch(dyn);
+                s0 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &ed, x2, &fixedaddress, &unscaled, 0xfff<<2, 3, rex, NULL, 0, 0);
                 VLD32(s0, ed, fixedaddress);
                 if(ST_IS_F(0)) {

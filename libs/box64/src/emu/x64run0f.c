@@ -91,11 +91,16 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
             if(MODREG)
             switch(nextop) {
                 case 0xD0:
-                    #ifndef TEST_INTERPRETER
-                    emit_signal(emu, SIGILL, (void*)R_RIP, 0);
-                    #else
-                    test->notest = 1;
-                    #endif
+                    if(R_RCX) {
+                        #ifndef TEST_INTERPRETER
+                        emit_signal(emu, SIGILL, (void*)R_RIP, 0);
+                        #else
+                        test->notest = 1;
+                        #endif
+                    } else {
+                        R_RAX = 0b111;   // x87 & SSE & AVX for now
+                        R_RDX = 0;
+                    }
                     break;
                 case 0xE0:
                 case 0xE1:
@@ -113,7 +118,7 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
                         tmp64u<<=box64_rdtsc_shift;
                     R_RAX = tmp64u & 0xffffffff;
                     R_RDX = tmp64u >> 32;
-                    R_RCX = 0;  // should be low of IA32_TSC
+                    R_RCX = helper_getcpu(emu);
                     #ifdef TEST_INTERPRETER
                     test->notest = 1;
                     #endif
@@ -452,6 +457,10 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
                     nextop = F8;
                     GETEM(0);
                     GETGM;
+                    if(GM==EM) {
+                        eam1 = *EM;
+                        EM = &eam1;
+                    }
                     for (int i=0; i<4; ++i) {
                         tmp32s = (int32_t)(GM->ub[i*2+0])*EM->sb[i*2+0] + (int32_t)(GM->ub[i*2+1])*EM->sb[i*2+1];
                         GM->sw[i] = (tmp32s>32767)?32767:((tmp32s<-32768)?-32768:tmp32s);
@@ -693,7 +702,7 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
                 if(EX->f[i]==0)
                     GX->f[i] = 1.0f/EX->f[i];
                 else if (EX->f[i]<0)
-                    GX->f[i] = NAN;
+                    GX->f[i] = -NAN;
                 else if (isnan(EX->f[i]))
                     GX->f[i] = EX->f[i];
                 else if (isinf(EX->f[i]))
@@ -1286,6 +1295,18 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
                     GETED(0);
                     ED->dword[0] = emu->mxcsr.x32;
                     break;
+                case 4:                 /* XSAVE Ed */
+                    _GETED(0);
+                    #ifdef TEST_INTERPRETER
+                    emu->sw.f.F87_TOP = emu->top&7;
+                    #else
+                    fpu_xsave(emu, ED, rex.is32bits);
+                    #endif
+                    break;
+                case 5:                 /* XRSTOR Ed */
+                    _GETED(0);
+                    fpu_xrstor(emu, ED, rex.is32bits);
+                    break;
                 case 7:                 /* CLFLUSH Ed */
                     _GETED(0);
                     #if defined(DYNAREC) && !defined(TEST_INTERPRETER)
@@ -1525,7 +1546,7 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
             }
             break;
         case 0xBC:                      /* BSF Ed,Gd */
-            CHECK_FLAGS(emu);
+            RESET_FLAGS(emu);
             nextop = F8;
             GETED(0);
             GETGD;
@@ -1552,7 +1573,7 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
             }
             break;
         case 0xBD:                      /* BSR Ed,Gd */
-            CHECK_FLAGS(emu);
+            RESET_FLAGS(emu);
             nextop = F8;
             GETED(0);
             GETGD;
@@ -1686,12 +1707,12 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
             GX->q[0] = eax1.q[0];
             GX->q[1] = eax1.q[1];
             break;
-        case 0xC7:                      /* CMPXCHG8B Eq */
+        case 0xC7:
             CHECK_FLAGS(emu);
             nextop = F8;
             GETE8xw(0);
             switch((nextop>>3)&7) {
-                case 1:
+                case 1:     /* CMPXCHG8B Eq */
                     if(rex.w) {
                         tmp64u = ED->q[0];
                         tmp64u2= ED->q[1];
@@ -1716,6 +1737,22 @@ uintptr_t Run0F(x64emu_t *emu, rex_t rex, uintptr_t addr, int *step)
                             R_RAX = tmp32u;
                             R_RDX = tmp32u2;
                         }
+                    }
+                    break;
+                case 6:     /* RDRAND Ed */
+                    RESET_FLAGS(emu);
+                    CLEAR_FLAG(F_OF);
+                    CLEAR_FLAG(F_SF);
+                    CLEAR_FLAG(F_PF);
+                    CLEAR_FLAG(F_ZF);
+                    CLEAR_FLAG(F_AF);
+                    SET_FLAG(F_CF);
+                    if(rex.w)
+                        ED->q[0] = get_random64();
+                    else {
+                        ED->dword[0] = get_random32();
+                        if(MODREG)
+                            ED->dword[1] = 1;
                     }
                     break;
                 default:

@@ -167,6 +167,12 @@ uintptr_t dynarec64_D9(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                     }
                     // load tag
                     LDRH_U12(x3, xEmu, offsetof(x64emu_t, fpu_tags));
+                    if(i2<0) {
+                        LSLw_IMM(x3, x3, -i2*2);
+                    } else if(i2>0) {
+                        ORRw_mask(x3, x3, 0b010000, 0b001111);  // 0xffff0000
+                        LSRw_IMM(x3, x3, i2*2);
+                    }
                     TSTw_mask(x3, 0, 1);    // 0b11
                     B_MARK3(cNE);   // empty: C3,C2,C0 = 101
                     // load x2 with ST0 anyway, for sign extraction
@@ -333,7 +339,7 @@ uintptr_t dynarec64_D9(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             #else
             v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
             v2 = x87_get_st(dyn, ninst, x1, x2, 1, NEON_CACHE_ST_D);
-            s0 = fpu_get_scratch(dyn);
+            s0 = fpu_get_scratch(dyn, ninst);
             FDIVD(s0, v1, v2);
             FRINTRRD(s0, s0, 0b00); // Nearest == TieToEven?
             FCVTZSxD(x4, s0);
@@ -381,7 +387,7 @@ uintptr_t dynarec64_D9(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             #else
             v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
             v2 = x87_get_st(dyn, ninst, x1, x2, 1, NEON_CACHE_ST_D);
-            s0 = fpu_get_scratch(dyn);
+            s0 = fpu_get_scratch(dyn, ninst);
             FDIVD(s0, v1, v2);
             FRINTZD(s0, s0);
             FCVTZSxD(x4, s0);
@@ -492,7 +498,7 @@ uintptr_t dynarec64_D9(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
                 if(ST_IS_F(0))
                     s0 = v1;
                 else {
-                    s0 = fpu_get_scratch(dyn);
+                    s0 = fpu_get_scratch(dyn, ninst);
                     FCVT_S_D(s0, v1);
                 }
                 addr = geted(dyn, addr, ninst, nextop, &ed, x2, &fixedaddress, &unscaled, 0xfff<<2, 3, rex, NULL, 0, 0);
