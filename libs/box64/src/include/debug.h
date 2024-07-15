@@ -20,12 +20,14 @@ extern int box64_maxcpu;
 extern int box64_mmap32;
 extern int box64_ignoreint3;
 extern int box64_rdtsc;
+extern int box64_rdtsc_1ghz;
 extern uint8_t box64_rdtsc_shift;
 #ifdef DYNAREC
 extern int box64_dynarec_dump;
 extern int box64_dynarec_trace;
 extern int box64_dynarec_forced;
 extern uintptr_t box64_nodynarec_start, box64_nodynarec_end;
+extern uintptr_t box64_dynarec_test_start, box64_dynarec_test_end;
 extern int box64_dynarec_bigblock;
 extern int box64_dynarec_forward;
 extern int box64_dynarec_strongmem;
@@ -52,11 +54,13 @@ extern int arm64_uscat;
 extern int arm64_flagm;
 extern int arm64_flagm2;
 extern int arm64_frintts;
+extern int arm64_rndr;
 #elif defined(RV64)
 extern int rv64_zba;
 extern int rv64_zbb;
 extern int rv64_zbc;
 extern int rv64_zbs;
+extern int rv64_vector;
 extern int rv64_xtheadba;
 extern int rv64_xtheadbb;
 extern int rv64_xtheadbs;
@@ -75,6 +79,7 @@ extern int la64_scq;
 #endif
 extern int box64_libcef;
 extern int box64_jvm;
+extern int box64_unityplayer;
 extern int box64_sdl2_jguid;
 extern int dlsym_error;    // log dlsym error
 extern int cycle_log;      // if using rolling logs
@@ -99,6 +104,8 @@ extern int box64_sse_flushto0;
 extern int box64_x87_no80bits;
 extern int box64_sync_rounding;
 extern int box64_sse42;
+extern int box64_avx;
+extern int box64_avx2;
 extern int allow_missing_libs;
 extern int box64_mapclean;
 extern int box64_prefer_wrapped;

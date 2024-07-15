@@ -186,7 +186,7 @@ uintptr_t dynarec64_DC(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 0:
                 INST_NAME("FADD ST0, double[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
-                v2 = fpu_get_scratch(dyn);
+                v2 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<3, 7, rex, NULL, 0, 0);
                 VLD64(v2, wback, fixedaddress);
                 FADDD(v1, v1, v2);
@@ -194,7 +194,7 @@ uintptr_t dynarec64_DC(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 1:
                 INST_NAME("FMUL ST0, double[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
-                v2 = fpu_get_scratch(dyn);
+                v2 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<3, 7, rex, NULL, 0, 0);
                 VLD64(v2, wback, fixedaddress);
                 FMULD(v1, v1, v2);
@@ -202,7 +202,7 @@ uintptr_t dynarec64_DC(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 2:
                 INST_NAME("FCOM ST0, double[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
-                v2 = fpu_get_scratch(dyn);
+                v2 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<3, 7, rex, NULL, 0, 0);
                 VLD64(v2, wback, fixedaddress);
                 FCMPD(v1, v2);
@@ -211,7 +211,7 @@ uintptr_t dynarec64_DC(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 3:
                 INST_NAME("FCOMP ST0, double[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
-                v2 = fpu_get_scratch(dyn);
+                v2 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<3, 7, rex, NULL, 0, 0);
                 VLD64(v2, wback, fixedaddress);
                 FCMPD(v1, v2);
@@ -221,7 +221,7 @@ uintptr_t dynarec64_DC(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 4:
                 INST_NAME("FSUB ST0, double[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
-                v2 = fpu_get_scratch(dyn);
+                v2 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<3, 7, rex, NULL, 0, 0);
                 VLD64(v2, wback, fixedaddress);
                 FSUBD(v1, v1, v2);
@@ -229,7 +229,7 @@ uintptr_t dynarec64_DC(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 5:
                 INST_NAME("FSUBR ST0, double[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
-                v2 = fpu_get_scratch(dyn);
+                v2 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<3, 7, rex, NULL, 0, 0);
                 VLD64(v2, wback, fixedaddress);
                 FSUBD(v1, v2, v1);
@@ -237,7 +237,7 @@ uintptr_t dynarec64_DC(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 6:
                 INST_NAME("FDIV ST0, double[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
-                v2 = fpu_get_scratch(dyn);
+                v2 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<3, 7, rex, NULL, 0, 0);
                 VLD64(v2, wback, fixedaddress);
                 FDIVD(v1, v1, v2);
@@ -245,7 +245,7 @@ uintptr_t dynarec64_DC(dynarec_arm_t* dyn, uintptr_t addr, uintptr_t ip, int nin
             case 7:
                 INST_NAME("FDIVR ST0, double[ED]");
                 v1 = x87_get_st(dyn, ninst, x1, x2, 0, NEON_CACHE_ST_D);
-                v2 = fpu_get_scratch(dyn);
+                v2 = fpu_get_scratch(dyn, ninst);
                 addr = geted(dyn, addr, ninst, nextop, &wback, x3, &fixedaddress, &unscaled, 0xfff<<3, 7, rex, NULL, 0, 0);
                 VLD64(v2, wback, fixedaddress);
                 FDIVD(v1, v2, v1);
