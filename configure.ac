@@ -2339,12 +2339,14 @@ then
     enable_wow64=${enable_wow64:-aarch64,x86_64}
     enable_wow64win=${enable_wow64win:-aarch64,x86_64}
     enable_wow64cpu=${enable_wow64cpu:-x86_64}
+    enable_wowarmhw=${enable_wowarmhw:-aarch64,x86_64}
     enable_xtajit=${enable_xtajit:-aarch64,x86_64}
     enable_xtajit64=${enable_xtajit64:-arm64ec}
 else
     enable_wow64=${enable_wow64:-no}
     enable_wow64win=${enable_wow64win:-no}
     enable_wow64cpu=${enable_wow64cpu:-no}
+    enable_wowarmhw=${enable_wowarmhw:-no}
     enable_xtajit=${enable_xtajit:-no}
     enable_xtajit64=${enable_xtajit64:-no}
 fi
@@ -3313,6 +3315,7 @@ WINE_CONFIG_MAKEFILE(dlls/wow32,enable_win16)
 WINE_CONFIG_MAKEFILE(dlls/wow64)
 WINE_CONFIG_MAKEFILE(dlls/wow64cpu)
 WINE_CONFIG_MAKEFILE(dlls/wow64win)
+WINE_CONFIG_MAKEFILE(dlls/wowarmhw)
 WINE_CONFIG_MAKEFILE(dlls/wpc)
 WINE_CONFIG_MAKEFILE(dlls/wpc/tests)
 WINE_CONFIG_MAKEFILE(dlls/wpcap)
