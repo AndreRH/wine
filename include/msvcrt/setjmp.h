@@ -124,8 +124,8 @@ typedef struct _JUMP_BUFFER
     unsigned __int64 Fp;
     unsigned __int64 Lr;
     unsigned __int64 Sp;
-    unsigned long Fpcr;
-    unsigned long Fpsr;
+    unsigned int Fpcr;
+    unsigned int Fpsr;
     double D[8];
 } _JUMP_BUFFER;
 
