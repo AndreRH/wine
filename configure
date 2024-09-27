@@ -10248,6 +10248,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -10283,6 +10289,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -10484,6 +10496,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -10518,6 +10536,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -10552,6 +10576,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -10586,6 +10616,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -10620,6 +10656,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -10654,6 +10696,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -10688,6 +10736,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -10722,6 +10776,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -10756,6 +10816,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -10790,6 +10856,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -10824,6 +10896,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -10858,6 +10936,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -10892,6 +10976,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -10926,6 +11016,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -10960,6 +11056,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -10994,6 +11096,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -11028,6 +11136,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -11062,6 +11176,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -11096,6 +11216,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -11130,6 +11256,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -11164,6 +11296,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -11200,6 +11338,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -11236,6 +11380,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -11270,6 +11420,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -11304,6 +11460,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -11338,6 +11500,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -11372,6 +11540,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -11406,6 +11580,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -11440,6 +11620,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -11497,6 +11683,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -11531,6 +11723,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -11569,6 +11767,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
@@ -11603,6 +11807,12 @@ ac_exeext=".exe"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 void *__os_arm64x_dispatch_ret = 0;
+void *__os_arm64x_dispatch_call_no_redirect = 0;
+void *memcpy() {};
+void *__os_arm64x_check_icall =0;
+void *memset() {};
+void *memmove() {};
+
 int __cdecl mainCRTStartup(void) { return 0; }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
