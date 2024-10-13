@@ -1257,6 +1257,11 @@ static int setup_config_dir(void)
     struct stat st;
     int fd_cwd = open( ".", O_RDONLY );
 
+#ifdef _SC_PAGESIZE
+    if (sysconf( _SC_PAGESIZE ) != 4096)
+        fatal_error("You are running with the wrong page size");
+#endif
+
     if (chdir( config_dir ) == -1)
     {
         if (errno != ENOENT) fatal_perror( "cannot use directory %s", config_dir );
