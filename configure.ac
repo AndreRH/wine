@@ -2333,6 +2333,13 @@ dnl *** Check for modules to disable by default
 enable_win16=${enable_win16:-i386}
 enable_vcruntime140_1=${enable_vcruntime140_1:-x86_64,arm64ec}
 
+for arch in $cross_archs
+do
+  case $arch in
+    arm64ec) enable_box64cpu=${enable_box64cpu:-no}
+  esac
+done
+
 if test -n "$PE_ARCHS"
 then
     enable_box64cpu=${enable_box64cpu:-aarch64}
