@@ -4218,12 +4218,12 @@ static void load_arm64ec_module(void)
     ULONG buffer[16];
     KEY_VALUE_PARTIAL_INFORMATION *info = (KEY_VALUE_PARTIAL_INFORMATION *)buffer;
     UNICODE_STRING nameW = RTL_CONSTANT_STRING( L"\\Registry\\Machine\\Software\\Microsoft\\Wow64\\amd64" );
-    WCHAR module[64] = L"C:\\windows\\system32\\xtajit64.dll";
+    WCHAR module[64] = L"C:\\windows\\system32\\libarm64ecfex.dll";
     OBJECT_ATTRIBUTES attr;
     WINE_MODREF *wm;
     NTSTATUS status;
     HANDLE key;
-
+/*
     InitializeObjectAttributes( &attr, &nameW, OBJ_CASE_INSENSITIVE, 0, NULL );
     if (!NtOpenKey( &key, KEY_READ | KEY_WOW64_64KEY, &attr ))
     {
@@ -4238,7 +4238,7 @@ static void load_arm64ec_module(void)
         }
         NtClose( key );
     }
-
+*/
     if ((status = load_dll( NULL, module, 0, &wm, FALSE )) ||
         (status = arm64ec_process_init( wm->ldr.DllBase )))
     {
