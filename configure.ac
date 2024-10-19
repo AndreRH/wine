@@ -2338,6 +2338,7 @@ enable_vcruntime140_1=${enable_vcruntime140_1:-x86_64,arm64ec}
 if test -n "$PE_ARCHS"
 then
     enable_box64cpu=${enable_box64cpu:-aarch64}
+    AS_VAR_APPEND([arm64ec_DISABLED_SUBDIRS],[" libs/box64"])
     enable_wow64=${enable_wow64:-aarch64,x86_64}
     enable_wow64win=${enable_wow64win:-aarch64,x86_64}
     enable_wow64cpu=${enable_wow64cpu:-x86_64}
