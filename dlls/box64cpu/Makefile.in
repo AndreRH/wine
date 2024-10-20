@@ -2,7 +2,7 @@ MODULE    = box64cpu.dll
 IMPORTS   = $(BOX64_PE_LIBS) $(MUSL_PE_LIBS) wow64 ntdll winecrt0 kernel32
 EXTRAINCL = $(BOX64_PE_CFLAGS) $(ZYDIS_PE_CFLAGS)
 
-EXTRADLLFLAGS = -nodefaultlibs -Wl,--image-base,0x004c0000
+EXTRADLLFLAGS = -b aarch64-w64-mingw32 -nodefaultlibs -Wl,--image-base,0x004c0000
 
 SOURCES = \
 	cpu.c \
