@@ -4213,17 +4213,50 @@ static void elevate_token(void)
 
 #ifdef __arm64ec__
 
+static DWORD loaderGetEnvironmentVariableW( LPCWSTR name, LPWSTR val, DWORD size )
+{
+    UNICODE_STRING us_name, us_value;
+    NTSTATUS status;
+    DWORD len;
+
+    RtlInitUnicodeString( &us_name, name );
+    us_value.Length = 0;
+    us_value.MaximumLength = (size ? size - 1 : 0) * sizeof(WCHAR);
+    us_value.Buffer = val;
+
+    status = RtlQueryEnvironmentVariable_U( NULL, &us_name, &us_value );
+    len = us_value.Length / sizeof(WCHAR);
+    if (status == STATUS_BUFFER_TOO_SMALL) return len + 1;
+    if (status) return 0;
+    if (!size) return len + 1;
+    val[len] = 0;
+    return len;
+}
+
 static void load_arm64ec_module(void)
 {
-    ULONG buffer[16];
+    ULONG buffer[32];
     KEY_VALUE_PARTIAL_INFORMATION *info = (KEY_VALUE_PARTIAL_INFORMATION *)buffer;
     UNICODE_STRING nameW = RTL_CONSTANT_STRING( L"\\Registry\\Machine\\Software\\Microsoft\\Wow64\\amd64" );
-    WCHAR module[64] = L"C:\\windows\\system32\\xtajit64.dll";
+    WCHAR *cpu_dll = (WCHAR*)buffer;
+    WCHAR module[64] = L"C:\\windows\\system32\\libarm64ecfex.dll";
     OBJECT_ATTRIBUTES attr;
     WINE_MODREF *wm;
     NTSTATUS status;
     HANDLE key;
+    DWORD res;
 
+    if ((res = loaderGetEnvironmentVariableW( L"HODLL64", cpu_dll, ARRAY_SIZE(buffer))) &&
+        res < ARRAY_SIZE(buffer))
+    {
+        ULONG dirlen = wcslen( L"C:\\windows\\system32\\" );
+        ULONG size = sizeof(module) - (dirlen + 1) * sizeof(WCHAR);
+        memset( module + dirlen, 0, size );
+        memcpy( module + dirlen, cpu_dll, min( res * sizeof(WCHAR), size ));
+    }
+
+if (0)
+{
     InitializeObjectAttributes( &attr, &nameW, OBJ_CASE_INSENSITIVE, 0, NULL );
     if (!NtOpenKey( &key, KEY_READ | KEY_WOW64_64KEY, &attr ))
     {
@@ -4238,6 +4271,7 @@ static void load_arm64ec_module(void)
         }
         NtClose( key );
     }
+}
 
     if ((status = load_dll( NULL, module, 0, &wm, FALSE )) ||
         (status = arm64ec_process_init( wm->ldr.DllBase )))
