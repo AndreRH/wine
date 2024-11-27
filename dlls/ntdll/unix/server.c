@@ -1286,9 +1286,17 @@ static int setup_config_dir(void)
 
     if (!mkdir( "dosdevices", 0777 ))
     {
+        
+#ifdef __ANDROID__
+        mkdir( "drive_d", 0777 );
+        symlink( "/sdcard", "dosdevices/d:" );
+        symlink( "/data/data/com.termux/files", "dosdevices/z:" );
+#else
         mkdir( "drive_c", 0777 );
         symlink( "../drive_c", "dosdevices/c:" );
-        symlink( "/", "dosdevices/z:" );
+        syslink( "/", "dosdevices/z:" );
+#endif
+        
     }
     else if (errno != EEXIST) fatal_perror( "cannot create %s/dosdevices", config_dir );
 
