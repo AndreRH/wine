@@ -60,9 +60,7 @@
 #ifdef HAVE_KQUEUE
 # include <sys/event.h>
 #endif
-#ifdef HAVE_LINUX_NTSYNC_H
-# include <linux/ntsync.h>
-#endif
+#include "ntsync_tmp.h"
 
 #include "ntstatus.h"
 #include "windef.h"

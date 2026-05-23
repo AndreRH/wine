@@ -33,9 +33,7 @@
 #include "thread.h"
 #include "user.h"
 
-#ifdef HAVE_LINUX_NTSYNC_H
-# include <linux/ntsync.h>
-#endif
+#include "ntsync_tmp.h"
 
 #ifdef NTSYNC_IOC_EVENT_READ
 
@@ -47,7 +45,14 @@
 int get_inproc_device_fd(void)
 {
     static int fd = -2;
-    if (fd == -2) fd = open( "/dev/ntsync", O_CLOEXEC | O_RDONLY );
+    if (fd == -2)
+    {
+        fd = open( "/dev/ntsync", O_CLOEXEC | O_RDONLY );
+        if (fd >= 0)
+            fprintf( stderr, "ntsync: up and running.\n" );
+        else
+            fprintf( stderr, "ntsync: failed to open /dev/ntsync (%s), using server-side sync.\n", strerror(errno) );
+    }
     return fd;
 }
 
