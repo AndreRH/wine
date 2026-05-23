@@ -51,7 +51,7 @@ int get_inproc_device_fd(void)
         if (fd >= 0)
             fprintf( stderr, "ntsync: up and running.\n" );
         else
-            fprintf( stderr, "ntsync: failed to open /dev/ntsync (%s), using server-side sync.\n", strerror(errno) );
+            fprintf( stderr, "ntsync: failed to open /dev/ntsync, using server-side sync.\n" );
     }
     return fd;
 }
