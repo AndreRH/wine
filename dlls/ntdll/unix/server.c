@@ -1325,11 +1325,6 @@ static int setup_config_dir(void)
     struct stat st;
     int fd_cwd = open( ".", O_RDONLY );
 
-#ifdef _SC_PAGESIZE
-    if (sysconf( _SC_PAGESIZE ) != 4096)
-        MESSAGE("You are running with the wrong page size, expect problems!\nPlease also consult https://github.com/AndreRH/hangover/wiki/Page-Size\n");
-#endif
-
     if (chdir( config_dir ) == -1)
     {
         if (errno != ENOENT) fatal_perror( "cannot use directory %s", config_dir );
