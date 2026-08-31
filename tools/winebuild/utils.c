@@ -899,7 +899,11 @@ void output_gnu_stack_note(void)
     case PLATFORM_APPLE:
         break;
     default:
-        output( "\t.section .note.GNU-stack,\"\",@progbits\n" );
+        /* riscv64 takes '@' as a comment start */
+        if (target.cpu == CPU_RISCV64)
+            output( "\t.section .note.GNU-stack,\"\",%%progbits\n" );
+        else
+            output( "\t.section .note.GNU-stack,\"\",@progbits\n" );
         break;
     }
 }

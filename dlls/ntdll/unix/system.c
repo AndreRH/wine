@@ -820,6 +820,22 @@ void init_shared_data_cpuinfo( KUSER_SHARED_DATA *data )
 #endif
 }
 
+#elif defined(__riscv64__)
+
+static ULONGLONG get_cpu_features(void)
+{
+    return 0;  /* FIXME */
+}
+
+void init_shared_data_cpuinfo( KUSER_SHARED_DATA *data )
+{
+    FIXME("CPU Feature detection not implemented.\n");
+}
+
+static void init_cpu_model(void)
+{
+}
+
 #endif /* End architecture specific feature detection for CPUs */
 
 static BOOL grow_logical_proc_buf(void)

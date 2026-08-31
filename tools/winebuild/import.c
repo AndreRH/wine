@@ -647,6 +647,13 @@ static void output_import_thunk( const char *name, const char *table, int pos )
     case CPU_x86_64:
         output( "\tjmpq *%s+%d(%%rip)\n", table, pos );
         break;
+    case CPU_RISCV64:
+        output( "\tla t0, %s\n", table );
+        output( "\tli t1, %u\n", pos );
+        output( "\tadd t1, t0, t1\n" );
+        output( "\tld t0, 0(t1)\n" );
+        output( "\tjr t0\n" );
+        break;
     default:
         assert( 0 );
         break;
@@ -928,6 +935,37 @@ static void output_delayed_import_thunks( const DLLSPEC *spec )
             output_cfi( ".cfi_adjust_cfa_offset -0x98" );
             output( "\tjmp *%%rax\n" );
             break;
+        case CPU_RISCV64:
+            output( "\taddi sp, sp, -0x50\n" );
+            output( "\tsd fp, 0x40(sp)\n" );
+            output( "\tmv fp, sp\n" );
+            output( "\tsd ra, 0x48(sp)\n" );
+            output( "\tsd a0, 0x00(sp)\n" );
+            output( "\tsd a1, 0x08(sp)\n" );
+            output( "\tsd a2, 0x10(sp)\n" );
+            output( "\tsd a3, 0x18(sp)\n" );
+            output( "\tsd a4, 0x20(sp)\n" );
+            output( "\tsd a5, 0x28(sp)\n" );
+            output( "\tsd a6, 0x30(sp)\n" );
+            output( "\tsd a7, 0x38(sp)\n" );
+            output( "\tmv a1, t0\n" );
+            output( "\tla a0, %s\n", asm_name(".L__wine_spec_delay_imports") );
+            if (pos) output( "\taddi a0, a0, %u\n", pos );
+            output( "\tjal %s\n", asm_name("__delayLoadHelper2") );
+            output( "\tmv t0, a0\n" );
+            output( "\tld a0, 0x00(sp)\n" );
+            output( "\tld a1, 0x08(sp)\n" );
+            output( "\tld a2, 0x10(sp)\n" );
+            output( "\tld a3, 0x18(sp)\n" );
+            output( "\tld a4, 0x20(sp)\n" );
+            output( "\tld a5, 0x28(sp)\n" );
+            output( "\tld a6, 0x30(sp)\n" );
+            output( "\tld a7, 0x38(sp)\n" );
+            output( "\tld ra, 0x48(sp)\n" );
+            output( "\tld fp, 0x40(sp)\n" );
+            output( "\taddi sp, sp, 0x50\n" );
+            output( "\tjr t0\n" );
+            break;
         default:
             assert( 0 );
             break;
@@ -956,6 +994,11 @@ static void output_delayed_import_thunks( const DLLSPEC *spec )
             case CPU_x86_64:
                 output( "\tleaq .L__wine_delay_IAT+%d(%%rip),%%rax\n", iat_pos );
                 output( "\tjmp %s\n", asm_name(module_func) );
+                break;
+            case CPU_RISCV64:
+                output( "\tla t0, %s\n", asm_name(".L__wine_delay_IAT") );
+                if (iat_pos) output( "\taddi t0, t0, %u\n", iat_pos );
+                output( "\tj %s\n", asm_name(module_func) );
                 break;
             default:
                 assert( 0 );
@@ -1131,6 +1174,15 @@ void output_stubs( DLLSPEC *spec )
                 output( "\tmov x1, %u\n", odp->ordinal );
             output( "\tb %s\n", arm64_name("__wine_spec_unimplemented_stub") );
             output( "\t.seh_endproc\n" );
+            break;
+        case CPU_RISCV64:
+            output( "\tla a0, %s\n", asm_name(".L__wine_spec_file_name") );
+            if (exp_name)
+                output( "\tla a1, .L%s_string\n", name );
+            else
+                output( "\tli a1, %u\n", odp->ordinal );
+            output( "\tla a2, %s\n", asm_name("__wine_spec_unimplemented_stub") );
+            output( "\tjalr a2\n" );
             break;
         }
         output_function_size( name );
@@ -1411,6 +1463,7 @@ static void build_windows_import_lib( const char *lib_name, DLLSPEC *spec, struc
             output( "\t.seh_endproc\n" );
             break;
         case CPU_ARM64EC:
+        case CPU_RISCV64:
             assert( 0 );
             break;
         }
@@ -1557,6 +1610,7 @@ static void build_windows_import_lib( const char *lib_name, DLLSPEC *spec, struc
                 }
                 break;
             case CPU_ARM64EC:
+            case CPU_RISCV64:
                 assert( 0 );
                 break;
             }

@@ -1055,9 +1055,27 @@ __ASM_GLOBAL_FUNC( NdrClientCall2,
                    __ASM_CFI(".cfi_def_cfa %esp,4\n\t")
                    __ASM_CFI(".cfi_same_value %ebp\n\t")
                    "ret" )
+#elif defined __riscv64__
+__ASM_GLOBAL_FUNC( NdrClientCall2,
+                   "addi sp, sp, -0x40\n\t"
+                   "sd fp, 0x00(sp)\n\t"
+                   "sd ra, 0x08(sp)\n\t"
+                   "sd a2, 0x10(sp)\n\t"
+                   "sd a3, 0x18(sp)\n\t"
+                   "sd a4, 0x20(sp)\n\t"
+                   "sd a5, 0x28(sp)\n\t"
+                   "sd a6, 0x30(sp)\n\t"
+                   "sd a7, 0x38(sp)\n\t"
+                   "addi a2, sp, 0x10\n\t"   /* stack */
+                   "li a3, 0\n\t"            /* fpu_stack */
+                   "call NdrpClientCall2\n\t"
+                   "ld ra, 0x08(sp)\n\t"
+                   "ld fp, 0x00(sp)\n\t"
+                   "addi sp, sp, 0x40\n\t"
+                   "ret" )
 #endif
 
-#if defined(__aarch64__) || defined(__arm__)
+#if defined(__aarch64__) || defined(__arm__) || defined(__riscv64__)
 static void **args_regs_to_stack( void **regs, void **fpu_regs, const NDR_PROC_PARTIAL_OIF_HEADER *header )
 {
     static const unsigned int nb_gpregs = sizeof(void *); /* 4 gpregs on arm32, 8 on arm64 */
@@ -1889,6 +1907,24 @@ __ASM_GLOBAL_FUNC( NdrAsyncClientCall,
                    __ASM_CFI(".cfi_def_cfa %esp,4\n\t")
                    __ASM_CFI(".cfi_same_value %ebp\n\t")
                    "ret" )
+#elif defined __riscv64__
+__ASM_GLOBAL_FUNC( NdrAsyncClientCall,
+                   "addi sp, sp, -0x40\n\t"
+                   "sd fp, 0x00(sp)\n\t"
+                   "sd ra, 0x08(sp)\n\t"
+                   "sd a2, 0x10(sp)\n\t"
+                   "sd a3, 0x18(sp)\n\t"
+                   "sd a4, 0x20(sp)\n\t"
+                   "sd a5, 0x28(sp)\n\t"
+                   "sd a6, 0x30(sp)\n\t"
+                   "sd a7, 0x38(sp)\n\t"
+                   "addi a2, sp, 0x10\n\t"   /* stack */
+                   "li a3, 0\n\t"            /* fpu_stack */
+                   "call ndr_async_client_call\n\t"
+                   "ld ra, 0x08(sp)\n\t"
+                   "ld fp, 0x00(sp)\n\t"
+                   "addi sp, sp, 0x40\n\t"
+                   "ret" )
 #endif
 
 RPCRTAPI LONG RPC_ENTRY NdrAsyncStubCall(struct IRpcStubBuffer* pThis,
@@ -2235,6 +2271,22 @@ __ASM_GLOBAL_FUNC( NdrClientCall3,
                    "addq $0x28,%rsp\n\t"
                    __ASM_CFI(".cfi_adjust_cfa_offset -0x28\n\t")
                    "ret" )
+#elif defined __riscv64__
+__ASM_GLOBAL_FUNC( NdrClientCall3,
+                   "addi sp, sp, -0x40\n\t"
+                   "sd fp, 0x00(sp)\n\t"
+                   "sd ra, 0x08(sp)\n\t"
+                   "sd a3, 0x18(sp)\n\t"
+                   "sd a4, 0x20(sp)\n\t"
+                   "sd a5, 0x28(sp)\n\t"
+                   "sd a6, 0x30(sp)\n\t"
+                   "sd a7, 0x38(sp)\n\t"
+                   "addi a3, sp, 0x18\n\t"   /* stack */
+                   "call ndr64_client_call\n\t"
+                   "ld ra, 0x08(sp)\n\t"
+                   "ld fp, 0x00(sp)\n\t"
+                   "addi sp, sp, 0x40\n\t"
+                   "ret" )
 #endif
 
 LONG_PTR CDECL ndr64_async_client_call( MIDL_STUBLESS_PROXY_INFO *info,
@@ -2306,5 +2358,22 @@ __ASM_GLOBAL_FUNC( Ndr64AsyncClientCall,
                    "call " __ASM_NAME("ndr64_async_client_call") "\n\t"
                    "addq $0x28,%rsp\n\t"
                    __ASM_CFI(".cfi_adjust_cfa_offset -0x28\n\t")
+                   "ret" )
+#elif defined __riscv64__
+__ASM_GLOBAL_FUNC( Ndr64AsyncClientCall,
+                   "addi sp, sp, -0x40\n\t"
+                   "sd fp, 0x00(sp)\n\t"
+                   "sd ra, 0x08(sp)\n\t"
+                   "sd a3, 0x18(sp)\n\t"
+                   "sd a4, 0x20(sp)\n\t"
+                   "sd a5, 0x28(sp)\n\t"
+                   "sd a6, 0x30(sp)\n\t"
+                   "sd a7, 0x38(sp)\n\t"
+                   "addi a3, sp, 0x18\n\t"   /* stack */
+                   "li a4, 0\n\t"            /* fpu_stack */
+                   "call ndr64_async_client_call\n\t"
+                   "ld ra, 0x08(sp)\n\t"
+                   "ld fp, 0x00(sp)\n\t"
+                   "addi sp, sp, 0x40\n\t"
                    "ret" )
 #endif

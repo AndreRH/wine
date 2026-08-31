@@ -43,6 +43,7 @@ SOURCES = \
 	signal_arm64.c \
 	signal_arm64ec.c \
 	signal_i386.c \
+	signal_riscv64.c \
 	signal_x86_64.c \
 	string.c \
 	sync.c \
@@ -64,6 +65,7 @@ SOURCES = \
 	unix/signal_arm.c \
 	unix/signal_arm64.c \
 	unix/signal_i386.c \
+	unix/signal_riscv64.c \
 	unix/signal_x86_64.c \
 	unix/socket.c \
 	unix/sync.c \

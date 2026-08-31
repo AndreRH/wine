@@ -204,6 +204,13 @@ static unsigned int get_server_context_flags( const void *context, USHORT machin
         if (flags & CONTEXT_ARM64_X18) ret |= SERVER_CTX_TLS;
         if (flags & CONTEXT_ARM64_DEBUG_REGISTERS) ret |= SERVER_CTX_DEBUG_REGISTERS;
         break;
+    case IMAGE_FILE_MACHINE_RISCV64:
+        flags = ((const RISCV64_CONTEXT *)context)->ContextFlags & ~CONTEXT_RISCV64;
+        if (flags & CONTEXT_RISCV64_CONTROL) ret |= SERVER_CTX_CONTROL;
+        if (flags & CONTEXT_RISCV64_INTEGER) ret |= SERVER_CTX_INTEGER;
+        if (flags & CONTEXT_RISCV64_FLOATING_POINT) ret |= SERVER_CTX_FLOATING_POINT;
+        if (flags & CONTEXT_RISCV64_DEBUG_REGISTERS) ret |= SERVER_CTX_DEBUG_REGISTERS;
+        break;
     }
     if (flags & CONTEXT_EXCEPTION_REQUEST) ret |= SERVER_CTX_EXEC_SPACE;
     return ret;
@@ -270,7 +277,6 @@ static NTSTATUS context_to_server( struct context_data *to, USHORT to_machine, c
 
     memset( to, 0, sizeof(*to) );
     to->machine = to_machine;
-
     switch (MAKELONG( from_machine, to_machine ))
     {
     case MAKELONG( IMAGE_FILE_MACHINE_I386, IMAGE_FILE_MACHINE_I386 ):
@@ -630,6 +636,28 @@ static NTSTATUS context_to_server( struct context_data *to, USHORT to_machine, c
     case MAKELONG( IMAGE_FILE_MACHINE_I386, IMAGE_FILE_MACHINE_ARM64 ):
         return STATUS_SUCCESS;
 
+    case MAKELONG( IMAGE_FILE_MACHINE_RISCV64, IMAGE_FILE_MACHINE_RISCV64 ):
+    {
+        const RISCV64_CONTEXT *from = src;
+
+        flags = from->ContextFlags & ~CONTEXT_RISCV64;
+        if (flags & CONTEXT_RISCV64_CONTROL)
+        {
+            to->flags |= SERVER_CTX_CONTROL;
+            to->integer.riscv64_regs.x[8 - 1] = from->Fp;
+            to->integer.riscv64_regs.x[2 - 1] = from->Sp;
+            to->integer.riscv64_regs.x[1 - 1] = from->Ra;
+            to->ctl.riscv64_regs.pc = from->Pc;
+        }
+        if (flags & CONTEXT_RISCV64_INTEGER)
+        {
+            to->flags |= SERVER_CTX_INTEGER;
+            for (i = 3; i < 8; i++) to->integer.riscv64_regs.x[i - 1] = from->X[i];
+            for (i = 9; i < 32; i++) to->integer.riscv64_regs.x[i - 1] = from->X[i];
+        }
+        return STATUS_SUCCESS;
+    }
+
     default:
         return STATUS_INVALID_PARAMETER;
     }
@@ -686,7 +714,6 @@ static void exception_request_flags_from_server( DWORD *context_flags, const str
 static NTSTATUS context_from_server( void *dst, const struct context_data *from, USHORT machine )
 {
     DWORD i, to_flags;
-
     switch (MAKELONG( from->machine, machine ))
     {
     case MAKELONG( IMAGE_FILE_MACHINE_I386, IMAGE_FILE_MACHINE_I386 ):
@@ -1057,6 +1084,28 @@ static NTSTATUS context_from_server( void *dst, const struct context_data *from,
     case MAKELONG( IMAGE_FILE_MACHINE_I386, IMAGE_FILE_MACHINE_ARM64 ):
         return STATUS_SUCCESS;
 
+    case MAKELONG( IMAGE_FILE_MACHINE_RISCV64, IMAGE_FILE_MACHINE_RISCV64 ):
+    {
+        RISCV64_CONTEXT *to = dst;
+
+        to_flags = to->ContextFlags & ~CONTEXT_RISCV64;
+        if ((from->flags & SERVER_CTX_CONTROL) && (to_flags & CONTEXT_RISCV64_CONTROL))
+        {
+            to->ContextFlags |= CONTEXT_RISCV64_CONTROL;
+            to->Fp   = from->integer.riscv64_regs.x[8 - 1];
+            to->Sp   = from->integer.riscv64_regs.x[2 - 1];
+            to->Ra   = from->integer.riscv64_regs.x[1 - 1];
+            to->Pc   = from->ctl.riscv64_regs.pc;
+        }
+        if ((from->flags & SERVER_CTX_INTEGER) && (to_flags & CONTEXT_RISCV64_INTEGER))
+        {
+            to->ContextFlags |= CONTEXT_RISCV64_INTEGER;
+            for (i = 3; i < 8; i++) to->X[i] = from->integer.riscv64_regs.x[i - 1];
+            for (i = 9; i < 32; i++) to->X[i] = from->integer.riscv64_regs.x[i - 1];
+        }
+        return STATUS_SUCCESS;
+    }
+
     default:
         return STATUS_INVALID_PARAMETER;
     }
@@ -1135,6 +1184,7 @@ static SIZE_T get_machine_context_size( USHORT machine )
     case IMAGE_FILE_MACHINE_ARMNT: return sizeof(ARM_CONTEXT);
     case IMAGE_FILE_MACHINE_AMD64: return sizeof(AMD64_CONTEXT);
     case IMAGE_FILE_MACHINE_ARM64: return sizeof(ARM64_NT_CONTEXT);
+    case IMAGE_FILE_MACHINE_RISCV64: return sizeof(RISCV64_CONTEXT);
     default: return 0;
     }
 }

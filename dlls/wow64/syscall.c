@@ -373,6 +373,26 @@ __ASM_GLOBAL_FUNC( raise_exception_handler,
                    "1:\tmov w0, #1\n\t"        /* ExceptionContinueSearch */
                    "ldp x29, x30, [sp], #16\n\t"
                    "ret" )
+#elif defined(__riscv64__)
+__ASM_GLOBAL_FUNC( raise_exception,
+                   "addi sp, sp, -0x20\n\t"
+                   "sd fp, 0x10(sp)\n\t"
+                   "sd ra, 0x18(sp)\n\t"
+                   "mv fp, sp\n\t"
+                   "sd a0, 0x00(sp)\n\t"
+                   "sd a1, 0x08(sp)\n\t"
+                   "mv a0, a1\n\t"
+                   "jal " __ASM_NAME("RtlCaptureContext") "\n\t"
+                   "ld a0, 0x00(sp)\n\t"
+                   "ld a1, 0x08(sp)\n\t"
+                   "ld a4, 0x10(sp)\n\t"
+                   "ld a5, 0x18(sp)\n\t"
+                   "sd a4, 0x48(sp)\n\t"
+                   "sd a5, 0x10(sp)\n\t"
+                   "addi a4, sp, 0x20\n\t"
+                   "sd a4, 0x18(sp)\n\t"
+                   "sd a5, 0x08(sp)\n\t"
+                   "jal " __ASM_NAME("NtRaiseException") )
 #else
 __ASM_GLOBAL_FUNC( raise_exception,
                    "sub $0x4d8,%rsp\n\t"       /* sizeof(context) + alignment */
