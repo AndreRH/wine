@@ -1667,6 +1667,86 @@ BOOLEAN CDECL RtlAddFunctionTable( RUNTIME_FUNCTION *table, DWORD count, ULONG_P
 
 
 /***********************************************************************
+ * RISC-V 64-bit support
+ */
+
+#ifdef __riscv64__
+
+struct unwind_info
+{
+    DWORD function_length : 18;
+    DWORD version : 2;
+    DWORD x : 1;
+    DWORD e : 1;
+    DWORD epilog : 5;
+    DWORD codes : 5;
+};
+
+static RUNTIME_FUNCTION *find_function_info( ULONG_PTR pc, ULONG_PTR base,
+                                             RUNTIME_FUNCTION *func, ULONG size )
+{
+    int min = 0, max = size - 1;
+
+    while (min <= max)
+    {
+        int pos = (min + max) / 2;
+        ULONG_PTR start = base + func[pos].BeginAddress;
+        struct unwind_info *info = (struct unwind_info *)(base + func[pos].UnwindData);
+
+        if (pc < start) max = pos - 1;
+        else if (pc >= start + 2 * info->function_length) min = pos + 1;
+        else return func + pos;
+    }
+    return NULL;
+}
+
+
+/**********************************************************************
+ *              RtlLookupFunctionEntry   (NTDLL.@)
+ */
+PRUNTIME_FUNCTION WINAPI RtlLookupFunctionEntry( ULONG_PTR pc, ULONG_PTR *base,
+                                                 UNWIND_HISTORY_TABLE *table )
+{
+    RUNTIME_FUNCTION *func;
+    ULONG_PTR dynbase;
+    ULONG size;
+
+    if ((func = RtlLookupFunctionTable( pc, base, &size )))
+        return find_function_info( pc, *base, func, size / sizeof(*func));
+
+    if ((func = lookup_dynamic_function_table( pc, &dynbase, &size )))
+    {
+        RUNTIME_FUNCTION *ret = find_function_info( pc, dynbase, func, size );
+        if (ret) *base = dynbase;
+        return ret;
+    }
+
+    *base = 0;
+    return NULL;
+}
+
+
+/**********************************************************************
+ *              RtlAddFunctionTable   (NTDLL.@)
+ */
+BOOLEAN CDECL RtlAddFunctionTable( RUNTIME_FUNCTION *table, DWORD count, ULONG_PTR base )
+{
+    ULONG_PTR end = base;
+    void *ret;
+
+    if (count)
+    {
+        RUNTIME_FUNCTION *func = table + count - 1;
+        struct unwind_info *info = (struct unwind_info *)(base + func->UnwindData);
+        end += func->BeginAddress + 2 * info->function_length;
+    }
+    return !RtlAddGrowableFunctionTable( &ret, table, count, 0, base, end );
+}
+
+#endif  /* __riscv64__ */
+
+
+/***********************************************************************
  * x86-64 support
  */
 #ifdef __x86_64__

@@ -1115,7 +1115,7 @@ static HRESULT write_param_fs(ITypeInfo *typeinfo, unsigned char *type,
     return hr;
 }
 
-#if defined __arm__ || defined __aarch64__
+#if defined __arm__ || defined __aarch64__ || defined __riscv64__
 
 /* replace consecutive params code by a repeat sequence: 0x9d code<1> repeat_count<2> */
 static unsigned int compress_params_array( unsigned char *params, unsigned int count )
@@ -1136,7 +1136,7 @@ static unsigned int compress_params_array( unsigned char *params, unsigned int c
     return count;
 }
 
-/* fill the parameters array for the procedure extra data on ARM platforms */
+/* fill the parameters array for the procedure extra data on ARM and RISC-V platforms */
 static unsigned int fill_params_array( ITypeInfo *typeinfo, FUNCDESC *desc,
                                        unsigned char *params, unsigned int count )
 {
@@ -1158,7 +1158,7 @@ static unsigned int fill_params_array( ITypeInfo *typeinfo, FUNCDESC *desc,
         offset = ROUND_SIZE( offset, align );
         pos = offset / pointer_size;
 
-#ifdef __aarch64__
+#if defined __aarch64__ || defined __riscv64__
         switch (basetype)
         {
         case FC_FLOAT:

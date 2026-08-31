@@ -673,6 +673,9 @@ static void create_bios_processor_values( HKEY system_key, const char *buf, UINT
     case PROCESSOR_ARCHITECTURE_ARM64:
         set_reg_value( system_key, L"Identifier", L"ARM processor family" );
         break;
+    case PROCESSOR_ARCHITECTURE_RISCV64:
+        set_reg_value( system_key, L"Identifier", L"RISC-V 64 processor family" );
+        break;
 
     case PROCESSOR_ARCHITECTURE_INTEL:
     case PROCESSOR_ARCHITECTURE_AMD64:
@@ -709,6 +712,10 @@ static void create_bios_processor_values( HKEY system_key, const char *buf, UINT
             arch = L"ARM64";
             swprintf( id, ARRAY_SIZE(id), L"ARMv8 (64-bit) Family 8 Model %X Revision %X",
                       sci.ProcessorLevel, sci.ProcessorRevision );
+            break;
+        case PROCESSOR_ARCHITECTURE_RISCV64:
+            arch = L"RISCV64";
+            swprintf( id, ARRAY_SIZE(id), L"RISC-V 64" );
             break;
         case PROCESSOR_ARCHITECTURE_AMD64:
             arch = L"AMD64";

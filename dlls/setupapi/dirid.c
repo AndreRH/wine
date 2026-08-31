@@ -53,6 +53,8 @@ static const WCHAR printer_env[] = L"x64";
 static const WCHAR printer_env[] = L"arm";
 #elif defined __aarch64__
 static const WCHAR printer_env[] = L"arm64";
+#elif defined __riscv64__
+static const WCHAR printer_env[] = L"riscv64";
 #else
 #error not defined for this cpu
 #endif

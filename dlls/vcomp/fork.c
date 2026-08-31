@@ -165,4 +165,43 @@ __ASM_GLOBAL_FUNC( _vcomp_fork_call_wrapper,
                    "ldp x29, x30, [SP], #16\n\t"
                    "ret" )
 
+#elif defined __riscv64__
+
+__ASM_GLOBAL_FUNC( _vcomp_fork_call_wrapper,
+                   "addi sp, sp, -16\n\t"
+                   "sd ra, 8(sp)\n\t"
+                   "sd fp, 0(sp)\n\t"
+                   "mv fp, sp\n\t"
+                   "mv t0, a0\n\t"
+                   "beqz a1, 4f\n\t"
+                   "slli t1, a1, 3\n\t"
+                   "li t2, 64\n\t"
+                   "bge t1, t2, 1f\n\t"
+                   "mv t1, t2\n"
+                   "1:\taddi t1, t1, 15\n\t"
+                   "andi t1, t1, -16\n\t"
+                   "sub sp, fp, t1\n\t"
+                   "mv t3, sp\n"
+                   "2:\tld t4, 0(a2)\n\t"
+                   "sd t4, 0(t3)\n\t"
+                   "addi a2, a2, 8\n\t"
+                   "addi t3, t3, 8\n\t"
+                   "addi a1, a1, -1\n\t"
+                   "bnez a1, 2b\n\t"
+                   "ld a0, 0(sp)\n\t"
+                   "ld a1, 8(sp)\n\t"
+                   "ld a2, 16(sp)\n\t"
+                   "ld a3, 24(sp)\n\t"
+                   "ld a4, 32(sp)\n\t"
+                   "ld a5, 40(sp)\n\t"
+                   "ld a6, 48(sp)\n\t"
+                   "ld a7, 56(sp)\n\t"
+                   "addi sp, sp, 64\n"
+                   "4:\tjalr t0\n\t"
+                   "mv sp, fp\n\t"
+                   "ld ra, 8(sp)\n\t"
+                   "ld fp, 0(sp)\n\t"
+                   "addi sp, sp, 16\n\t"
+                   "ret" )
+
 #endif

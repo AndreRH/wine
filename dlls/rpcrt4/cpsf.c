@@ -115,7 +115,7 @@ static HRESULT WINAPI CStdPSFactory_CreateStub(LPPSFACTORYBUFFER iface,
   CStdPSFactoryBuffer *This = (CStdPSFactoryBuffer *)iface;
   const ProxyFileInfo *ProxyInfo;
   int Index;
-  TRACE("(%p)->CreateStub(%s,%p,%p)\n",iface,debugstr_guid(riid),
+  ERR("(%p)->CreateStub(%s,%p,%p)\n",iface,debugstr_guid(riid),
        pUnkServer,ppStub);
   if (!FindProxyInfo(This->pProxyFileList,riid,&ProxyInfo,&Index))
     return E_NOINTERFACE;
@@ -223,7 +223,7 @@ HRESULT WINAPI NdrDllRegisterProxy(HMODULE hDll,
   HKEY key, subkey;
   DWORD len;
 
-  TRACE("(%p,%p,%s)\n", hDll, pProxyFileList, debugstr_guid(pclsid));
+  ERR("(%p,%p,%s)\n", hDll, pProxyFileList, debugstr_guid(pclsid));
 
   if (!hDll) return E_HANDLE;
   if (!*pProxyFileList) return E_NOINTERFACE;
@@ -242,7 +242,7 @@ HRESULT WINAPI NdrDllRegisterProxy(HMODULE hDll,
       CInterfaceStubVtbl *proxy = (*pProxyFileList)->pStubVtblList[u];
       PCInterfaceName name = (*pProxyFileList)->pNamesArray[u];
 
-      TRACE("registering %s %s => %s\n",
+      ERR("registering %s %s => %s\n",
             debugstr_a(name), debugstr_guid(proxy->header.piid), debugstr_w(clsid));
 
       lstrcpyW( keyname, L"Interface\\" );

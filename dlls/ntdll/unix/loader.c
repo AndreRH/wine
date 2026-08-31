@@ -91,7 +91,7 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(module);
 
-#if defined __i386__ || (defined __x86_64__ && !defined __APPLE__)
+#if defined __i386__ || (defined __x86_64__ && !defined __APPLE__) || defined __riscv64__
 #define SO_DLLS_SUPPORTED
 #endif
 
@@ -263,6 +263,7 @@ static const char *get_so_dir( WORD machine )
     case IMAGE_FILE_MACHINE_AMD64: return "/x86_64-unix";
     case IMAGE_FILE_MACHINE_ARMNT: return "/arm-unix";
     case IMAGE_FILE_MACHINE_ARM64: return "/aarch64-unix";
+    case IMAGE_FILE_MACHINE_RISCV64: return "/riscv64-unix";
     default: return "";
     }
 }
@@ -275,6 +276,7 @@ static const char *get_pe_dir( WORD machine )
     case IMAGE_FILE_MACHINE_AMD64: return "/x86_64-windows";
     case IMAGE_FILE_MACHINE_ARMNT: return "/arm-windows";
     case IMAGE_FILE_MACHINE_ARM64: return "/aarch64-windows";
+    case IMAGE_FILE_MACHINE_RISCV64: return "/riscv64-windows";
     default: return "";
     }
 }
@@ -1598,6 +1600,13 @@ static void load_ntdll_functions( HMODULE module )
         *p__wine_unix_call_dispatcher_arm64ec = __wine_unix_call_dispatcher;
     }
     else *p__wine_unix_call_dispatcher = __wine_unix_call_dispatcher;
+#ifdef __riscv64__
+    {
+        void **p__wine_current_teb;
+        GET_FUNC( __wine_current_teb );
+        *p__wine_current_teb = NtCurrentTeb;
+    }
+#endif
 #undef GET_FUNC
 }
 

@@ -597,6 +597,8 @@ static const xmlstr_t empty_xmlstr;
 static const WCHAR current_archW[] = L"x86";
 #elif defined __aarch64__ || defined __arm64ec__
 static const WCHAR current_archW[] = L"arm64";
+#elif defined __riscv64__
+static const WCHAR current_archW[] = L"riscv64";
 #elif defined __x86_64__
 static const WCHAR current_archW[] = L"amd64";
 #elif defined __arm__
